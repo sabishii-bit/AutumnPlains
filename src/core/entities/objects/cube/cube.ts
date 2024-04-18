@@ -4,8 +4,8 @@ import GameObject from '../gameObject';
 
 export class Cube extends GameObject {
     
-    constructor(world: CANNON.World | null = null, initialPosition: THREE.Vector3) {
-        super(world, initialPosition);
+    constructor(initialPosition: THREE.Vector3) {
+        super(initialPosition);
     }
 
     protected createVisual() {
@@ -14,7 +14,7 @@ export class Cube extends GameObject {
         this.mesh = new THREE.Mesh(geometry, material);
     }
 
-    protected createPhysics(world: CANNON.World) {
+    protected createPhysics() {
         const halfExtents = new CANNON.Vec3(0.5, 0.5, 0.5);
         const shape = new CANNON.Box(halfExtents);
         this.body = new CANNON.Body({
@@ -23,7 +23,7 @@ export class Cube extends GameObject {
             shape: shape
         });
         this.body.type = CANNON.Body.KINEMATIC; // Make the body kinematic
-        world.addBody(this.body);
+        this.worldContext.addBody(this.body);
     }
 
     animate(deltaTime: number): void {

@@ -6,7 +6,7 @@ import { Scene } from 'three';
 import TreeObj from '../../../../assets/obj/tree/Tree_V11_Final.obj';
 import TreeMtl from '../../../../assets/obj/tree/Tree_V11_Final.mtl';
 
-// So webpack doesn't shit itself
+// So webpack doesn't shit itself trying to identify MTL dependencies
 const barkTexture = require('../../../../assets/obj/tree/bark_tree.jpg').default;
 const leavesTexture1 = require('../../../../assets/obj/tree/leaves_01.jpg').default;
 const leavesTexture2 = require('../../../../assets/obj/tree/leaves_02.jpg').default;
@@ -15,29 +15,19 @@ const leavesTexture3 = require('../../../../assets/obj/tree/leaves_03.jpg').defa
 export class Tree extends GameObject {
     sceneContext: Scene;
 
-    constructor(world: World | null = null, initialPosition: THREE.Vector3, scene: Scene, rotation: XYZ = {x: 0, y: 0, z: 0}) {
-        super(world, initialPosition, scene);
-        
-        this.sceneContext = scene;
+    constructor(initialPosition: THREE.Vector3) {
+        super(initialPosition);
         this.createVisual();
     }
 
     protected createVisual() {
-        // Assume ModelLoader is globally accessible or passed as a parameter
         const modelLoader = new ModelLoader();
         modelLoader.loadObjModel(TreeMtl, TreeObj, this.sceneContext, this.position);
-        this.setRotation();
     }
 
-    protected createPhysics(world: World) {
+    protected createPhysics() {
         // Optionally create a physical body if needed for collisions
         // This could be a simple bounding box or a more complex shape depending on the model
-        // If the model should not interact physically, you might skip this part
+        // If the model should not interact physically, skip this part
     }
 }
-
-type XYZ = {
-    x: number;
-    y: number;
-    z: number;
-};

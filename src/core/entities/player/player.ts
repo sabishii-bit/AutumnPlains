@@ -1,29 +1,39 @@
 import * as CANNON from 'cannon-es';
 import * as THREE from 'three';
+import { WorldContext } from '../../global/world/world';
 
 export class Player {
+    private static instance: Player;
     public jumpHeight: number = 20.0;
     public body: CANNON.Body;
     public moveSpeed: number = 1000.0;
     public canJump: boolean = true;
-    private worldContext: CANNON.World;
+    private worldContext: CANNON.World = WorldContext.getInstance();
 
-    constructor(world: CANNON.World, initialPosition: CANNON.Vec3 = new CANNON.Vec3(0, 10, 20)) {
-        this.worldContext = world;
+    // Private constructor to enforce singleton property
+    private constructor(initialPosition: CANNON.Vec3 = new CANNON.Vec3(0, 10, 20)) {
         const mass = 5;
         const radius = 2;
         this.body = new CANNON.Body({
             mass,
             position: initialPosition,
             shape: new CANNON.Sphere(radius),
-            material: this.worldContext.defaultMaterial,  // Use default material from the world context
+            material: this.worldContext.defaultMaterial,
             linearDamping: 0.9,
             angularDamping: 1
         });
-        world.addBody(this.body);
+        this.worldContext.addBody(this.body);
         this.body.addEventListener("collide", (event) => {
             this.canJump = true; // Reset jump ability when the player collides with something solid
         });
+    }
+
+    // Static method to access the singleton instance
+    public static getInstance(initialPosition: CANNON.Vec3 = new CANNON.Vec3(0, 10, 20)): Player {
+        if (!Player.instance) {
+            Player.instance = new Player(initialPosition);
+        }
+        return Player.instance;
     }
 
     public updatePosition(deltaTime: number, inputVector: THREE.Vector3) {

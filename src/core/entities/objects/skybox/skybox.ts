@@ -4,8 +4,8 @@ import GameObject from '../gameObject';
 import * as CANNON from 'cannon-es';
 
 export class Skybox extends GameObject {
-    constructor(world: CANNON.World | null = null, initialPosition: THREE.Vector3) {
-        super(world, initialPosition);  // No physics world needed for Skybox
+    constructor(initialPosition: THREE.Vector3) {
+        super(initialPosition);  // No physics world needed for Skybox
     }
 
     protected createVisual() {
@@ -19,7 +19,7 @@ export class Skybox extends GameObject {
         this.mesh.position.y = -120;
     }
 
-    protected createPhysics(world: CANNON.World, initialPosition: THREE.Vector3) {
+    protected createPhysics() {
         // Skybox does not need physics, implement as empty or with minimal logic
     }
 }

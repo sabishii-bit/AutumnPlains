@@ -7,16 +7,8 @@ export class Wall extends GameObject {
     private height: number;
     private depth: number;
 
-    constructor(world: CANNON.World | null = null, initialPosition: THREE.Vector3, width: number = 10, height: number = 3, depth: number = 1) {
-        super(world, initialPosition);
-        this.width = width;
-        this.height = height;
-        this.depth = depth;
-
-        this.createVisual();
-        if (world) {
-            this.createPhysics(world);
-        }
+    constructor(initialPosition: THREE.Vector3) {
+        super(initialPosition);
     }
 
     protected createVisual() {
@@ -27,7 +19,7 @@ export class Wall extends GameObject {
         this.mesh.position.copy(this.position);
     }
 
-    protected createPhysics(world: CANNON.World) {
+    protected createPhysics() {
         // Create a box shape with half-extents
         const halfExtents = new CANNON.Vec3(this.width / 2, this.height / 2, this.depth / 2);
         const shape = new CANNON.Box(halfExtents);
@@ -36,6 +28,6 @@ export class Wall extends GameObject {
             position: new CANNON.Vec3(this.position.x, this.position.y, this.position.z),
             shape: shape
         });
-        world.addBody(this.body);
+        this.worldContext.addBody(this.body);
     }
 }

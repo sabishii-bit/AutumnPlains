@@ -4,8 +4,8 @@ import * as CANNON from 'cannon-es';
 import groundTestTexture from "../../../../assets/groundTestTexture.jpg";
 
 export class Plane extends GameObject {
-    constructor(world: CANNON.World | null = null, initialPosition: THREE.Vector3) {
-        super(world, initialPosition); // Call to parent constructor
+    constructor(initialPosition: THREE.Vector3) {
+        super(initialPosition); // Call to parent constructor
     }
 
     protected createVisual() {
@@ -23,7 +23,7 @@ export class Plane extends GameObject {
         this.mesh.rotation.x = -Math.PI / 2;
     }
 
-    protected createPhysics(world: CANNON.World) {
+    protected createPhysics() {
         const shape = new CANNON.Plane();
         const groundMaterial = new CANNON.Material("groundMaterial");
         this.body = new CANNON.Body({
@@ -32,6 +32,6 @@ export class Plane extends GameObject {
             material: groundMaterial,
         });
         this.body.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-        world.addBody(this.body);
+        this.worldContext.addBody(this.body);
     }
 }
