@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { EngineClock } from '../engine/clock/engineClock';
 import { Renderer } from '../engine/render/renderer';
-import { FirstPersonCamera } from '../camera/camera';
+import { PlayerCamera } from '../camera/camera';
 import { TestMap } from '../maps/map';
 import { DebuggerInfo } from '../ui/debug';
 import { SceneContext } from '../global/scene/scene';
@@ -13,7 +13,7 @@ import { PlayerControls } from '../controls/playerControls';
 export default class Initialize {
     private scene: THREE.Scene;
     private renderer: Renderer;
-    private camera: FirstPersonCamera;
+    private camera: PlayerCamera;
     private map: TestMap;
     private world: CANNON.World;
     private engineClock: EngineClock;
@@ -26,7 +26,7 @@ export default class Initialize {
         this.scene = SceneContext.getInstance();
         this.renderer = new Renderer();
         this.player = Player.getInstance();
-        this.camera = FirstPersonCamera.getInstance();
+        this.camera = PlayerCamera.getInstance();
         this.controls = PlayerControls.getInstance(document.body);
         this.engineClock = new EngineClock();
         this.engineClock.start(); // Start the clock

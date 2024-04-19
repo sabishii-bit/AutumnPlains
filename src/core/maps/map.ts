@@ -7,7 +7,7 @@ import { Skybox } from '../entities/objects/skybox/skybox';
 import { Player } from '../entities/player/player';
 import { Renderer } from '../engine/render/renderer';
 import { Wall } from '../entities/objects/wall/wall';
-import { Tree } from '../entities/imported/tree/tree';
+import { Tree } from '../entities/objects/imported/tree/tree';
 import * as CANNON from 'cannon-es';
 import * as THREE from 'three';
 import { WorldContext } from '../global/world/world';

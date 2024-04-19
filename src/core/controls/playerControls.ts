@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Camera } from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls';
-import { FirstPersonCamera } from '../camera/camera';
+import { PlayerCamera } from '../camera/camera';
 import { Player } from '../entities/player/player';
 
 export class PlayerControls {
@@ -16,7 +16,7 @@ export class PlayerControls {
     private constructor(domElement?: HTMLElement) {
         this.controllerLock = false;
         this.player = Player.getInstance();
-        this.camera = FirstPersonCamera.getInstance().getCamera();
+        this.camera = PlayerCamera.getInstance().getCamera();
         this.controls = new PointerLockControls(this.camera, domElement);
 
         domElement.addEventListener('click', () => this.controls.lock());

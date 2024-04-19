@@ -1,6 +1,6 @@
 import { Player } from "../entities/player/player";
 import * as THREE from 'three';
-import { FirstPersonCamera } from "../camera/camera";
+import { PlayerCamera } from "../camera/camera";
 
 export class DebuggerInfo {
     private player: Player;
@@ -13,7 +13,7 @@ export class DebuggerInfo {
 
     constructor() {
         this.player = Player.getInstance();
-        this.camera = FirstPersonCamera.getInstance().getCamera();
+        this.camera = PlayerCamera.getInstance().getCamera();
         
         // Create HTML elements for displaying the information
         this.positionElement = document.createElement('div');

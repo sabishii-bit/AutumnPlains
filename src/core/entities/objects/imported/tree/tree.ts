@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { World } from 'cannon-es';
-import GameObject from '../../objects/gameObject';
-import { ModelLoader } from '../../../services/model_loader/modelLoader';
+import GameObject from '../../gameObject';
+import { ModelLoader } from '../../../../services/model_loader/modelLoader';
 import { Scene } from 'three';
 import TreeObj from '../../../../assets/obj/tree/Tree_V11_Final.obj';
 import TreeMtl from '../../../../assets/obj/tree/Tree_V11_Final.mtl';

@@ -3,8 +3,8 @@ import * as CANNON from 'cannon-es';
 import { PlayerControls } from '../controls/playerControls';
 import { Player } from '../entities/player/player';
 
-export class FirstPersonCamera {
-    private static instance: FirstPersonCamera;
+export class PlayerCamera {
+    private static instance: PlayerCamera;
     private camera: THREE.PerspectiveCamera;
     private controls: PlayerControls;
     private player: Player;
@@ -20,11 +20,11 @@ export class FirstPersonCamera {
     }
 
     // Static method to access the singleton instance
-    public static getInstance(): FirstPersonCamera {
-        if (!FirstPersonCamera.instance) {
-            FirstPersonCamera.instance = new FirstPersonCamera();
+    public static getInstance(): PlayerCamera {
+        if (!PlayerCamera.instance) {
+            PlayerCamera.instance = new PlayerCamera();
         }
-        return FirstPersonCamera.instance;
+        return PlayerCamera.instance;
     }
 
     private onWindowResize = () => {
