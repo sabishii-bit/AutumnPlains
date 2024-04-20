@@ -9,6 +9,7 @@ import { SceneContext } from '../global/scene/scene';
 import { WorldContext } from '../global/world/world';
 import { Player } from '../entities/player/player';
 import { PlayerControls } from '../controls/playerControls';
+import { GameObjectManager } from '../entities/gameObjectManager';
 
 export default class Initialize {
     private scene: THREE.Scene;
@@ -20,6 +21,7 @@ export default class Initialize {
     private debuggerInfo: DebuggerInfo;
     private player: Player;
     private controls: PlayerControls;
+    private gameObjectManager: GameObjectManager;
 
     constructor() {
         this.world = WorldContext.getInstance();
@@ -32,6 +34,7 @@ export default class Initialize {
         this.engineClock.start(); // Start the clock
         this.debuggerInfo = new DebuggerInfo();
         this.map = new TestMap(this.renderer);
+        this.gameObjectManager = new GameObjectManager();
         this.animate();
     }
 
@@ -40,6 +43,7 @@ export default class Initialize {
         const frameDeltaTime = this.engineClock.getFrameDeltaTime();
         this.world.step(this.engineClock.getFixedTimeStep());
         this.map.update(frameDeltaTime);
+        this.gameObjectManager.updateGameObjects(frameDeltaTime)
         this.debuggerInfo.update(frameDeltaTime);
         this.camera.update(frameDeltaTime);
         this.controls.update(frameDeltaTime);

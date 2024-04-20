@@ -17,11 +17,27 @@ module.exports = {
         use: ['style-loader', 'css-loader']
       },
       {
-        // Handling images and model files
-        test: /\.(png|svg|jpg|jpeg|gif|obj|mtl)$/,
+        // Handling images  files
+        test: /\.(png|svg|jpg|gif)$/,
         type: 'asset/resource',
         generator: {
           filename: 'assets/[name][ext]' // Outputs files to assets directory in dist
+        }
+      },
+      {
+        // Handling model files
+        test: /\.(obj|mtl|gltf|bin)$/,
+        type: 'asset/resource',
+        generator: {
+          filename: 'assets/models/[name][ext]'
+        }
+      },
+      {
+        // Handling texture files
+        test: /\.(jpeg)$/,
+        type: 'asset/resource',
+        generator: {
+          filename: 'assets/models/textures/[name][ext]'
         }
       },
     ],
