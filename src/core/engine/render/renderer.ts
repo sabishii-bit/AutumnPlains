@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 
 export class Renderer {
-    renderer: THREE.WebGLRenderer;
+    private static instance: Renderer;
+    private renderer: THREE.WebGLRenderer;
 
-    constructor() {
+    private constructor() {
         this.renderer = new THREE.WebGLRenderer({
             antialias: true,
             alpha: true // Optional: consider setting alpha for transparent background effects
@@ -15,18 +16,23 @@ export class Renderer {
         this.setupResizeHandling();
     }
 
-    getRenderer() {
+    // Static method to access the singleton instance
+    public static getInstance(): Renderer {
+        if (!Renderer.instance) {
+            Renderer.instance = new Renderer();
+        }
+        return Renderer.instance;
+    }
+
+    public getRenderer(): THREE.WebGLRenderer {
         return this.renderer;
     }
 
-    updateSize() {
+    public updateSize(): void {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        // If you're managing a camera globally here, you should also update its aspect ratio:
-        // camera.aspect = window.innerWidth / window.innerHeight;
-        // camera.updateProjectionMatrix();
     }
 
-    private setupResizeHandling() {
+    private setupResizeHandling(): void {
         window.addEventListener('resize', () => {
             this.updateSize();
             // Add additional resize logic if necessary

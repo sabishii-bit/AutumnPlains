@@ -1,12 +1,9 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
-import { PlayerControls } from '../controls/playerControls';
 import { Player } from '../entities/player/player';
 
 export class PlayerCamera {
     private static instance: PlayerCamera;
     private camera: THREE.PerspectiveCamera;
-    private controls: PlayerControls;
     private player: Player;
 
     // Private constructor to enforce singleton property
@@ -27,6 +24,7 @@ export class PlayerCamera {
         return PlayerCamera.instance;
     }
 
+    // Scales aspect ratio to screen size
     private onWindowResize = () => {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();

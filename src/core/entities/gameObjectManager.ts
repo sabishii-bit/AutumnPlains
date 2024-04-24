@@ -13,22 +13,48 @@ export class GameObjectManager {
 
     }
 
-    addGameObject(object: GameObject): void {
+    public addGameObject(object: GameObject): void {
         const objectId = object.getID();
         if (!GameObjectManager.objectCollection.has(objectId))
             GameObjectManager.objectCollection.set(objectId, object);
     }
 
-    updateGameObjects(deltaTime: number): void {
+    public updateGameObjects(deltaTime: number): void {
         GameObjectManager.objectCollection.forEach(obj => obj.update(deltaTime));
     }
 
-    loadObjects(): void {
+    public loadObjects(): void {
         GameObjectManager.objectCollection.forEach((obj, key) => {
             obj.addToScene(this.sceneContext);
             if (obj.getBody()) {
                 this.worldContext.addBody(obj.getBody());
             } 
         });
+    }
+
+    public deleteObject(objectID: string): void {
+        const object: GameObject = GameObjectManager.objectCollection.get(objectID);
+        const objectMesh = object.getMesh();
+        if (object) {
+            // Remove the object's mesh from the scene
+            if (objectMesh) {
+                this.sceneContext.remove(objectMesh);
+            }
+            // Remove the object's physics body from the world
+            if (object.getBody()) {
+                this.worldContext.removeBody(object.getBody());
+            }
+            // Finally, remove the object from the collection
+            GameObjectManager.objectCollection.delete(objectID);
+            console.log(`Object with ID ${objectID} has been removed.`);
+        } else {
+            console.error(`Object with ID ${objectID} not found.`);
+        }
+    }
+
+    public getObject(objectID: string): GameObject {
+        if (GameObjectManager.objectCollection.has(objectID)) {
+            return GameObjectManager.objectCollection.get(objectID);
+        }
     }
 }

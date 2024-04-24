@@ -1,11 +1,19 @@
 import * as THREE from 'three';
 
 export class EngineClock {
+    private static instance: EngineClock;
     private clock: THREE.Clock;
     public readonly fixedTimeStep: number = 1.0 / 60.0; // 60 Hz, matching physics updates
 
-    constructor() {
+    private constructor() {
         this.clock = new THREE.Clock(false); // Do not start the clock immediately
+    }
+
+    public static getInstance(): EngineClock {
+        if (!EngineClock.instance) {
+            EngineClock.instance = new EngineClock();
+        }
+        return EngineClock.instance;
     }
 
     // Call this once per frame to retrieve the time since the last rendered frame
@@ -19,7 +27,7 @@ export class EngineClock {
     }
 
     // Start or reset the clock
-    public start() {
+    public start(): void {
         this.clock.start();
     }
 }

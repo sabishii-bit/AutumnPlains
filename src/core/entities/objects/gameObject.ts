@@ -16,7 +16,7 @@ export default abstract class GameObject {
     protected gameObjectManager: GameObjectManager;
     protected objectId: string;
 
-    constructor(initialPosition: THREE.Vector3) {
+    constructor(initialPosition: THREE.Vector3, objectId: string = undefined) {
         // Initialize mesh with a simple placeholder
         this.mesh = new THREE.Mesh(
             new THREE.BoxGeometry(1, 1, 1), // Placeholder geometry
@@ -28,7 +28,9 @@ export default abstract class GameObject {
             this.position = initialPosition;
         
         this.mesh.position.copy(this.position);
-        this.objectId = generateUUID();
+
+        if (!objectId)
+            this.objectId = generateUUID();
 
         this.createVisual();
         this.createPhysics();
@@ -43,6 +45,18 @@ export default abstract class GameObject {
 
     public setPosition(position: Vector3): void {
         this.position = position;
+    }
+
+    public getMesh() {
+        return this.mesh;
+    }
+
+    public getId(): string {
+        return this.objectId;
+    }
+
+    public setId(objectId: string) {
+        this.objectId = objectId;
     }
 
     public getPosition(): THREE.Vector3 {

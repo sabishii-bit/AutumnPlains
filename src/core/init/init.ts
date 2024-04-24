@@ -26,11 +26,11 @@ export default class Initialize {
     constructor() {
         this.world = WorldContext.getInstance();
         this.scene = SceneContext.getInstance();
-        this.renderer = new Renderer();
+        this.renderer = Renderer.getInstance();
         this.player = Player.getInstance();
         this.camera = PlayerCamera.getInstance();
         this.controls = PlayerControls.getInstance(document.body);
-        this.engineClock = new EngineClock();
+        this.engineClock = EngineClock.getInstance();
         this.engineClock.start(); // Start the clock
         this.debuggerInfo = new DebuggerInfo();
         this.map = new TestMap(this.renderer);
