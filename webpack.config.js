@@ -1,5 +1,5 @@
-// webpack.config.js
 const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
   entry: './src/index.ts',
@@ -17,7 +17,7 @@ module.exports = {
         use: ['style-loader', 'css-loader']
       },
       {
-        // Handling images  files
+        // Handling images files
         test: /\.(png|svg|jpg|gif)$/,
         type: 'asset/resource',
         generator: {
@@ -51,6 +51,12 @@ module.exports = {
     assetModuleFilename: 'assets/[name][ext]', // Ensure assets go to the correct directory
     clean: true,
   },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: './public/index.html', // Path to your template in the public folder
+      filename: 'index.html', // Output file name
+    }),
+  ],
   devServer: {
     static: {
       directory: path.join(__dirname, 'public'),

@@ -14,20 +14,18 @@ export class BloomEffect {
     renderer: THREE.WebGLRenderer = Renderer.getInstance().getRenderer();
     scene: Scene = SceneContext.getInstance();
 
-    constructor(BloomParams: any = {exposure: 1, bloomStrength: 1.5, bloomThreshold: 0, bloomRadius: 0}) {
+    constructor(bloomParams: any = {exposure: 1, bloomStrength: 2.5, bloomThreshold: 0.1, bloomRadius: 0.55}) {
         this.composer = new EffectComposer(this.renderer);
         // Render Pass
         const renderPass = new RenderPass(this.scene, this.camera);
         this.composer.addPass(renderPass);
 
         // Bloom Pass
-        const params = BloomParams;
-
-        this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        const params = bloomParams;
+        this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), params.bloomStrength, 0.4, params.bloomRadius);
         this.bloomPass.threshold = params.bloomThreshold;
-        this.bloomPass.strength = params.bloomStrength;
-        this.bloomPass.radius = params.bloomRadius;
         this.composer.addPass(this.bloomPass);
+
         this.updateSize();
         this.render();
     }
