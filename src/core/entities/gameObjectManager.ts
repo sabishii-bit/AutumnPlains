@@ -9,14 +9,13 @@ export class GameObjectManager {
     private sceneContext: Scene = SceneContext.getInstance();
     private worldContext: CANNON.World = WorldContext.getInstance();
 
-    constructor() {
-
-    }
+    constructor() {}
 
     public addGameObject(object: GameObject): void {
         const objectId = object.getID();
-        if (!GameObjectManager.objectCollection.has(objectId))
+        if (!GameObjectManager.objectCollection.has(objectId)) {
             GameObjectManager.objectCollection.set(objectId, object);
+        }
     }
 
     public updateGameObjects(deltaTime: number): void {
@@ -28,7 +27,7 @@ export class GameObjectManager {
             obj.addToScene(this.sceneContext);
             if (obj.getBody()) {
                 this.worldContext.addBody(obj.getBody());
-            } 
+            }
         });
     }
 
@@ -52,9 +51,11 @@ export class GameObjectManager {
         }
     }
 
-    public getObject(objectID: string): GameObject {
-        if (GameObjectManager.objectCollection.has(objectID)) {
-            return GameObjectManager.objectCollection.get(objectID);
-        }
+    public getObject(objectID: string): GameObject | undefined {
+        return GameObjectManager.objectCollection.get(objectID);
+    }
+
+    public getAllGameObjects(): GameObject[] {
+        return Array.from(GameObjectManager.objectCollection.values());
     }
 }

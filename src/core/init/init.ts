@@ -10,6 +10,7 @@ import { WorldContext } from '../global/world/world';
 import { Player } from '../entities/player/player';
 import { PlayerControls } from '../controls/playerControls';
 import { GameObjectManager } from '../entities/gameObjectManager';
+import { ParticleSystemManager } from '../effects/particleManager';
 
 export default class Initialize {
     private scene: THREE.Scene;
@@ -22,6 +23,7 @@ export default class Initialize {
     private player: Player;
     private controls: PlayerControls;
     private gameObjectManager: GameObjectManager;
+    private particleSystemManager: ParticleSystemManager;
 
     constructor() {
         this.world = WorldContext.getInstance();
@@ -35,6 +37,7 @@ export default class Initialize {
         this.debuggerInfo = new DebuggerInfo();
         this.map = new TestMap(this.renderer);
         this.gameObjectManager = new GameObjectManager();
+        this.particleSystemManager = new ParticleSystemManager();
         this.animate();
     }
 
@@ -43,7 +46,8 @@ export default class Initialize {
         const frameDeltaTime = this.engineClock.getFrameDeltaTime();
         this.world.step(this.engineClock.getFixedTimeStep());
         this.map.update(frameDeltaTime);
-        this.gameObjectManager.updateGameObjects(frameDeltaTime)
+        this.gameObjectManager.updateGameObjects(frameDeltaTime);
+        this.particleSystemManager.update(frameDeltaTime);
         this.debuggerInfo.update(frameDeltaTime);
         this.camera.update(frameDeltaTime);
         this.controls.update(frameDeltaTime);

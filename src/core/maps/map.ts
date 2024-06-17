@@ -9,16 +9,20 @@ import * as CANNON from 'cannon-es';
 import * as THREE from 'three';
 import { GameObjectManager } from '../entities/gameObjectManager';
 import { BloomEffect } from '../effects/bloom/bloom';
+import { ParticleSystemManager  } from '../effects/particleManager';
+import { RainEffect } from '../effects/weather/rain';
 
 export class TestMap {
     private lighting: LightingEffect;
     private bloom: BloomEffect;
     private gameObjectManager: GameObjectManager;
+    private rain: RainEffect;
 
     constructor(renderer: Renderer) {
         this.gameObjectManager = new GameObjectManager();
         this.lighting = new LightingEffect();
         this.bloom = new BloomEffect();
+        this.rain = new RainEffect();
         
         new Ground(new THREE.Vector3(0, -1, 0));
         new Cube(new THREE.Vector3(0, 1, 0));
