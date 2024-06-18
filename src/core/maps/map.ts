@@ -10,12 +10,14 @@ import { GameObjectManager } from '../entities/gameObjectManager';
 import { BloomEffect } from '../effects/bloom/bloom';
 import { RainEffect } from '../effects/weather/rain';
 import { CloudEffect } from '../effects/weather/clouds';
+import { FogEffect } from '../effects/weather/fog';
 
 export class TestMap {
     private lighting: LightingEffect;
     private bloom: BloomEffect;
     private gameObjectManager: GameObjectManager;
     private rain: RainEffect;
+    private fog: FogEffect;
     private clouds: CloudEffect;
 
     constructor(renderer: Renderer) {
@@ -24,6 +26,7 @@ export class TestMap {
         this.bloom = new BloomEffect();
         this.clouds = new CloudEffect();
         this.rain = new RainEffect();
+        this.fog = new FogEffect();
         
         new Ground(new THREE.Vector3(0, -1, 0));
         new Skybox(new THREE.Vector3(0, 0, 0));

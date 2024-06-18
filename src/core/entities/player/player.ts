@@ -11,7 +11,7 @@ export class Player {
     private worldContext: CANNON.World = WorldContext.getInstance();
 
     // Private constructor to enforce singleton property
-    private constructor(initialPosition: CANNON.Vec3 = new CANNON.Vec3(0, 10, 20)) {
+    private constructor(initialPosition: CANNON.Vec3 = new CANNON.Vec3(0, 0, 0)) {
         const mass = 5;
         const radius = 2;
         this.body = new CANNON.Body({
@@ -29,7 +29,7 @@ export class Player {
     }
 
     // Static method to access the singleton instance
-    public static getInstance(initialPosition: CANNON.Vec3 = new CANNON.Vec3(0, 10, 20)): Player {
+    public static getInstance(initialPosition: CANNON.Vec3 = new CANNON.Vec3(0, 2, 20)): Player {
         if (!Player.instance) {
             Player.instance = new Player(initialPosition);
         }
