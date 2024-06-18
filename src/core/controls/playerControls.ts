@@ -87,49 +87,70 @@ export class PlayerControls {
     };
 
     private createVirtualJoysticks() {
+        // Create a container for the left joystick
+        const leftZone = document.createElement('div');
+        leftZone.style.position = 'absolute';
+        leftZone.style.left = '0';
+        leftZone.style.bottom = '0';
+        leftZone.style.width = '50%';
+        leftZone.style.height = '50%';
+        leftZone.style.zIndex = '100';
+        document.body.appendChild(leftZone);
+    
+        // Create a container for the right joystick
+        const rightZone = document.createElement('div');
+        rightZone.style.position = 'absolute';
+        rightZone.style.right = '0';
+        rightZone.style.bottom = '0';
+        rightZone.style.width = '50%';
+        rightZone.style.height = '50%';
+        rightZone.style.zIndex = '100';
+        document.body.appendChild(rightZone);
+    
         const leftNipple = nipplejs.create({
-            zone: document.body,
+            zone: leftZone,
             mode: 'static',
             position: { left: '50px', bottom: '50px' },
             color: 'red',
         });
-
+    
         const rightNipple = nipplejs.create({
-            zone: document.body,
+            zone: rightZone,
             mode: 'static',
             position: { right: '50px', bottom: '50px' },
             color: 'blue',
         });
-
+    
         leftNipple.on('move', (evt, data) => {
             if (data.direction) {
                 const angle = data.angle.degree;
                 if (angle >= 45 && angle < 135) {
-                    this.direction.z = 1; // down
+                    this.direction.z = -1; // up
                 } else if (angle >= 135 && angle < 225) {
                     this.direction.x = -1; // left
                 } else if (angle >= 225 && angle < 315) {
-                    this.direction.z = -1; // up
+                    this.direction.z = 1; // down
                 } else {
                     this.direction.x = 1; // right
                 }
             }
         });
-
+    
         leftNipple.on('end', () => {
             this.direction.set(0, 0, 0);
         });
-
+    
         rightNipple.on('move', (evt, data) => {
             if (data.force) {
                 const rotation = (data.angle.radian - Math.PI / 2);
                 this.camera.rotation.y += rotation * 0.01;
             }
         });
-
+    
         this.leftJoystick = leftNipple;
         this.rightJoystick = rightNipple;
-    }
+    }    
+    
 
     public update(deltaTime: number) {
         if (this.controllerLock) return;
