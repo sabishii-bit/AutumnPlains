@@ -30,7 +30,8 @@ export class TestMap {
         
         new Ground(new THREE.Vector3(0, -1, 0));
         new Skybox(new THREE.Vector3(0, 0, 0));
-        new JapaneseRestaurant(new THREE.Vector3(10, -1, 0))
+        new JapaneseRestaurant(new THREE.Vector3(10, 0, 0));
+        //new LittleTokyo(new THREE.Vector3(20, 0, 0));
 
         // Add objects and effects to the scene
         this.lighting.addToScene();
