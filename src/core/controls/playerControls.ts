@@ -3,6 +3,8 @@ import { Camera } from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls';
 import { PlayerCamera } from '../camera/camera';
 import { Player } from '../entities/player/player';
+import { DeviceService } from '../services/device/deviceService';
+import * as nipplejs from 'nipplejs';
 
 export class PlayerControls {
     private static instance: PlayerControls;
@@ -11,6 +13,8 @@ export class PlayerControls {
     private player: Player;
     private camera: THREE.PerspectiveCamera;
     private controllerLock: boolean; // Removes control from the player
+    private leftJoystick: nipplejs.JoystickManager;
+    private rightJoystick: nipplejs.JoystickManager;
 
     // Private constructor to enforce singleton property
     private constructor(domElement?: HTMLElement) {
@@ -21,6 +25,11 @@ export class PlayerControls {
 
         domElement.addEventListener('click', () => this.controls.lock());
         this.addEventListeners();
+
+        const deviceService = new DeviceService();
+        if (deviceService.isMobile()) {
+            this.createVirtualJoysticks();
+        }
     }
 
     // Static method to access the singleton instance
@@ -76,6 +85,51 @@ export class PlayerControls {
                 break;
         }
     };
+
+    private createVirtualJoysticks() {
+        const leftNipple = nipplejs.create({
+            zone: document.body,
+            mode: 'static',
+            position: { left: '50px', bottom: '50px' },
+            color: 'red',
+        });
+
+        const rightNipple = nipplejs.create({
+            zone: document.body,
+            mode: 'static',
+            position: { right: '50px', bottom: '50px' },
+            color: 'blue',
+        });
+
+        leftNipple.on('move', (evt, data) => {
+            if (data.direction) {
+                const angle = data.angle.degree;
+                if (angle >= 45 && angle < 135) {
+                    this.direction.z = 1; // down
+                } else if (angle >= 135 && angle < 225) {
+                    this.direction.x = -1; // left
+                } else if (angle >= 225 && angle < 315) {
+                    this.direction.z = -1; // up
+                } else {
+                    this.direction.x = 1; // right
+                }
+            }
+        });
+
+        leftNipple.on('end', () => {
+            this.direction.set(0, 0, 0);
+        });
+
+        rightNipple.on('move', (evt, data) => {
+            if (data.force) {
+                const rotation = (data.angle.radian - Math.PI / 2);
+                this.camera.rotation.y += rotation * 0.01;
+            }
+        });
+
+        this.leftJoystick = leftNipple;
+        this.rightJoystick = rightNipple;
+    }
 
     public update(deltaTime: number) {
         if (this.controllerLock) return;

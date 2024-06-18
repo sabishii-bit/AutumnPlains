@@ -26,6 +26,7 @@
     "@types/three": "^0.163.0",
     "@types/uuid": "^9.0.8",
     "cannon-es": "^0.20.0",
+    "nipplejs": "^0.10.2",
     "three": "^0.163.0",
     "uuid": "^9.0.1"
   }
