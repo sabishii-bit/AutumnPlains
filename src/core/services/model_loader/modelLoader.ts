@@ -30,6 +30,25 @@ export class ModelLoader {
         this.gltfLoader.load(
             gltfPath,
             (gltf) => {
+                // Ensure materials are compatible with lighting
+                gltf.scene.traverse((child) => {
+                    if ((child as THREE.Mesh).isMesh) {
+                        const mesh = child as THREE.Mesh;
+                        const material = mesh.material;
+                        if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshLambertMaterial) {
+                            // Use existing material
+                        } else if (material instanceof THREE.MeshBasicMaterial) {
+                            mesh.material = new THREE.MeshStandardMaterial({
+                                map: material.map,
+                                color: material.color
+                            });
+                        } else {
+                            // Create a default standard material if necessary
+                            mesh.material = new THREE.MeshStandardMaterial({ color: 0xffffff });
+                        }
+                    }
+                });
+
                 gltf.scene.position.set(position.x, position.y, position.z);
                 SceneContext.getInstance().add(gltf.scene);
             }, (xhr) => {
@@ -39,6 +58,4 @@ export class ModelLoader {
             }
         );
     }
-
-    
 }
