@@ -1,9 +1,5 @@
 import * as THREE from 'three';
 import { SceneContext } from '../../global/scene/scene';
-import Cloud1 from '../../../assets/images/clouds/cloud1.png';
-import Cloud2 from '../../../assets/images/clouds/cloud2.png';
-import Cloud3 from '../../../assets/images/clouds/cloud3.png';
-import Cloud4 from '../../../assets/images/clouds/cloud4.png';
 
 export class CloudEffect {
     private scene: THREE.Scene = SceneContext.getInstance();
@@ -29,10 +25,10 @@ export class CloudEffect {
 
         const textureLoader = new THREE.TextureLoader();
         const cloudTextures = [
-            textureLoader.load(Cloud1),
-            textureLoader.load(Cloud2),
-            textureLoader.load(Cloud3),
-            textureLoader.load(Cloud4)
+            textureLoader.load("/assets/cloud1.png"),
+            textureLoader.load("/assets/cloud2.png"),
+            textureLoader.load("/assets/cloud3.png"),
+            textureLoader.load("/assets/cloud4.png")
         ];
 
         this.cloudMaterials = cloudTextures.map(texture => new THREE.MeshBasicMaterial({

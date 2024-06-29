@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import GameObject from '../gameObject';
 import * as CANNON from 'cannon-es';
-import groundTestTexture from "../../../../assets/groundTestTexture.jpg";
 
 export class Ground extends GameObject {
     constructor(initialPosition: THREE.Vector3) {
@@ -12,7 +11,7 @@ export class Ground extends GameObject {
 
     protected createVisual() {
         const geometry = new THREE.PlaneGeometry(500, 500);
-        const texture = new THREE.TextureLoader().load(groundTestTexture);
+        const texture = new THREE.TextureLoader().load('/assets/groundTestTexture.jpg');
         texture.wrapS = THREE.RepeatWrapping;
         texture.wrapT = THREE.RepeatWrapping;
         texture.repeat.set(50, 50);

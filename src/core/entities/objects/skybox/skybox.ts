@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import skyboxTestTexture from "../../../../assets/skyboxTest.jpg";
 import GameObject from '../gameObject';
 import * as CANNON from 'cannon-es';
 
@@ -12,7 +11,7 @@ export class Skybox extends GameObject {
         const geometry = new THREE.SphereGeometry(450, 60, 40, 0, Math.PI * 2, 0, Math.PI / 2);
         geometry.scale(-1, 1, 1);
 
-        const texture = new THREE.TextureLoader().load(skyboxTestTexture);
+        const texture = new THREE.TextureLoader().load("/assets/skyboxTest.jpg");
         const material = new THREE.MeshBasicMaterial({ map: texture });
 
         this.mesh = new THREE.Mesh(geometry, material);

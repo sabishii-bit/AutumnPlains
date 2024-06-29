@@ -1,10 +1,16 @@
 {
   "compilerOptions": {
     "outDir": "./dist",
-    "module": "ES6",
-    "target": "ES5",
+    "module": "ESNext",
+    "target": "ESNext",
     "moduleResolution": "node",
-    "lib": ["DOM", "ES2015", "ES2016", "ES2017", "ESNext"]
+    "lib": ["DOM", "ESNext"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*", "public/index.ts", "custom.d.ts"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"],
+  "typeRoots": ["src/types"]
 }
