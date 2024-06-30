@@ -25,10 +25,10 @@ export class CloudEffect {
 
         const textureLoader = new THREE.TextureLoader();
         const cloudTextures = [
-            textureLoader.load("/assets/cloud1.png"),
-            textureLoader.load("/assets/cloud2.png"),
-            textureLoader.load("/assets/cloud3.png"),
-            textureLoader.load("/assets/cloud4.png")
+            textureLoader.load("/assets/images/clouds/cloud1.png"),
+            textureLoader.load("/assets/images/clouds/cloud2.png"),
+            textureLoader.load("/assets/images/clouds/cloud3.png"),
+            textureLoader.load("/assets/images/clouds/cloud4.png")
         ];
 
         this.cloudMaterials = cloudTextures.map(texture => new THREE.MeshBasicMaterial({
