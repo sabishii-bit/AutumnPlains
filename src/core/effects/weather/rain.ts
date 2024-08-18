@@ -8,8 +8,8 @@ export class RainEffect extends ParticleSystem {
     private ceilingHeight: number;
     private spread: number;
     private centerPosition: THREE.Vector3;
-    private raindropMesh: THREE.InstancedMesh;
-    private raindropGeometry: THREE.BufferGeometry;
+    private raindropMesh!: THREE.InstancedMesh;
+    private raindropGeometry!: THREE.BufferGeometry;
     private raindropMaterial: THREE.MeshBasicMaterial;
 
     constructor(

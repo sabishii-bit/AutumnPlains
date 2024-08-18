@@ -37,7 +37,7 @@ export class Ground extends GameObject {
     }
 
     private setGroundAsDefaultMaterial() {
-        const groundMaterial = this.getBody().material;
+        const groundMaterial = this.getBody()?.material;
         if (groundMaterial)
             this.worldContext.defaultMaterial = groundMaterial;  // Set the ground material as the default for the world
     }

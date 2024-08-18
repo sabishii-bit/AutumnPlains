@@ -26,22 +26,24 @@ export class GameObjectManager {
         GameObjectManager.objectCollection.forEach((obj, key) => {
             obj.addToScene(this.sceneContext);
             if (obj.getBody()) {
-                this.worldContext.addBody(obj.getBody());
+                this.worldContext.addBody(obj.getBody() ?? new CANNON.Body());
             }
         });
     }
 
     public deleteObject(objectID: string): void {
-        const object: GameObject = GameObjectManager.objectCollection.get(objectID);
-        const objectMesh = object.getMesh();
+        const object: GameObject | undefined = GameObjectManager.objectCollection.get(objectID);
+        const objectMesh = object?.getMesh();
+        const objectBody = object?.getBody();
+        
         if (object) {
             // Remove the object's mesh from the scene
             if (objectMesh) {
                 this.sceneContext.remove(objectMesh);
             }
             // Remove the object's physics body from the world
-            if (object.getBody()) {
-                this.worldContext.removeBody(object.getBody());
+            if (objectBody) {
+                this.worldContext.removeBody(objectBody);
             }
             // Finally, remove the object from the collection
             GameObjectManager.objectCollection.delete(objectID);
