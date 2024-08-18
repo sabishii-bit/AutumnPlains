@@ -181,7 +181,6 @@ export class PlayerControls {
             requestAnimationFrame(this.updateCameraRotation);
         }
     }
-    
 
     private createJoystickZone(side: 'left' | 'right'): HTMLDivElement {
         const zone = document.createElement('div');

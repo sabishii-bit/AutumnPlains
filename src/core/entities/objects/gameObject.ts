@@ -9,23 +9,21 @@ import { generateUUID } from 'three/src/math/MathUtils';
 export default abstract class GameObject {
     protected mesh: THREE.Mesh;
     protected body: CANNON.Body | null = null;
-    protected position: THREE.Vector3;
-    protected rotation: THREE.Vector3;
+    protected position: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
+    protected rotation: THREE.Vector3 | null = null;
     protected worldContext: CANNON.World = WorldContext.getInstance();
     protected sceneContext: Scene = SceneContext.getInstance();
-    protected gameObjectManager: GameObjectManager;
-    protected objectId: string;
+    protected gameObjectManager: GameObjectManager | null = null;
+    protected objectId: string = "";
 
-    constructor(initialPosition: THREE.Vector3, objectId: string = undefined) {
+    constructor(initialPosition: THREE.Vector3, objectId: string = "") {
         // Initialize mesh with a simple placeholder
         this.mesh = new THREE.Mesh(
             new THREE.BoxGeometry(1, 1, 1), // Placeholder geometry
             new THREE.MeshBasicMaterial({ color: 0xff0000 }) // Placeholder material
         );
-        if (!initialPosition)
+        if (initialPosition)
             this.setPosition(initialPosition);
-        else
-            this.position = initialPosition;
         
         this.mesh.position.copy(this.position);
 
@@ -76,7 +74,7 @@ export default abstract class GameObject {
         }
     }
 
-    public getBody(): CANNON.Body {
+    public getBody(): CANNON.Body | null {
         return this.body;
     }
     
@@ -91,8 +89,10 @@ export default abstract class GameObject {
     }
 
     protected syncMeshWithBody() {
-        this.mesh.position.copy(this.body.position as any);
-        this.mesh.quaternion.copy(this.body.quaternion as any);
+        if (this.body) {
+            this.mesh.position.copy(this.body.position as any);
+            this.mesh.quaternion.copy(this.body.quaternion as any);
+        }
     }
 
     protected addObjectToCollection(): void {

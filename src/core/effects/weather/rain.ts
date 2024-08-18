@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GameObjectManager } from '../../entities/gameObjectManager';
 import { ParticleSystem } from '../particleSystem';
-import { Ground } from '../../entities/objects/ground/ground';
+import { Ground } from '../../entities/objects/environment/ground/ground';
 
 export class RainEffect extends ParticleSystem {
     private gameObjectManager: GameObjectManager;
@@ -109,7 +109,7 @@ export class RainEffect extends ParticleSystem {
 
             // Check for collisions with game objects
             for (const gameObject of gameObjects) {
-                if (!(gameObject instanceof Ground)) continue; // Ignore objects that are not instances of Ground
+                if (!(gameObject instanceof Ground)) continue;
 
                 const boundingBox = new THREE.Box3().setFromObject(gameObject.getMesh());
                 const particlePosition = new THREE.Vector3(

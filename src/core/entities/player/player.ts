@@ -23,7 +23,7 @@ export class Player {
             angularDamping: 1
         });
         this.worldContext.addBody(this.body);
-        this.body.addEventListener("collide", (event) => {
+        this.body.addEventListener("collide", () => {
             this.canJump = true; // Reset jump ability when the player collides with something solid
         });
     }

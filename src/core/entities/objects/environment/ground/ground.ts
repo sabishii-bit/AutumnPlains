@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import GameObject from '../gameObject';
+import GameObject from '../../gameObject';
 import * as CANNON from 'cannon-es';
 
 export class Ground extends GameObject {
@@ -38,7 +38,8 @@ export class Ground extends GameObject {
 
     private setGroundAsDefaultMaterial() {
         const groundMaterial = this.getBody().material;
-        this.worldContext.defaultMaterial = groundMaterial;  // Set the ground material as the default for the world
+        if (groundMaterial)
+            this.worldContext.defaultMaterial = groundMaterial;  // Set the ground material as the default for the world
     }
 
     private initializeContactMaterialBetweenGroundAndPlayer() {

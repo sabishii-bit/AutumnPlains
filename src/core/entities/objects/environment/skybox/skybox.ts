@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import GameObject from '../gameObject';
+import GameObject from '../../gameObject';
 import * as CANNON from 'cannon-es';
 
 export class Skybox extends GameObject {

@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 import { SceneContext } from '../../global/scene/scene';
+import { WorldContext } from '../../global/world/world';
 
 export class ModelLoader {
     private gltfLoader: GLTFLoader;
@@ -26,7 +28,7 @@ export class ModelLoader {
         });
     }
 
-    public loadGltfModel(gltfPath: string, position: THREE.Vector3): void {
+    public loadGltfModel(gltfPath: string, position: THREE.Vector3, trimeshCollisionEnabled: boolean = false, physicsBody: CANNON.Body | null = null): void {
         this.gltfLoader.load(
             gltfPath,
             (gltf) => {
@@ -35,6 +37,7 @@ export class ModelLoader {
                     if ((child as THREE.Mesh).isMesh) {
                         const mesh = child as THREE.Mesh;
                         const material = mesh.material;
+
                         if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshLambertMaterial) {
                             // Use existing material
                         } else if (material instanceof THREE.MeshBasicMaterial) {
@@ -51,11 +54,48 @@ export class ModelLoader {
 
                 gltf.scene.position.set(position.x, position.y, position.z);
                 SceneContext.getInstance().add(gltf.scene);
-            }, (xhr) => {
+
+                // Create a CANNON.Trimesh for physics
+                if (trimeshCollisionEnabled)
+                    this.createTrimeshPhysics(gltf.scene, position, physicsBody);
+            },
+            (xhr) => {
                 console.log((xhr.loaded / xhr.total * 100) + '% loaded'); // Optional: console log loading progress
-            }, (error) => {
+            },
+            (error) => {
                 console.error('An error happened during loading: ' + error); // Log errors that occur
             }
         );
+    }
+
+    private createTrimeshPhysics(scene: THREE.Group, position: THREE.Vector3, physicsBody: CANNON.Body | null = null): void {
+        scene.traverse((child) => {
+            if (child instanceof THREE.Mesh && child.geometry) {
+                const geometry = child.geometry;
+                const vertices = geometry.attributes.position.array;
+                const indices = geometry.index ? geometry.index.array : [];
+
+                const cannonShape = new CANNON.Trimesh(
+                    Array.from(vertices),
+                    Array.from(indices)
+                );
+
+                let cannonBody: CANNON.Body;
+                if (physicsBody) {
+                    cannonBody = physicsBody;
+                    cannonBody.position = new CANNON.Vec3(position.x, position.y, position.z);
+                } else {
+                    cannonBody = new CANNON.Body({
+                        mass: 0, // Static body
+                        position: new CANNON.Vec3(position.x, position.y, position.z)
+                    });
+                }
+
+                
+                cannonBody.addShape(cannonShape);
+
+                WorldContext.getInstance().addBody(cannonBody);
+            }
+        });
     }
 }

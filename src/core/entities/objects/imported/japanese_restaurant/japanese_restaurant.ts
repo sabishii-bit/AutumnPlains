@@ -1,10 +1,8 @@
 import * as THREE from 'three';
 import GameObject from '../../gameObject';
 import { ModelLoader } from '../../../../services/model_loader/modelLoader';
-import { Scene } from 'three';
 
 export class JapaneseRestaurant extends GameObject {
-    sceneContext: Scene;
 
     constructor(initialPosition: THREE.Vector3) {
         super(initialPosition);
