@@ -1,6 +1,6 @@
-import { Player } from "../entities/player/player";
+import { Player } from "../../entities/player/player";
 import * as THREE from 'three';
-import { PlayerCamera } from "../camera/camera";
+import { PlayerCamera } from "../../camera/camera";
 
 export class DebuggerInfo {
     private player: Player;
