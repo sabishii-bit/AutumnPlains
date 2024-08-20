@@ -13,6 +13,14 @@ export abstract class ParticleSystem {
     protected particleSpeed: number;
     private particleSystemManager: ParticleSystemManager = new ParticleSystemManager();
 
+
+    /**
+     * Creates an instance of a ParticleSystem.
+     * 
+     * @param particleCount - The number of particles in the system.
+     * @param particleSpeed - The speed at which the particles move.
+     * @param materialOptions - Options to configure the appearance of the particles.
+     */
     constructor(particleCount: number, particleSpeed: number, materialOptions: THREE.PointsMaterialParameters) {
         this.particleCount = particleCount;
         this.particleSpeed = particleSpeed;
@@ -38,13 +46,31 @@ export abstract class ParticleSystem {
         this.updateSize();
     }
 
+    /**
+     * Abstract method that must be implemented by subclasses.
+     * 
+     * Updates the state of the particle system. Typically called once per frame.
+     * 
+     * @param deltaTime - The time elapsed since the last update.
+     */
     public abstract update(deltaTime: number): void;
 
+    /**
+     * Updates the size and draw range of the particle system.
+     * 
+     * - Adjusts the draw range of the particle geometry based on `particleCount`.
+     * - Resizes the renderer to match the window dimensions.
+     */
     public updateSize() {
         this.particleGeometry.setDrawRange(0, this.particleCount);
         this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
+    /**
+     * Returns the Three.js Points object representing the particles.
+     * 
+     * @returns The Points object that contains the particle geometry and material.
+     */
     public getParticles(): THREE.Points {
         return this.particles;
     }

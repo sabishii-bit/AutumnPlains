@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GameObjectManager } from '../../entities/gameObjectManager';
 import { ParticleSystem } from '../particleSystem';
 import { Ground } from '../../entities/objects/environment/ground/ground';
+import { Skybox } from '../../entities/objects/environment/skybox/skybox';
 
 export class RainEffect extends ParticleSystem {
     private gameObjectManager: GameObjectManager;
@@ -13,7 +14,7 @@ export class RainEffect extends ParticleSystem {
     private raindropMaterial: THREE.MeshBasicMaterial;
 
     constructor(
-        particleCount: number = 15000,
+        particleCount: number = 5000,
         particleSpeed: number = 30,
         ceilingHeight: number = 100,
         spread: number = 100,
@@ -109,7 +110,9 @@ export class RainEffect extends ParticleSystem {
 
             // Check for collisions with game objects
             for (const gameObject of gameObjects) {
-                if (!(gameObject instanceof Ground)) continue;
+                // Collisions occur when a particle overlaps a gameObject's coordinates
+                // To avoid the immediate deletion of particles encompassed inside the SkyBox, have them ignore it.
+                if ((gameObject instanceof Skybox)) continue;
 
                 const boundingBox = new THREE.Box3().setFromObject(gameObject.getMesh());
                 const particlePosition = new THREE.Vector3(

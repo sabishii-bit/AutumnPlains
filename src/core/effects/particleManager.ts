@@ -2,6 +2,7 @@ import { SceneContext } from "../global/scene/scene";
 import { ParticleSystem } from './particleSystem';
 import * as THREE from 'three';
 
+// TODO: Add keys for particle systems to identify which is which
 export class ParticleSystemManager {
     private static particleSystemsCollection: ParticleSystem[] = [];
     private scene: THREE.Scene = SceneContext.getInstance();
