@@ -1,15 +1,15 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import { EngineClock } from '../engine/clock/engineClock';
-import { Renderer } from '../engine/render/renderer';
-import { PlayerCamera } from '../camera/camera';
-import { TestMap } from '../maps/map';
-import { SceneContext } from '../global/scene/scene';
-import { WorldContext } from '../global/world/world';
-import { Player } from '../entities/player/player';
-import { PlayerControls } from '../controls/playerControls';
-import { GameObjectManager } from '../entities/gameObjectManager';
-import { ParticleSystemManager } from '../effects/particleManager';
+import { EngineClock } from '../engine/clock/EngineClock';
+import { Renderer } from '../engine/render/Renderer';
+import { PlayerCamera } from '../camera/PlayerCamera';
+import { TestMap } from '../maps/TestMap';
+import { SceneContext } from '../global/scene/SceneContext';
+import { WorldContext } from '../global/world/WorldContext';
+import { PlayerCharacter } from '../entities/objects/character/PlayerCharacter';
+import { ControllerManager } from '../controls/ControllerManager';
+import { GameObjectManager } from '../entities/GameObjectManager';
+import { ParticleSystemManager } from '../effects/ParticleSystemManager';
 import { UIManager } from '../ui/UIManager';
 
 export default class Initialize {
@@ -19,8 +19,8 @@ export default class Initialize {
     private map: TestMap;
     private world: CANNON.World;
     private engineClock: EngineClock;
-    private player: Player;
-    private controls: PlayerControls;
+    private player: PlayerCharacter;
+    private controls: ControllerManager;
     private gameObjectManager: GameObjectManager;
     private particleSystemManager: ParticleSystemManager;
     private uiManager: UIManager;  // Declare UIManager
@@ -29,9 +29,9 @@ export default class Initialize {
         this.world = WorldContext.getInstance();
         this.scene = SceneContext.getInstance();
         this.renderer = Renderer.getInstance();
-        this.player = Player.getInstance();
+        this.player = PlayerCharacter.getInstance(new THREE.Vector3(0, 2, 18));
         this.camera = PlayerCamera.getInstance();
-        this.controls = PlayerControls.getInstance(document.body);
+        this.controls = ControllerManager.getInstance(document.body);
         this.engineClock = EngineClock.getInstance();
         this.engineClock.start(); // Start the clock
         this.map = new TestMap(this.renderer);

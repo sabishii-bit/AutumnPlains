@@ -1,17 +1,17 @@
 import * as THREE from 'three';
-import { Player } from '../entities/player/player';
+import { PlayerCharacter } from '../entities/objects/character/PlayerCharacter';
 
 export class PlayerCamera {
     private static instance: PlayerCamera;
     private camera: THREE.PerspectiveCamera;
-    private player: Player;
+    private player: PlayerCharacter;
 
     // Private constructor to enforce singleton property
     private constructor() {
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
         // Create a Player instance and pass it to the controls
-        this.player = Player.getInstance();
+        this.player = PlayerCharacter.getInstance();
 
         window.addEventListener('resize', this.onWindowResize);
     }

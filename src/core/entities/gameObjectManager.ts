@@ -1,6 +1,6 @@
-import { WorldContext } from "../global/world/world";
-import { SceneContext } from "../global/scene/scene";
-import GameObject from "./objects/gameObject";
+import { WorldContext } from "../global/world/WorldContext";
+import { SceneContext } from "../global/scene/SceneContext";
+import GameObject from "./objects/GameObject";
 import * as CANNON from 'cannon-es';
 import { Scene } from "three";
 

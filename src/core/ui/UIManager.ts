@@ -1,5 +1,5 @@
-import { DebuggerInfo } from '../ui/ui_components/debug';
-import { Crosshairs } from '../ui/ui_components/crosshairs';
+import { UIDebugComponent } from './ui_components/UIDebugComponent';
+import { UICrosshairsComponent } from './ui_components/UICrosshairsComponent';
 
 export class UIManager {
     private static uiComponents: Map<string, any> = new Map<string, any>();
@@ -10,8 +10,8 @@ export class UIManager {
 
     // Method to initialize all UI components
     private initializeComponents() {
-        const debuggerInfo = new DebuggerInfo();
-        const crosshairs = new Crosshairs();
+        const debuggerInfo = new UIDebugComponent();
+        const crosshairs = new UICrosshairsComponent();
 
         // Add components to the collection
         UIManager.uiComponents.set('DebuggerInfo', debuggerInfo);

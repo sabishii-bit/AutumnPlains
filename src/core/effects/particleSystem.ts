@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { SceneContext } from '../global/scene/scene';
-import { Renderer } from '../engine/render/renderer';
-import { ParticleSystemManager } from './particleManager';
+import { SceneContext } from '../global/scene/SceneContext';
+import { Renderer } from '../engine/render/Renderer';
+import { ParticleSystemManager } from './ParticleSystemManager';
 
 export abstract class ParticleSystem {
     protected particleGeometry: THREE.BufferGeometry;

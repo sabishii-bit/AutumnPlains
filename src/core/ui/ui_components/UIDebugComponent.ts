@@ -1,9 +1,9 @@
-import { Player } from "../../entities/player/player";
+import { PlayerCharacter } from "../../entities/objects/character/PlayerCharacter";
 import * as THREE from 'three';
-import { PlayerCamera } from "../../camera/camera";
+import { PlayerCamera } from "../../camera/PlayerCamera";
 
-export class DebuggerInfo {
-    private player: Player;
+export class UIDebugComponent {
+    private player: PlayerCharacter;
     private camera: THREE.Camera;
     private positionElement: HTMLElement;
     private velocityElement: HTMLElement;
@@ -13,7 +13,7 @@ export class DebuggerInfo {
     private readonly maxSamples = 60;  // Number of frames to average for FPS
 
     constructor() {
-        this.player = Player.getInstance();
+        this.player = PlayerCharacter.getInstance();
         this.camera = PlayerCamera.getInstance().getCamera();
         
         // Create HTML elements for displaying the information

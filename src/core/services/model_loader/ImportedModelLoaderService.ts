@@ -3,10 +3,10 @@ import * as CANNON from 'cannon-es';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
-import { SceneContext } from '../../global/scene/scene';
-import { WorldContext } from '../../global/world/world';
+import { SceneContext } from '../../global/scene/SceneContext';
+import { WorldContext } from '../../global/world/WorldContext';
 
-export class ModelLoader {
+export class ImportedModelLoaderService {
     private gltfLoader: GLTFLoader;
     private objLoader: OBJLoader;
     private mtlLoader: MTLLoader;
@@ -32,32 +32,41 @@ export class ModelLoader {
         this.gltfLoader.load(
             gltfPath,
             (gltf) => {
-                // Ensure materials are compatible with lighting
+                // Traverse the model to enable shadows and set up materials
                 gltf.scene.traverse((child) => {
-                    if ((child as THREE.Mesh).isMesh) {
+                    if (child instanceof THREE.Mesh) {
                         const mesh = child as THREE.Mesh;
-                        const material = mesh.material;
+                        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
 
-                        if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshLambertMaterial) {
-                            // Use existing material
-                        } else if (material instanceof THREE.MeshBasicMaterial) {
-                            mesh.material = new THREE.MeshStandardMaterial({
-                                map: material.map,
-                                color: material.color
-                            });
-                        } else {
-                            // Create a default standard material if necessary
-                            mesh.material = new THREE.MeshStandardMaterial({ color: 0xffffff });
-                        }
+                        materials.forEach((material) => {
+                            // Ensure the material is compatible with shadows
+                            if (material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshLambertMaterial) {
+                                // These materials are already shadow-compatible
+                            } else if (material instanceof THREE.MeshBasicMaterial) {
+                                // Convert to a standard material that supports shadows
+                                mesh.material = new THREE.MeshStandardMaterial({
+                                    map: material.map,
+                                    color: material.color
+                                });
+                            } else {
+                                // Default to a basic shadow-compatible material
+                                mesh.material = new THREE.MeshStandardMaterial({ color: 0xffffff });
+                            }
+                        });
+
+                        // Enable shadow casting and receiving
+                        mesh.castShadow = true;    // Enable casting shadows
+                        mesh.receiveShadow = true; // Enable receiving shadows
                     }
                 });
 
                 gltf.scene.position.set(position.x, position.y, position.z);
                 SceneContext.getInstance().add(gltf.scene);
 
-                // Create a CANNON.Trimesh for physics
-                if (trimeshCollisionEnabled)
+                // Create a CANNON.Trimesh for physics if enabled
+                if (trimeshCollisionEnabled) {
                     this.createTrimeshPhysics(gltf.scene, position, physicsBody);
+                }
             },
             (xhr) => {
                 console.log((xhr.loaded / xhr.total * 100) + '% loaded'); // Optional: console log loading progress
@@ -91,7 +100,6 @@ export class ModelLoader {
                     });
                 }
 
-                
                 cannonBody.addShape(cannonShape);
 
                 WorldContext.getInstance().addBody(cannonBody);

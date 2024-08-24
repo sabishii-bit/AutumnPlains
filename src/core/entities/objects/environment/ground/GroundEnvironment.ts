@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import GameObject from '../../gameObject';
+import GameObject from '../../GameObject';
 import * as CANNON from 'cannon-es';
 
-export class Ground extends GameObject {
+export class GroundEnvironment extends GameObject {
     constructor(initialPosition: THREE.Vector3) {
         super(initialPosition); // Call to parent constructor
         this.setGroundAsDefaultMaterial();

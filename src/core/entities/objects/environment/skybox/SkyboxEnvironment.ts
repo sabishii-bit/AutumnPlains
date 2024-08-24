@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import GameObject from '../../gameObject';
+import GameObject from '../../GameObject';
 import * as CANNON from 'cannon-es';
 
-export class Skybox extends GameObject {
+export class SkyboxEnvironment extends GameObject {
     constructor(initialPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
         super(initialPosition);  // No physics world needed for Skybox
     }

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { SceneContext } from '../../global/scene/scene';
+import { SceneContext } from '../../global/scene/SceneContext';
 
-export class CloudEffect {
+export class CloudWeatherEffect {
     private scene: THREE.Scene = SceneContext.getInstance();
     private cloudGeometry: THREE.PlaneGeometry;
     private cloudMaterials: THREE.MeshBasicMaterial[];

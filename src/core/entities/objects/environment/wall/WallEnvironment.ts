@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import GameObject from '../gameObject';
+import GameObject from '../../GameObject';
 
-export class Wall extends GameObject {
+export class WallEnvironment extends GameObject {
     private width: number;
     private height: number;
     private depth: number;

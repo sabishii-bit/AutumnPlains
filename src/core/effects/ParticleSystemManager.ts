@@ -1,5 +1,5 @@
-import { SceneContext } from "../global/scene/scene";
-import { ParticleSystem } from './particleSystem';
+import { SceneContext } from "../global/scene/SceneContext";
+import { ParticleSystem } from './ParticleSystem';
 import * as THREE from 'three';
 
 // TODO: Add keys for particle systems to identify which is which

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import GameObject from '../../gameObject';
-import { ModelLoader } from '../../../../services/model_loader/modelLoader';
+import GameObject from '../../GameObject';
+import { ImportedModelLoaderService } from '../../../../services/model_loader/ImportedModelLoaderService';
 
 export class JapaneseRestaurant extends GameObject {
 
@@ -10,7 +10,7 @@ export class JapaneseRestaurant extends GameObject {
     }
 
     protected createVisual() {
-        const modelLoader = new ModelLoader();
+        const modelLoader = new ImportedModelLoaderService();
         modelLoader.loadGltfModel("/assets/gltf/japanese_restaurant/scene.gltf", this.position);
     }
 

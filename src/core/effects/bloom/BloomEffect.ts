@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { PlayerCamera } from '../../camera/camera';
-import { SceneContext } from '../../global/scene/scene';
-import { Renderer } from '../../engine/render/renderer';
+import { PlayerCamera } from '../../camera/PlayerCamera';
+import { SceneContext } from '../../global/scene/SceneContext';
+import { Renderer } from '../../engine/render/Renderer';
 import { Scene } from 'three';
 
 export class BloomEffect {

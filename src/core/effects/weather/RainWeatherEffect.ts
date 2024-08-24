@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { GameObjectManager } from '../../entities/gameObjectManager';
-import { ParticleSystem } from '../particleSystem';
-import { Ground } from '../../entities/objects/environment/ground/ground';
-import { Skybox } from '../../entities/objects/environment/skybox/skybox';
+import { GameObjectManager } from '../../entities/GameObjectManager';
+import { ParticleSystem } from '../ParticleSystem';
+import { GroundEnvironment } from '../../entities/objects/environment/ground/GroundEnvironment';
+import { SkyboxEnvironment } from '../../entities/objects/environment/skybox/SkyboxEnvironment';
 
-export class RainEffect extends ParticleSystem {
+export class RainWeatherEffect extends ParticleSystem {
     private gameObjectManager: GameObjectManager;
     private ceilingHeight: number;
     private spread: number;
@@ -14,7 +14,7 @@ export class RainEffect extends ParticleSystem {
     private raindropMaterial: THREE.MeshBasicMaterial;
 
     constructor(
-        particleCount: number = 5000,
+        particleCount: number = 1500,
         particleSpeed: number = 30,
         ceilingHeight: number = 100,
         spread: number = 100,
@@ -97,31 +97,30 @@ export class RainEffect extends ParticleSystem {
     public update(deltaTime: number) {
         const positions = this.particleGeometry.attributes.position.array as Float32Array;
         const speed = this.particleSpeed * deltaTime;
-
+    
         const gameObjects = this.gameObjectManager.getAllGameObjects();
         const matrix = new THREE.Matrix4();
-
+    
         for (let i = 0; i < this.particleCount; i++) {
             positions[i * 3 + 1] -= speed; // Move particles downward
-
+    
             // Update raindrop mesh position
             matrix.setPosition(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
             this.raindropMesh.setMatrixAt(i, matrix);
-
+    
             // Check for collisions with game objects
             for (const gameObject of gameObjects) {
-                // Collisions occur when a particle overlaps a gameObject's coordinates
-                // To avoid the immediate deletion of particles encompassed inside the SkyBox, have them ignore it.
-                if ((gameObject instanceof Skybox)) continue;
-
+                if (gameObject instanceof SkyboxEnvironment) continue;
+    
                 const boundingBox = new THREE.Box3().setFromObject(gameObject.getMesh());
                 const particlePosition = new THREE.Vector3(
                     positions[i * 3],
                     positions[i * 3 + 1],
                     positions[i * 3 + 2]
                 );
-
-                if (boundingBox.min.y <= particlePosition.y && boundingBox.max.y >= particlePosition.y) {
+    
+                // Adjust the condition to check if the particle is below the bounding box
+                if (particlePosition.y <= boundingBox.min.y + 0.1) { // Add a small buffer (0.1) to avoid premature reset
                     // Reset particle position if collision detected
                     positions[i * 3] = Math.random() * this.spread - this.spread / 2 + this.centerPosition.x; // Reset x position
                     positions[i * 3 + 1] = Math.random() * this.ceilingHeight + this.centerPosition.y; // Reset y position
@@ -129,7 +128,7 @@ export class RainEffect extends ParticleSystem {
                     break;
                 }
             }
-
+    
             // Reset position if the particle goes below a certain threshold
             if (positions[i * 3 + 1] < -100) {
                 positions[i * 3] = Math.random() * this.spread - this.spread / 2 + this.centerPosition.x; // Reset x position
@@ -137,8 +136,9 @@ export class RainEffect extends ParticleSystem {
                 positions[i * 3 + 2] = Math.random() * this.spread - this.spread / 2 + this.centerPosition.z; // Reset z position
             }
         }
-
+    
         this.particleGeometry.attributes.position.needsUpdate = true;
         this.raindropMesh.instanceMatrix.needsUpdate = true;
     }
+    
 }

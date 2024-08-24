@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { Scene, Vector3 } from 'three';
-import { WorldContext } from '../../global/world/world';
-import { GameObjectManager } from "../gameObjectManager";
-import { SceneContext } from '../../global/scene/scene';
+import { WorldContext } from '../../global/world/WorldContext';
+import { GameObjectManager } from "../GameObjectManager";
+import { SceneContext } from '../../global/scene/SceneContext';
 import { generateUUID } from 'three/src/math/MathUtils';
 
 export default abstract class GameObject {
@@ -19,8 +19,8 @@ export default abstract class GameObject {
     constructor(initialPosition: THREE.Vector3, objectId: string = "") {
         // Initialize mesh with a simple placeholder
         this.mesh = new THREE.Mesh(
-            new THREE.BoxGeometry(1, 1, 1), // Placeholder geometry
-            new THREE.MeshBasicMaterial({ color: 0xff0000 }) // Placeholder material
+            new THREE.BoxGeometry(0, 0, 0), // Placeholder geometry
+            new THREE.MeshBasicMaterial() // Placeholder material
         );
         if (initialPosition)
             this.setPosition(initialPosition);

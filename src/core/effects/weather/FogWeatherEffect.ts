@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { SceneContext } from '../../global/scene/scene';
+import { SceneContext } from '../../global/scene/SceneContext';
 
-export class FogEffect {
+export class FogWeatherEffect {
     private scene: THREE.Scene = SceneContext.getInstance();
     private fogColor: THREE.Color;
     private fogDensity: number;

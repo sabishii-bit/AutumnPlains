@@ -1,5 +1,5 @@
 // Checks user's device
-export class DeviceService {
+export class DeviceDetectionService {
     private userAgent: string;
 
     constructor() {

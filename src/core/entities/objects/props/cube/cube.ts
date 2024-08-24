@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import GameObject from '../gameObject';
+import GameObject from '../../GameObject';
 
-export class Cube extends GameObject {
+export class CubeProp extends GameObject {
     
     constructor(initialPosition: THREE.Vector3) {
         super(initialPosition);
