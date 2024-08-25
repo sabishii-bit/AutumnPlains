@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls';
 import { PlayerControls } from './PlayerControls';
 
-export class KeyboardControls extends PlayerControls {
+export  class KeyboardControls extends PlayerControls {
     private controls: PointerLockControls;
     private keyStates: Map<string, boolean> = new Map();
 
