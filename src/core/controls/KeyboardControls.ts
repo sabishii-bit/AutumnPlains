@@ -1,8 +1,14 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls';
 import { PlayerControls } from './PlayerControls';
+import CommandMovePlayerForward from './keyboard_actions/CommandMovePlayerForward';
+import CommandMovePlayerBackward from './keyboard_actions/CommandMovePlayerBackward';
+import CommandMovePlayerLeft from './keyboard_actions/CommandMovePlayerLeft';
+import CommandMovePlayerRight from './keyboard_actions/CommandMovePlayerRight';
+import CommandPlayerJump from './keyboard_actions/CommandPlayerJump';
+import BaseKeyboardCommand from './keyboard_actions/BaseKeyboardCommand';
 
-export  class KeyboardControls extends PlayerControls {
+export class KeyboardControls extends PlayerControls {
     private controls: PointerLockControls;
     private keyStates: Map<string, boolean> = new Map();
 
@@ -10,46 +16,39 @@ export  class KeyboardControls extends PlayerControls {
         super();
         this.controls = new PointerLockControls(this.camera, domElement);
         domElement.addEventListener('click', () => this.controls.lock());
-        this.addEventListeners();
+
+        // Initialize commands with the keyStates map
+        new CommandMovePlayerForward(this.player, this.keyStates);
+        new CommandMovePlayerBackward(this.player, this.keyStates);
+        new CommandMovePlayerLeft(this.player, this.keyStates);
+        new CommandMovePlayerRight(this.player, this.keyStates);
+        new CommandPlayerJump(this.player, this.keyStates);
+
+        // Listen for pointer lock changes
+        document.addEventListener('pointerlockchange', this.onPointerLockChange.bind(this), false);
+        document.addEventListener('pointerlockerror', this.onPointerLockError.bind(this), false);
     }
 
-    private addEventListeners() {
-        document.addEventListener('keydown', this.onKeyDown, false);
-        document.addEventListener('keyup', this.onKeyUp, false);
+    private onPointerLockChange() {
+        const isLocked = document.pointerLockElement === this.controls.domElement;
+        if (!isLocked) {
+            // Pointer lock has been released, e.g., by pressing Escape
+            BaseKeyboardCommand.pauseState = true; // Set the game to pause
+            BaseKeyboardCommand.releaseAllHeldKeys();
+            console.log("Pointer lock released. Game paused.");
+        } else {
+            // Pointer lock is engaged
+            BaseKeyboardCommand.pauseState = false; // Resume the game
+            console.log("Pointer lock engaged. Game resumed.");
+        }
     }
 
-    private onKeyDown = (event: KeyboardEvent) => {
-        this.keyStates.set(event.code, true);
-        this.updateDirection();
-
-        if (event.code === 'Space') {
-            this.player.jump();  // Call the jump function on the player object
-        }
-    };
-
-    private onKeyUp = (event: KeyboardEvent) => {
-        this.keyStates.delete(event.code);
-        this.updateDirection();
-    };
-
-    private updateDirection() {
-        this.direction.set(0, 0, 0); // Reset direction
-        if (this.keyStates.has('ArrowUp') || this.keyStates.has('KeyW')) {
-            this.direction.z -= 1;
-        }
-        if (this.keyStates.has('ArrowDown') || this.keyStates.has('KeyS')) {
-            this.direction.z += 1;
-        }
-        if (this.keyStates.has('ArrowLeft') || this.keyStates.has('KeyA')) {
-            this.direction.x -= 1;
-        }
-        if (this.keyStates.has('ArrowRight') || this.keyStates.has('KeyD')) {
-            this.direction.x += 1;
-        }
+    private onPointerLockError() {
+        console.error("Pointer lock failed to engage.");
     }
 
     public update(deltaTime: number) {
-        const moveDirection = new THREE.Vector3(this.direction.x, 0, this.direction.z);
+        const moveDirection = new THREE.Vector3(this.player.direction.x, 0, this.player.direction.z);
         if (moveDirection.lengthSq() > 0) {
             moveDirection.normalize().multiplyScalar(this.player.moveSpeed * deltaTime);
             moveDirection.applyQuaternion(this.camera.quaternion);

@@ -5,7 +5,6 @@ import { PlayerCamera } from '../camera/PlayerCamera';
 export abstract class PlayerControls {
     protected player: PlayerCharacter;
     protected camera: THREE.PerspectiveCamera;
-    protected direction: THREE.Vector3 = new THREE.Vector3();
     protected controllerLock: boolean = false; // Removes control from the player
 
     constructor() {
@@ -18,8 +17,9 @@ export abstract class PlayerControls {
     protected updatePlayerPosition(deltaTime: number) {
         if (this.controllerLock) return;
 
-        if (this.direction.lengthSq() > 0) {
-            const moveDirection = this.direction.clone().normalize().multiplyScalar(deltaTime);
+        const direction = this.player.direction;  // Use the direction from PlayerCharacter
+        if (direction.lengthSq() > 0) {
+            const moveDirection = direction.clone().normalize().multiplyScalar(deltaTime);
             this.player.updatePosition(deltaTime, moveDirection);
         }
 

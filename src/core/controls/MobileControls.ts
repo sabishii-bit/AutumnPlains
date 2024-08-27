@@ -34,7 +34,7 @@ export class MobileControls extends PlayerControls {
         });
     
         leftNipple.on('move', this.handleLeftJoystickMove);
-        leftNipple.on('end', () => this.direction.set(0, 0, 0));
+        leftNipple.on('end', () => this.player.direction.set(0, 0, 0));
     
         rightNipple.on('start', () => {
             this.rightJoystickActive = true;
@@ -64,7 +64,7 @@ export class MobileControls extends PlayerControls {
         moveVector.y = 0;
         moveVector.normalize();
         moveVector.multiplyScalar(this.player.moveSpeed);
-        this.direction.copy(moveVector);
+        this.player.direction.copy(moveVector);
     }
 
     private updateCameraRotation = () => {

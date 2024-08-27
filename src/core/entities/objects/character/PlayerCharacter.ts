@@ -7,6 +7,7 @@ export class PlayerCharacter extends GameObject {
     public jumpHeight: number = 20.0;
     public moveSpeed: number = 1000.0;
     public canJump: boolean = true;
+    public direction: THREE.Vector3 = new THREE.Vector3();  // Direction vector moved here
 
     private constructor(initialPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
         super(initialPosition);
