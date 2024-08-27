@@ -27,7 +27,19 @@ export class UIDebugComponent {
     }
 
     private setupElements() {
-        const styleText = 'position: absolute; top: 0; left: 0; color: black; font-family: Monospace; padding: 10px;';
+        const styleText = `
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            color: white; 
+            font-family: Monospace; 
+            padding: 10px;
+            text-shadow: 
+                -1px -1px 0 #000,  
+                1px -1px 0 #000,
+                -1px 1px 0 #000,
+                1px 1px 0 #000;
+        `;
 
         this.positionElement.style.cssText = styleText;
         this.velocityElement.style.cssText = styleText;
