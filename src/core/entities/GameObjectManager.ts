@@ -57,7 +57,7 @@ export class GameObjectManager {
         return GameObjectManager.objectCollection.get(objectID);
     }
 
-    public getAllGameObjects(): GameObject[] {
+    public static getAllGameObjects(): GameObject[] {
         return Array.from(GameObjectManager.objectCollection.values());
     }
 }

@@ -5,7 +5,6 @@ import { GroundEnvironment } from '../../entities/objects/environment/ground/Gro
 import { SkyboxEnvironment } from '../../entities/objects/environment/skybox/SkyboxEnvironment';
 
 export class RainWeatherEffect extends ParticleSystem {
-    private gameObjectManager: GameObjectManager;
     private ceilingHeight: number;
     private spread: number;
     private centerPosition: THREE.Vector3;
@@ -26,7 +25,6 @@ export class RainWeatherEffect extends ParticleSystem {
             particleSpeed,
             { color: 0x000000, size: 0, transparent: true, visible: false }
         );
-        this.gameObjectManager = new GameObjectManager();
         this.ceilingHeight = ceilingHeight;
         this.spread = spread;
         this.centerPosition = centerPosition;
@@ -98,7 +96,7 @@ export class RainWeatherEffect extends ParticleSystem {
         const positions = this.particleGeometry.attributes.position.array as Float32Array;
         const speed = this.particleSpeed * deltaTime;
     
-        const gameObjects = this.gameObjectManager.getAllGameObjects();
+        const gameObjects = GameObjectManager.getAllGameObjects();
         const matrix = new THREE.Matrix4();
     
         for (let i = 0; i < this.particleCount; i++) {

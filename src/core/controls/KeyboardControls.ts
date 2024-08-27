@@ -7,6 +7,7 @@ import CommandMovePlayerLeft from './keyboard_actions/CommandMovePlayerLeft';
 import CommandMovePlayerRight from './keyboard_actions/CommandMovePlayerRight';
 import CommandPlayerJump from './keyboard_actions/CommandPlayerJump';
 import BaseKeyboardCommand from './keyboard_actions/BaseKeyboardCommand';
+import CommandToggleWireframe from './keyboard_actions/CommandToggleWireframe';
 
 export class KeyboardControls extends PlayerControls {
     private controls: PointerLockControls;
@@ -23,6 +24,7 @@ export class KeyboardControls extends PlayerControls {
         new CommandMovePlayerLeft(this.player, this.keyStates);
         new CommandMovePlayerRight(this.player, this.keyStates);
         new CommandPlayerJump(this.player, this.keyStates);
+        new CommandToggleWireframe(this.keyStates);
 
         // Listen for pointer lock changes
         document.addEventListener('pointerlockchange', this.onPointerLockChange.bind(this), false);

@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { Scene, Vector3 } from 'three';
 import { WorldContext } from '../../global/world/WorldContext';
-import { GameObjectManager } from "../GameObjectManager";
 import { SceneContext } from '../../global/scene/SceneContext';
 import { generateUUID } from 'three/src/math/MathUtils';
+import { GameObjectManager } from '../GameObjectManager';
 
 export default abstract class GameObject {
     protected mesh: THREE.Mesh;
@@ -15,6 +15,8 @@ export default abstract class GameObject {
     protected sceneContext: Scene = SceneContext.getInstance();
     protected gameObjectManager: GameObjectManager | null = null;
     protected objectId: string = "";
+    private wireframeMesh: THREE.LineSegments | null = null;
+    private isWireframeVisible: boolean = false;
 
     constructor(initialPosition: THREE.Vector3, objectId: string = "") {
         // Initialize mesh with a simple placeholder
@@ -92,6 +94,12 @@ export default abstract class GameObject {
         if (this.body) {
             this.mesh.position.copy(this.body.position as any);
             this.mesh.quaternion.copy(this.body.quaternion as any);
+
+            // Sync wireframe position and rotation with the main mesh
+            if (this.wireframeMesh) {
+                this.wireframeMesh.position.copy(this.mesh.position);
+                this.wireframeMesh.quaternion.copy(this.mesh.quaternion);
+            }
         }
     }
 
@@ -106,5 +114,25 @@ export default abstract class GameObject {
 
     animate(deltaTime: number): void {
         // Default animate logic (if any), can be overridden in subclasses
+    }
+
+    // Create wireframe based on the existing mesh
+    public createCollisionMeshWireframe(): void {
+        if (!this.wireframeMesh) {
+            const wireframeGeometry = new THREE.WireframeGeometry(this.mesh.geometry);
+            const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+            this.wireframeMesh = new THREE.LineSegments(wireframeGeometry, wireframeMaterial);
+            this.wireframeMesh.position.copy(this.mesh.position);
+            this.wireframeMesh.quaternion.copy(this.mesh.quaternion);
+            this.sceneContext.add(this.wireframeMesh);
+        }
+    }
+
+    // Toggle the visibility of the wireframe
+    public toggleWireframeVisibility(): void {
+        if (this.wireframeMesh) {
+            this.isWireframeVisible = !this.isWireframeVisible;
+            this.wireframeMesh.visible = this.isWireframeVisible;
+        }
     }
 }
