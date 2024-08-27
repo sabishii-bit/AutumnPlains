@@ -11,8 +11,8 @@ export class PlayerCharacter extends GameObject {
 
     private constructor(initialPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
         super(initialPosition);
-        this.createVisual();
-        this.createPhysics();
+        this.createVisualMesh();
+        this.createCollisionMesh();
     }
 
     public static getInstance(initialPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0)): PlayerCharacter {
@@ -22,14 +22,14 @@ export class PlayerCharacter extends GameObject {
         return PlayerCharacter.instance;
     }
 
-    protected createVisual() {
+    protected createVisualMesh() {
         const geometry = new THREE.SphereGeometry(2);
         const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.position.copy(this.position);
     }
 
-    protected createPhysics() {
+    protected createCollisionMesh() {
         // Ensure that only one body is created
         if (!this.collisionBody) {
             const radius = 2;

@@ -6,15 +6,15 @@ export class JapaneseRestaurant extends GameObject {
 
     constructor(initialPosition: THREE.Vector3) {
         super(initialPosition);
-        this.createVisual();
+        this.createVisualMesh();
     }
 
-    protected createVisual() {
+    protected createVisualMesh() {
         const modelLoader = new ImportedModelLoaderService();
         modelLoader.loadGltfModel("/assets/gltf/japanese_restaurant/scene.gltf", this.position);
     }
 
-    protected createPhysics() {
+    protected createCollisionMesh() {
         // Optionally create a physical body if needed for collisions
         // This could be a simple bounding box or a more complex shape depending on the model
         // If the model should not interact physically, skip this part

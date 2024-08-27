@@ -7,7 +7,7 @@ export class SkyboxEnvironment extends GameObject {
         super(initialPosition);  // No physics world needed for Skybox
     }
 
-    protected createVisual() {
+    protected createVisualMesh() {
         const geometry = new THREE.SphereGeometry(450, 60, 40, 0, Math.PI * 2, 0, Math.PI / 2);
         geometry.scale(-1, 1, 1);
 
@@ -18,7 +18,7 @@ export class SkyboxEnvironment extends GameObject {
         this.mesh.position.y = -120;
     }
 
-    protected createPhysics() {
+    protected createCollisionMesh() {
         // Skybox does not need physics, implement as empty or with minimal logic
     }
 }

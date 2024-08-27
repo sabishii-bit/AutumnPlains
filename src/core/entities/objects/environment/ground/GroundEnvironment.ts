@@ -9,7 +9,7 @@ export class GroundEnvironment extends GameObject {
         this.initializeContactMaterialBetweenGroundAndPlayer();
     }
 
-    protected createVisual() {
+    protected createVisualMesh() {
         const geometry = new THREE.PlaneGeometry(500, 500);
         const texture = new THREE.TextureLoader().load('/assets/groundTestTexture.jpg');
         texture.wrapS = THREE.RepeatWrapping;
@@ -24,7 +24,7 @@ export class GroundEnvironment extends GameObject {
         this.mesh.rotation.x = -Math.PI / 2;
     }
 
-    protected createPhysics() {
+    protected createCollisionMesh() {
         const shape = new CANNON.Plane();
         const groundMaterial = new CANNON.Material("groundMaterial");
         this.collisionBody = new CANNON.Body({

@@ -8,13 +8,13 @@ export class CubeProp extends GameObject {
         super(initialPosition);
     }
 
-    protected createVisual() {
+    protected createVisualMesh() {
         const geometry = new THREE.BoxGeometry(1, 1, 1);
         const material = new THREE.MeshPhongMaterial({ color: 0xFFFFFF });
         this.mesh = new THREE.Mesh(geometry, material);
     }
 
-    protected createPhysics() {
+    protected createCollisionMesh() {
         const halfExtents = new CANNON.Vec3(0.5, 0.5, 0.5);
         const shape = new CANNON.Box(halfExtents);
         this.collisionBody = new CANNON.Body({

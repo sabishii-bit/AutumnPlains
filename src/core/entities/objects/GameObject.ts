@@ -32,16 +32,16 @@ export default abstract class GameObject {
         if (!objectId)
             this.objectId = generateUUID();
 
-        this.createVisual();
-        this.createPhysics();
+        this.createVisualMesh();
+        this.createCollisionMesh();
         this.addObjectToCollection();
     }
 
     // Abstract method to create the visual part of the object
-    protected abstract createVisual(): void;
+    protected abstract createVisualMesh(): void;
 
     // Abstract method to create the physics part of the object
-    protected abstract createPhysics(): void;
+    protected abstract createCollisionMesh(): void;
 
     public setPosition(position: Vector3): void {
         this.position = position;

@@ -11,7 +11,7 @@ export class WallEnvironment extends GameObject {
         super(initialPosition);
     }
 
-    protected createVisual() {
+    protected createVisualMesh() {
         // Create a box geometry based on the dimensions provided
         const geometry = new THREE.BoxGeometry(this.width, this.height, this.depth);
         const material = new THREE.MeshPhongMaterial({ color: 0xFFFFFF }); // White color for the wall
@@ -19,7 +19,7 @@ export class WallEnvironment extends GameObject {
         this.mesh.position.copy(this.position);
     }
 
-    protected createPhysics() {
+    protected createCollisionMesh() {
         // Create a box shape with half-extents
         const halfExtents = new CANNON.Vec3(this.width / 2, this.height / 2, this.depth / 2);
         const shape = new CANNON.Box(halfExtents);

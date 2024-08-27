@@ -49,12 +49,21 @@ export class KeyboardControls extends PlayerControls {
 
     public update(deltaTime: number) {
         const moveDirection = new THREE.Vector3(this.player.direction.x, 0, this.player.direction.z);
+    
         if (moveDirection.lengthSq() > 0) {
             moveDirection.normalize().multiplyScalar(this.player.moveSpeed * deltaTime);
+    
+            // Apply the camera's rotation to the movement direction
             moveDirection.applyQuaternion(this.camera.quaternion);
+    
+            // Project movement direction onto the horizontal plane
+            moveDirection.y = 0; // Ignore any vertical movement
+            moveDirection.normalize(); // Re-normalize the direction vector
+    
             this.player.updatePosition(deltaTime, moveDirection);
         }
     }
+    
 
     public getControls(): PointerLockControls {
         return this.controls;
