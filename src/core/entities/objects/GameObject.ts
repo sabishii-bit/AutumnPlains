@@ -8,7 +8,7 @@ import { GameObjectManager } from '../GameObjectManager';
 
 export default abstract class GameObject {
     protected mesh: THREE.Mesh;
-    protected body: CANNON.Body | null = null;
+    protected collisionBody!: CANNON.Body;
     protected position: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
     protected rotation: THREE.Vector3 | null = null;
     protected worldContext: CANNON.World = WorldContext.getInstance();
@@ -70,19 +70,19 @@ export default abstract class GameObject {
         }
 
         scene.add(this.mesh);
-        if (this.body) {
+        if (this.collisionBody) {
             // Initial synchronization
             this.syncMeshWithBody();
         }
     }
 
-    public getBody(): CANNON.Body | null {
-        return this.body;
+    public getCollisionBody(): CANNON.Body {
+        return this.collisionBody;
     }
     
     public update(deltaTime: number): void {
         // Sync mesh with the physics body
-        if (this.body) {
+        if (this.collisionBody) {
             this.syncMeshWithBody();
         }
 
@@ -91,9 +91,9 @@ export default abstract class GameObject {
     }
 
     protected syncMeshWithBody() {
-        if (this.body) {
-            this.mesh.position.copy(this.body.position as any);
-            this.mesh.quaternion.copy(this.body.quaternion as any);
+        if (this.collisionBody) {
+            this.mesh.position.copy(this.collisionBody.position as any);
+            this.mesh.quaternion.copy(this.collisionBody.quaternion as any);
 
             // Sync wireframe position and rotation with the main mesh
             if (this.wireframeMesh) {

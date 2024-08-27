@@ -1,4 +1,4 @@
-import { PlayerCharacter } from '../../entities/objects/character/PlayerCharacter';
+import { PlayerCharacter } from '../../entities/objects/characters/PlayerCharacter';
 import BaseKeyboardCommand from './BaseKeyboardCommand';
 
 export default class CommandMovePlayerForward extends BaseKeyboardCommand {

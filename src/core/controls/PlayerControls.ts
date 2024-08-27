@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PlayerCharacter } from '../entities/objects/character/PlayerCharacter';
+import { PlayerCharacter } from '../entities/objects/characters/PlayerCharacter';
 import { PlayerCamera } from '../camera/PlayerCamera';
 
 export abstract class PlayerControls {
@@ -22,9 +22,6 @@ export abstract class PlayerControls {
             const moveDirection = direction.clone().normalize().multiplyScalar(deltaTime);
             this.player.updatePosition(deltaTime, moveDirection);
         }
-
-        // Update the camera to follow the player
-        this.camera.position.copy(this.player.body.position as unknown as THREE.Vector3);
     }
 
     public setControllerLock(lock: boolean) {

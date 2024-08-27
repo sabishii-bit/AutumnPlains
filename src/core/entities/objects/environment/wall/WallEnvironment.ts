@@ -23,11 +23,11 @@ export class WallEnvironment extends GameObject {
         // Create a box shape with half-extents
         const halfExtents = new CANNON.Vec3(this.width / 2, this.height / 2, this.depth / 2);
         const shape = new CANNON.Box(halfExtents);
-        this.body = new CANNON.Body({
+        this.collisionBody = new CANNON.Body({
             mass: 0, // Static body since it's a wall
             position: new CANNON.Vec3(this.position.x, this.position.y, this.position.z),
             shape: shape
         });
-        this.worldContext.addBody(this.body);
+        this.worldContext.addBody(this.collisionBody);
     }
 }

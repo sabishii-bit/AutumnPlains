@@ -27,17 +27,17 @@ export class GroundEnvironment extends GameObject {
     protected createPhysics() {
         const shape = new CANNON.Plane();
         const groundMaterial = new CANNON.Material("groundMaterial");
-        this.body = new CANNON.Body({
+        this.collisionBody = new CANNON.Body({
             mass: 0,
             shape: shape,
             material: groundMaterial,
         });
-        this.body.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-        this.worldContext.addBody(this.body);
+        this.collisionBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+        this.worldContext.addBody(this.collisionBody);
     }
 
     private setGroundAsDefaultMaterial() {
-        const groundMaterial = this.getBody()?.material;
+        const groundMaterial = this.getCollisionBody()?.material;
         if (groundMaterial)
             this.worldContext.defaultMaterial = groundMaterial;  // Set the ground material as the default for the world
     }

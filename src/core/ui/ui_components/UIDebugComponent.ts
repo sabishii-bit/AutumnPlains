@@ -1,4 +1,4 @@
-import { PlayerCharacter } from "../../entities/objects/character/PlayerCharacter";
+import { PlayerCharacter } from "../../entities/objects/characters/PlayerCharacter";
 import * as THREE from 'three';
 import { PlayerCamera } from "../../camera/PlayerCamera";
 
@@ -76,8 +76,9 @@ export class UIDebugComponent {
         const roll = THREE.MathUtils.radToDeg(euler.z).toFixed(2);
 
         // Update the HTML content
-        this.positionElement.textContent = `Position: X=${this.player.body.position.x.toFixed(2)}, Y=${this.player.body.position.y.toFixed(2)}, Z=${this.player.body.position.z.toFixed(2)}`;
-        this.velocityElement.textContent = `Velocity: X=${this.player.body.velocity.x.toFixed(2)}, Y=${this.player.body.velocity.y.toFixed(2)}, Z=${this.player.body.velocity.z.toFixed(2)}`;
+        const playerCollisionBody = this.player.getCollisionBody();
+        this.positionElement.textContent = `Position: X=${playerCollisionBody.position.x.toFixed(2)}, Y=${playerCollisionBody.position.y.toFixed(2)}, Z=${playerCollisionBody.position.z.toFixed(2)}`;
+        this.velocityElement.textContent = `Velocity: X=${playerCollisionBody.velocity.x.toFixed(2)}, Y=${playerCollisionBody.velocity.y.toFixed(2)}, Z=${playerCollisionBody.velocity.z.toFixed(2)}`;
         this.fpsElement.textContent = `FPS: ${fps.toFixed(2)}`;
         this.cameraRotationElement.textContent = `Camera: Pitch=${pitch}, Yaw=${yaw}, Roll=${roll}`;
     }

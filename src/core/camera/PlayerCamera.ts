@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PlayerCharacter } from '../entities/objects/character/PlayerCharacter';
+import { PlayerCharacter } from '../entities/objects/characters/PlayerCharacter';
 
 export class PlayerCamera {
     private static instance: PlayerCamera;
@@ -32,7 +32,8 @@ export class PlayerCamera {
 
     public update(deltaTime: number) {
         // Synchronize the camera position with the player's body
-        this.camera.position.copy(this.player.body.position as unknown as THREE.Vector3);
+        const collisionBodyPosition = this.player.getCollisionBody().position;
+        this.camera.position.copy(collisionBodyPosition as unknown as THREE.Vector3);
     }
 
     public getCamera(): THREE.PerspectiveCamera {

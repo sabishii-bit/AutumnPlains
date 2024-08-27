@@ -25,8 +25,8 @@ export class GameObjectManager {
     public loadObjects(): void {
         GameObjectManager.objectCollection.forEach((obj, key) => {
             obj.addToScene(this.sceneContext);
-            if (obj.getBody()) {
-                this.worldContext.addBody(obj.getBody() ?? new CANNON.Body());
+            if (obj.getCollisionBody()) {
+                this.worldContext.addBody(obj.getCollisionBody() ?? new CANNON.Body());
             }
         });
     }
@@ -34,7 +34,7 @@ export class GameObjectManager {
     public deleteObject(objectID: string): void {
         const object: GameObject | undefined = GameObjectManager.objectCollection.get(objectID);
         const objectMesh = object?.getMesh();
-        const objectBody = object?.getBody();
+        const objectBody = object?.getCollisionBody();
         
         if (object) {
             // Remove the object's mesh from the scene

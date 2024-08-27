@@ -7,7 +7,7 @@ export class ControllerManager {
     private static instance: ControllerManager;
     private controls: PlayerControls;
 
-    private constructor(domElement?: HTMLElement) {
+    private constructor(domElement: HTMLElement) {
         const deviceService = new DeviceDetectionService();
 
         if (deviceService.isMobile()) {
@@ -19,7 +19,7 @@ export class ControllerManager {
         }
     }
 
-    public static getInstance(domElement?: HTMLElement): ControllerManager {
+    public static getInstance(domElement: HTMLElement): ControllerManager {
         if (!ControllerManager.instance) {
             ControllerManager.instance = new ControllerManager(domElement);
         }

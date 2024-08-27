@@ -3,8 +3,8 @@ import { PlayerControls } from './PlayerControls';
 import nipplejs from 'nipplejs';
 
 export class MobileControls extends PlayerControls {
-    private leftJoystick: nipplejs.JoystickManager;
-    private rightJoystick: nipplejs.JoystickManager;
+    private leftJoystick!: nipplejs.JoystickManager;
+    private rightJoystick!: nipplejs.JoystickManager;
     private rightJoystickActive: boolean = false;
     private rightJoystickData: any = null;
     private yaw: number = 0;
@@ -52,7 +52,7 @@ export class MobileControls extends PlayerControls {
         this.rightJoystick = rightNipple;
     }
 
-    private handleLeftJoystickMove = (evt, data) => {
+    private handleLeftJoystickMove = (evt: any, data: { angle: { radian: any; }; force: any; }) => {
         const angle = data.angle.radian;
         const force = data.force;
     

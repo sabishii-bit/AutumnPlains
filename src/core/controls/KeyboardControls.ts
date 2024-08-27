@@ -54,9 +54,6 @@ export class KeyboardControls extends PlayerControls {
             moveDirection.applyQuaternion(this.camera.quaternion);
             this.player.updatePosition(deltaTime, moveDirection);
         }
-
-        // Update the camera to follow the player
-        this.camera.position.copy(this.player.body.position as unknown as THREE.Vector3);
     }
 
     public getControls(): PointerLockControls {

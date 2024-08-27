@@ -31,17 +31,17 @@ export class PlayerCharacter extends GameObject {
 
     protected createPhysics() {
         // Ensure that only one body is created
-        if (!this.body) {
+        if (!this.collisionBody) {
             const radius = 2;
-            this.body = new CANNON.Body({
+            this.collisionBody = new CANNON.Body({
                 mass: 5,
                 position: new CANNON.Vec3(this.position.x, this.position.y, this.position.z),
                 shape: new CANNON.Sphere(radius),
                 linearDamping: 0.9,
                 angularDamping: 1
             });
-            this.worldContext.addBody(this.body);
-            this.body.addEventListener("collide", () => {
+            this.worldContext.addBody(this.collisionBody);
+            this.collisionBody.addEventListener("collide", () => {
                 this.canJump = true;
             });
         }
@@ -50,14 +50,14 @@ export class PlayerCharacter extends GameObject {
     public updatePosition(deltaTime: number, inputVector: THREE.Vector3) {
         if (!inputVector.equals(new THREE.Vector3(0, 0, 0))) {
             inputVector.normalize().multiplyScalar(this.moveSpeed * deltaTime);
-            this.body.velocity.x = inputVector.x;
-            this.body.velocity.z = inputVector.z;
+            this.collisionBody.velocity.x = inputVector.x;
+            this.collisionBody.velocity.z = inputVector.z;
         }
     }
 
     public jump() {
         if (this.canJump) {
-            this.body.velocity.y = this.jumpHeight;
+            this.collisionBody.velocity.y = this.jumpHeight;
             this.canJump = false;
         }
     }

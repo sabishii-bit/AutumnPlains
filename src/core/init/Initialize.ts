@@ -6,7 +6,7 @@ import { PlayerCamera } from '../camera/PlayerCamera';
 import { TestMap } from '../maps/TestMap';
 import { SceneContext } from '../global/scene/SceneContext';
 import { WorldContext } from '../global/world/WorldContext';
-import { PlayerCharacter } from '../entities/objects/character/PlayerCharacter';
+import { PlayerCharacter } from '../entities/objects/characters/PlayerCharacter';
 import { ControllerManager } from '../controls/ControllerManager';
 import { GameObjectManager } from '../entities/GameObjectManager';
 import { ParticleSystemManager } from '../effects/ParticleSystemManager';

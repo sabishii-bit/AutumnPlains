@@ -17,13 +17,13 @@ export class CubeProp extends GameObject {
     protected createPhysics() {
         const halfExtents = new CANNON.Vec3(0.5, 0.5, 0.5);
         const shape = new CANNON.Box(halfExtents);
-        this.body = new CANNON.Body({
+        this.collisionBody = new CANNON.Body({
             mass: 0, // Set mass to 0 to make the body static
             position: new CANNON.Vec3(this.position.x, this.position.y, this.position.z),
             shape: shape
         });
-        this.body.type = CANNON.Body.KINEMATIC; // Make the body kinematic
-        this.worldContext.addBody(this.body);
+        this.collisionBody.type = CANNON.Body.KINEMATIC; // Make the body kinematic
+        this.worldContext.addBody(this.collisionBody);
     }
 
     animate(deltaTime: number): void {
@@ -32,8 +32,8 @@ export class CubeProp extends GameObject {
         this.mesh.rotation.x += deltaTime * 0.5;
 
         // Update the body's quaternion to match the mesh's rotation
-        if (this.body) {
-            this.body.quaternion.setFromEuler(this.mesh.rotation.x, this.mesh.rotation.y, this.mesh.rotation.z, 'XYZ');
+        if (this.collisionBody) {
+            this.collisionBody.quaternion.setFromEuler(this.mesh.rotation.x, this.mesh.rotation.y, this.mesh.rotation.z, 'XYZ');
         }
     }
 }
