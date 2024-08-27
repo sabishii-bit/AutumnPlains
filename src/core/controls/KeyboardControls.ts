@@ -37,11 +37,9 @@ export class KeyboardControls extends PlayerControls {
             // Pointer lock has been released, e.g., by pressing Escape
             BaseKeyboardCommand.pauseState = true; // Set the game to pause
             BaseKeyboardCommand.releaseAllHeldKeys();
-            console.log("Pointer lock released. Game paused.");
         } else {
             // Pointer lock is engaged
             BaseKeyboardCommand.pauseState = false; // Resume the game
-            console.log("Pointer lock engaged. Game resumed.");
         }
     }
 

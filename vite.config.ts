@@ -14,10 +14,18 @@ export default defineConfig({
     '**/*.jpg',
     '**/*.png',
     '**/*.obj',
-    '**/*.mtl'
+    '**/*.mtl',
   ],
   build: {
     outDir: 'dist',
+    minify: 'terser',  // Enable terser for minification
+    terserOptions: {
+      compress: {
+        drop_console: true,  // Remove all console statements
+        // Optionally, you can specify which console methods to keep:
+        // pure_funcs: ['console.warn', 'console.error'],
+      },
+    },
   },
   publicDir: 'public',
 });

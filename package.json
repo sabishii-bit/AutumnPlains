@@ -12,7 +12,8 @@
   "license": "ISC",
   "devDependencies": {
     "typescript": "^5.4.5",
-    "vite": "^4.5.3"
+    "vite": "^4.5.3",
+    "vite-plugin-remove-console": "^2.2.0"
   },
   "dependencies": {
     "@types/three": "^0.163.0",
