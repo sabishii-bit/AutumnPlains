@@ -9,6 +9,7 @@ export class UIDebugComponent {
     private velocityElement: HTMLElement;
     private fpsElement: HTMLElement;
     private cameraRotationElement: HTMLElement;
+    private stateElement: HTMLElement;
     private frameTimes: number[] = [];
     private readonly maxSamples = 60;  // Number of frames to average for FPS
 
@@ -21,6 +22,7 @@ export class UIDebugComponent {
         this.velocityElement = document.createElement('div');
         this.fpsElement = document.createElement('div');
         this.cameraRotationElement = document.createElement('div');
+        this.stateElement = document.createElement('div');
         
         // Style and append elements to the document
         this.setupElements();
@@ -45,16 +47,19 @@ export class UIDebugComponent {
         this.velocityElement.style.cssText = styleText;
         this.fpsElement.style.cssText = styleText;
         this.cameraRotationElement.style.cssText = styleText;
+        this.stateElement.style.cssText = styleText;
         
         let top = 0;
         this.positionElement.style.top = `${top}px`;
         this.velocityElement.style.top = `${top + 20}px`;
         this.cameraRotationElement.style.top = `${top + 40}px`;
-        this.fpsElement.style.top = `${top + 60}px`;
+        this.stateElement.style.top = `${top + 60}px`;
+        this.fpsElement.style.top = `${top + 80}px`;
 
         document.body.appendChild(this.positionElement);
         document.body.appendChild(this.velocityElement);
         document.body.appendChild(this.fpsElement);
+        document.body.appendChild(this.stateElement);
         document.body.appendChild(this.cameraRotationElement);
     }
 
@@ -81,5 +86,9 @@ export class UIDebugComponent {
         this.velocityElement.textContent = `Velocity: X=${playerCollisionBody.velocity.x.toFixed(2)}, Y=${playerCollisionBody.velocity.y.toFixed(2)}, Z=${playerCollisionBody.velocity.z.toFixed(2)}`;
         this.fpsElement.textContent = `FPS: ${fps.toFixed(2)}`;
         this.cameraRotationElement.textContent = `Camera: Pitch=${pitch}, Yaw=${yaw}, Roll=${roll}`;
+        
+        // Update the state element with the player's current state name
+        const currentState = this.player.getCurrentState();
+        this.stateElement.textContent = `State: ${currentState ? currentState.getStateName() : "Unknown"}`;
     }
 }

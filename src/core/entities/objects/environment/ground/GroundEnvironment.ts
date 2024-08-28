@@ -20,20 +20,20 @@ export class GroundEnvironment extends GameObject {
             map: texture,
             side: THREE.DoubleSide
         });
-        this.mesh = new THREE.Mesh(geometry, material); // Override the initial placeholder mesh
-        this.mesh.rotation.x = -Math.PI / 2;
+        this.visualMesh = new THREE.Mesh(geometry, material); // Override the initial placeholder mesh
+        this.visualMesh.rotation.x = -Math.PI / 2;
     }
 
     protected createCollisionMesh() {
         const shape = new CANNON.Plane();
         const groundMaterial = new CANNON.Material("groundMaterial");
-        this.collisionBody = new CANNON.Body({
+        this.collisionMesh = new CANNON.Body({
             mass: 0,
             shape: shape,
             material: groundMaterial,
         });
-        this.collisionBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-        this.worldContext.addBody(this.collisionBody);
+        this.collisionMesh.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+        this.worldContext.addBody(this.collisionMesh);
     }
 
     private setGroundAsDefaultMaterial() {

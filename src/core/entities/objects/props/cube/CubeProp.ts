@@ -9,31 +9,31 @@ export class CubeProp extends GameObject {
     }
 
     protected createVisualMesh() {
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const geometry = new THREE.BoxGeometry(20, 20, 20);
         const material = new THREE.MeshPhongMaterial({ color: 0xFFFFFF });
-        this.mesh = new THREE.Mesh(geometry, material);
+        this.visualMesh = new THREE.Mesh(geometry, material);
     }
 
     protected createCollisionMesh() {
-        const halfExtents = new CANNON.Vec3(0.5, 0.5, 0.5);
+        const halfExtents = new CANNON.Vec3(10, 10, 10);
         const shape = new CANNON.Box(halfExtents);
-        this.collisionBody = new CANNON.Body({
+        this.collisionMesh = new CANNON.Body({
             mass: 0, // Set mass to 0 to make the body static
             position: new CANNON.Vec3(this.position.x, this.position.y, this.position.z),
             shape: shape
         });
-        this.collisionBody.type = CANNON.Body.KINEMATIC; // Make the body kinematic
-        this.worldContext.addBody(this.collisionBody);
+        this.collisionMesh.type = CANNON.Body.KINEMATIC; // Make the body kinematic
+        this.worldContext.addBody(this.collisionMesh);
     }
 
     animate(deltaTime: number): void {
         // Animate rotation
-        this.mesh.rotation.y += deltaTime * 0.5;  // Spin at a rate of 0.5 radians per second
-        this.mesh.rotation.x += deltaTime * 0.5;
+        // this.visualMesh.rotation.y += deltaTime * 0.5;  // Spin at a rate of 0.5 radians per second
+        // this.visualMesh.rotation.x += deltaTime * 0.5;
 
         // Update the body's quaternion to match the mesh's rotation
-        if (this.collisionBody) {
-            this.collisionBody.quaternion.setFromEuler(this.mesh.rotation.x, this.mesh.rotation.y, this.mesh.rotation.z, 'XYZ');
+        if (this.collisionMesh) {
+            this.collisionMesh.quaternion.setFromEuler(this.visualMesh.rotation.x, this.visualMesh.rotation.y, this.visualMesh.rotation.z, 'XYZ');
         }
     }
 }

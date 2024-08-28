@@ -11,6 +11,7 @@ import { ControllerManager } from '../controls/ControllerManager';
 import { GameObjectManager } from '../entities/GameObjectManager';
 import { ParticleSystemManager } from '../effects/ParticleSystemManager';
 import { UIManager } from '../ui/UIManager';
+import StateManager from '../entities/objects/characters/character_state/StateManager';
 
 export default class Initialize {
     private scene: THREE.Scene;
@@ -38,6 +39,7 @@ export default class Initialize {
         this.gameObjectManager = new GameObjectManager();
         this.particleSystemManager = new ParticleSystemManager();
         this.uiManager = new UIManager();  // Initialize UIManager
+        StateManager.registerStates();
         this.animate();
     }
 

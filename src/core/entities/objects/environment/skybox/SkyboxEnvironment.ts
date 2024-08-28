@@ -14,8 +14,8 @@ export class SkyboxEnvironment extends GameObject {
         const texture = new THREE.TextureLoader().load("/assets/skyboxTest.jpg");
         const material = new THREE.MeshBasicMaterial({ map: texture });
 
-        this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.position.y = -120;
+        this.visualMesh = new THREE.Mesh(geometry, material);
+        this.visualMesh.position.y = -120;
     }
 
     protected createCollisionMesh() {

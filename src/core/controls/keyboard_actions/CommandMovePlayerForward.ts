@@ -10,10 +10,14 @@ export default class CommandMovePlayerForward extends BaseKeyboardCommand {
     }
 
     public execute() {
-        this.player.direction.z -= 1; // Move player forward
+        const currentState = this.player.getCurrentState();
+        
+        if (currentState && currentState.canWalk(this.player)) {  // Check if walking is allowed in the current state
+            this.player.direction.z -= 1; // Move player forward
+        }
     }
 
     public release(): void {
-        this.player.direction.z += 1;
+        this.player.direction.z = 0;
     }
 }

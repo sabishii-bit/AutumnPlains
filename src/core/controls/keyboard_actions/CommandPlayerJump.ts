@@ -10,8 +10,14 @@ export default class CommandPlayerJump extends BaseKeyboardCommand {
     }
 
     public execute() {
-        this.player.jump(); // Make the player jump
+        const currentState = this.player.getCurrentState();
+
+        if (currentState && currentState.canJump(this.player)) {  // Check if jumping is allowed in the current state
+            this.player.jump(); // Make the player jump
+        }
     }
 
-    public release(): void { }
+    public release(): void {
+        // No action needed on release for jumping
+    }
 }

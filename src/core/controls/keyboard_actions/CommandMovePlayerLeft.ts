@@ -1,6 +1,5 @@
 import { PlayerCharacter } from '../../entities/objects/characters/PlayerCharacter';
 import BaseKeyboardCommand from './BaseKeyboardCommand';
-import * as THREE from 'three';
 
 export default class CommandMovePlayerLeft extends BaseKeyboardCommand {
     private player: PlayerCharacter;
@@ -11,10 +10,14 @@ export default class CommandMovePlayerLeft extends BaseKeyboardCommand {
     }
 
     public execute() {
-        this.player.direction.x -= 1; // Move player left
+        const currentState = this.player.getCurrentState();
+
+        if (currentState && currentState.canWalk(this.player)) {  // Check if walking is allowed in the current state
+            this.player.direction.x -= 1; // Move player left
+        }
     }
 
     public release(): void {
-        this.player.direction.x += 1;
+        this.player.direction.x = 0;
     }
 }

@@ -10,6 +10,7 @@ import { RainWeatherEffect } from '../effects/weather/RainWeatherEffect';
 import { CloudWeatherEffect } from '../effects/weather/CloudWeatherEffect';
 import { FogWeatherEffect } from '../effects/weather/FogWeatherEffect';
 import { CubeProp } from '../entities/objects/props/cube/CubeProp';
+import { WallEnvironment } from '../entities/objects/environment/wall/WallEnvironment';
 
 export class TestMap {
     private lighting: LightingEffect;
@@ -30,7 +31,7 @@ export class TestMap {
         new GroundEnvironment(new THREE.Vector3(0, -1, 0));
         new SkyboxEnvironment(new THREE.Vector3(0, 0, 0));
         new JapaneseRestaurant(new THREE.Vector3(10, 0, 0));
-        // new CubeProp(new THREE.Vector3(-5, 1, 0))
+        new CubeProp(new THREE.Vector3(-15, 1, 0))
 
         // Add objects and effects to the scene
         this.lighting.addToScene();

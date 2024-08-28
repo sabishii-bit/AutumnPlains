@@ -1,6 +1,5 @@
 import { PlayerCharacter } from '../../entities/objects/characters/PlayerCharacter';
 import BaseKeyboardCommand from './BaseKeyboardCommand';
-import * as THREE from 'three';
 
 export default class CommandMovePlayerBackward extends BaseKeyboardCommand {
     private player: PlayerCharacter;
@@ -11,10 +10,14 @@ export default class CommandMovePlayerBackward extends BaseKeyboardCommand {
     }
 
     public execute() {
-        this.player.direction.z += 1; // Move player backward
+        const currentState = this.player.getCurrentState();
+
+        if (currentState && currentState.canWalk(this.player)) {  // Check if walking is allowed in the current state
+            this.player.direction.z += 1; // Move player backward
+        }
     }
 
     public release(): void {
-        this.player.direction.z -= 1; // Do inverse
+        this.player.direction.z = 0;
     }
 }
