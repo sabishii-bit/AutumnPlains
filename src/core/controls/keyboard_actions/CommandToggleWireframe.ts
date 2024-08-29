@@ -16,4 +16,6 @@ export default class CommandToggleWireframe extends BaseKeyboardCommand {
     public release() {
         // No action needed on key release
     }
+
+    public update() { }
 }

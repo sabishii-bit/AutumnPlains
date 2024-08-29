@@ -1,7 +1,6 @@
 export default abstract class BaseKeyboardCommand {
     protected keys: string[]; // Keys that trigger the command
     protected keyStates: Map<string, boolean>;
-    private activeKey: string | null = null; // Track the currently active key
     public static pauseState: boolean = false;
 
     // Store all command instances
@@ -32,21 +31,15 @@ export default abstract class BaseKeyboardCommand {
         }
 
         if (this.keys.includes(event.code)) {
-            if (this.activeKey === null) {
-                this.activeKey = event.code;
-                this.keyStates.set(event.code, true);
-                this.execute(); // Execute the command when a key is pressed
-            }
+            this.keyStates.set(event.code, true);
+            this.execute(); // Execute the command when a key is pressed
         }
     }
 
     private onKeyUp(event: KeyboardEvent) {
         if (this.keys.includes(event.code)) {
-            if (event.code === this.activeKey) {
-                this.keyStates.set(event.code, false);
-                this.release(); // Handle key release
-                this.activeKey = null; // Reset the active key
-            }
+            this.keyStates.set(event.code, false);
+            this.release(); // Handle key release
         }
     }
 
@@ -57,10 +50,20 @@ export default abstract class BaseKeyboardCommand {
     // Static method to handle all active keys when the game is paused
     public static releaseAllHeldKeys() {
         BaseKeyboardCommand.commands.forEach(command => {
-            if (command.activeKey !== null) {
-                command.keyStates.set(command.activeKey, false);
-                command.release(); // Trigger release for the active key
-                command.activeKey = null;
+            command.keyStates.forEach((value, key) => {
+                if (value) {
+                    command.keyStates.set(key, false);
+                    command.release(); // Trigger release for the active key
+                }
+            });
+        });
+    }
+
+    // Continuously check and execute the command if the key is held down
+    public update() {
+        this.keys.forEach(key => {
+            if (this.keyStates.get(key)) {
+                this.execute();
             }
         });
     }

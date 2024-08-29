@@ -7,14 +7,12 @@ import StateManager from './character_state/StateManager';
 export class PlayerCharacter extends BaseCharacter {
     public static instance: PlayerCharacter | null = null;
     public jumpHeight: number = 20.0;
-    public moveSpeed: number = 1000.0;
+    public moveSpeed: number = 10.0;
     public canJump: boolean = true;
     public direction: THREE.Vector3 = new THREE.Vector3();
 
     private constructor(initialPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
         super(initialPosition);
-        this.createVisualMesh();
-        this.createCollisionMesh();
     }
 
     public static getInstance(initialPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0)): PlayerCharacter {
@@ -24,23 +22,15 @@ export class PlayerCharacter extends BaseCharacter {
         return PlayerCharacter.instance;
     }
 
-    public updatePosition(deltaTime: number, inputVector: THREE.Vector3) {
-        if (!inputVector.equals(new THREE.Vector3(0, 0, 0))) {
-            inputVector.normalize().multiplyScalar(this.moveSpeed * deltaTime);
-            this.collisionMesh.velocity.x = inputVector.x;
-            this.collisionMesh.velocity.z = inputVector.z;
+    public updatePosition(deltaTime: number, inputVector: THREE.Vector3): void {
+        if (this.collisionMesh) {
+            this.collisionMesh.velocity.x = inputVector.x * this.moveSpeed;
+            this.collisionMesh.velocity.z = inputVector.z * this.moveSpeed;
+            super.update(0);
         }
     }
 
     public jump() {
-        if (this.canJump) {
-            this.collisionMesh.velocity.y = this.jumpHeight;
-            this.canJump = false;
-        }
-    }
-
-    public animate(deltaTime: number): void {
-        // Custom animation logic for the player character, if any
-        StateManager.decideState(this);
+        this.collisionMesh.velocity.y = this.jumpHeight;
     }
 }

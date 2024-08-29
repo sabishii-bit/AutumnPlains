@@ -4,6 +4,7 @@ import GameObject from '../GameObject';
 import { CharacterState } from './character_state/CharacterState';
 import StateManager from './character_state/StateManager';
 import { GameObjectManager } from '../../GameObjectManager';
+import { CharacterIdleState } from './character_state/CharacterIdleState';
 
 export abstract class BaseCharacter extends GameObject {
     public jumpHeight!: number;
@@ -11,12 +12,11 @@ export abstract class BaseCharacter extends GameObject {
     public direction!: THREE.Vector3;
     private currentState!: CharacterState;
     public canJump!: boolean;
-    public isColliding!: boolean;
+    private characterMaterial: CANNON.Material;
 
     constructor(initialPosition: THREE.Vector3) { 
         super(initialPosition);
-        this.createVisualMesh();
-        this.createCollisionMesh();
+        this.characterMaterial = new CANNON.Material('characterMaterial');
         StateManager.decideState(this);
     }
 
@@ -24,7 +24,6 @@ export abstract class BaseCharacter extends GameObject {
         const geometry = new THREE.SphereGeometry(2);
         const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
         this.visualMesh = new THREE.Mesh(geometry, material);
-        this.visualMesh.position.copy(this.position);
     }
 
     protected createCollisionMesh() {
@@ -47,7 +46,29 @@ export abstract class BaseCharacter extends GameObject {
     
     public abstract updatePosition(deltaTime: number, inputVector: THREE.Vector3): void;
     public abstract jump(): void;
-    public abstract animate(deltaTime: number): void;
+
+    public animate(deltaTime: number): void {
+        // Custom animation logic for the player character, if any
+        StateManager.decideState(this);
+
+        // Sync the visual mesh with the physics body
+        if (this.collisionMesh) {
+            // Convert CANNON.Vec3 to THREE.Vector3
+            this.visualMesh.position.set(
+                this.collisionMesh.position.x,
+                this.collisionMesh.position.y,
+                this.collisionMesh.position.z
+            );
+
+            // Convert the quaternion (rotation)
+            this.visualMesh.quaternion.set(
+                this.collisionMesh.quaternion.x,
+                this.collisionMesh.quaternion.y,
+                this.collisionMesh.quaternion.z,
+                this.collisionMesh.quaternion.w
+            );
+        }
+    }
 
     public getCurrentState(): CharacterState {
         return this.currentState;

@@ -19,7 +19,7 @@ export class GameObjectManager {
     }
 
     public updateGameObjects(deltaTime: number): void {
-        GameObjectManager.objectCollection.forEach(obj => obj.update(deltaTime));
+        GameObjectManager.objectCollection.forEach(obj => { obj.update(deltaTime) });
     }
 
     public loadObjects(): void {

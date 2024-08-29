@@ -13,11 +13,16 @@ export default class CommandMovePlayerLeft extends BaseKeyboardCommand {
         const currentState = this.player.getCurrentState();
 
         if (currentState && currentState.canWalk(this.player)) {  // Check if walking is allowed in the current state
-            this.player.direction.x -= 1; // Move player left
+            this.player.direction.x = -1; // Move player left
         }
     }
 
     public release(): void {
         this.player.direction.x = 0;
+    }
+
+    // Continuously check and apply the movement if the key is held down
+    public update() {
+        super.update(); // Call the base class update method
     }
 }

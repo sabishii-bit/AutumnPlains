@@ -12,19 +12,20 @@ import CommandToggleWireframe from './keyboard_actions/CommandToggleWireframe';
 export class KeyboardControls extends PlayerControls {
     private controls: PointerLockControls;
     private keyStates: Map<string, boolean> = new Map();
+    private commands: BaseKeyboardCommand[] = [];
 
     constructor(domElement: HTMLElement) {
         super();
         this.controls = new PointerLockControls(this.camera, domElement);
         domElement.addEventListener('click', () => this.controls.lock());
 
-        // Initialize commands with the keyStates map
-        new CommandMovePlayerForward(this.player, this.keyStates);
-        new CommandMovePlayerBackward(this.player, this.keyStates);
-        new CommandMovePlayerLeft(this.player, this.keyStates);
-        new CommandMovePlayerRight(this.player, this.keyStates);
-        new CommandPlayerJump(this.player, this.keyStates);
-        new CommandToggleWireframe(this.keyStates);
+        // Initialize commands with the keyStates map and store them in the commands array
+        this.commands.push(new CommandMovePlayerForward(this.player, this.keyStates));
+        this.commands.push(new CommandMovePlayerBackward(this.player, this.keyStates));
+        this.commands.push(new CommandMovePlayerLeft(this.player, this.keyStates));
+        this.commands.push(new CommandMovePlayerRight(this.player, this.keyStates));
+        this.commands.push(new CommandPlayerJump(this.player, this.keyStates));
+        this.commands.push(new CommandToggleWireframe(this.keyStates));
 
         // Listen for pointer lock changes
         document.addEventListener('pointerlockchange', this.onPointerLockChange.bind(this), false);
@@ -48,6 +49,11 @@ export class KeyboardControls extends PlayerControls {
     }
 
     public update(deltaTime: number) {
+        // Call the update method on each command to check if they should execute
+        for (const command of this.commands) {
+            command.update(); // Ensure continuous execution if the key is held down
+        }
+
         const moveDirection = new THREE.Vector3(this.player.direction.x, 0, this.player.direction.z);
     
         if (moveDirection.lengthSq() > 0) {
@@ -63,7 +69,6 @@ export class KeyboardControls extends PlayerControls {
             this.player.updatePosition(deltaTime, moveDirection);
         }
     }
-    
 
     public getControls(): PointerLockControls {
         return this.controls;

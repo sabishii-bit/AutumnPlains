@@ -20,4 +20,6 @@ export default class CommandPlayerJump extends BaseKeyboardCommand {
     public release(): void {
         // No action needed on release for jumping
     }
+
+    public update() { }
 }

@@ -5,6 +5,7 @@ import { WorldContext } from '../../global/world/WorldContext';
 import { SceneContext } from '../../global/scene/SceneContext';
 import { generateUUID } from 'three/src/math/MathUtils';
 import { GameObjectManager } from '../GameObjectManager';
+import { PlayerCharacter } from './characters/PlayerCharacter';
 
 export default abstract class GameObject {
     protected visualMesh: THREE.Mesh;
@@ -46,6 +47,7 @@ export default abstract class GameObject {
         this.createVisualMesh();
         this.createCollisionMesh();
         this.addObjectToCollection();
+        this.addToScene();
     }
 
     // Abstract method to create the visual part of the object
@@ -103,10 +105,27 @@ export default abstract class GameObject {
 
     protected syncMeshWithBody() {
         if (this.collisionMesh) {
-            this.visualMesh.position.copy(this.collisionMesh.position as any);
-            this.visualMesh.quaternion.copy(this.collisionMesh.quaternion as any);
 
-            // Sync wireframe position and rotation with the main mesh
+            // Convert CANNON.Vec3 to THREE.Vector3
+            const position = new THREE.Vector3(
+                this.collisionMesh.position.x,
+                this.collisionMesh.position.y,
+                this.collisionMesh.position.z
+            );
+    
+            // Synchronize the visual mesh's position and rotation with the physics body's
+            this.visualMesh.position.copy(position);
+            
+            // Convert the quaternion (rotation) as well
+            const quaternion = new THREE.Quaternion(
+                this.collisionMesh.quaternion.x,
+                this.collisionMesh.quaternion.y,
+                this.collisionMesh.quaternion.z,
+                this.collisionMesh.quaternion.w
+            );
+            this.visualMesh.quaternion.copy(quaternion);
+    
+            // Sync wireframe position and rotation with the main mesh if wireframe is enabled
             if (this.wireframeMesh) {
                 this.wireframeMesh.position.copy(this.visualMesh.position);
                 this.wireframeMesh.quaternion.copy(this.visualMesh.quaternion);
@@ -114,8 +133,10 @@ export default abstract class GameObject {
         }
     }
 
-    protected addObjectToCollection(): void {
-        this.gameObjectManager = new GameObjectManager();
+    private addObjectToCollection(): void {
+        if (this.gameObjectManager == null) {
+            this.gameObjectManager = new GameObjectManager();
+        }
         this.gameObjectManager.addGameObject(this);
     }
 
@@ -123,7 +144,7 @@ export default abstract class GameObject {
         return this.objectId;
     }
 
-    animate(deltaTime: number): void {
+    protected animate(deltaTime: number): void {
         // Default animate logic (if any), can be overridden in subclasses
     }
 

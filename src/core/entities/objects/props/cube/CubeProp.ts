@@ -9,20 +9,20 @@ export class CubeProp extends GameObject {
     }
 
     protected createVisualMesh() {
-        const geometry = new THREE.BoxGeometry(20, 20, 20);
+        const geometry = new THREE.BoxGeometry(2, 2, 2);
         const material = new THREE.MeshPhongMaterial({ color: 0xFFFFFF });
         this.visualMesh = new THREE.Mesh(geometry, material);
     }
 
     protected createCollisionMesh() {
-        const halfExtents = new CANNON.Vec3(10, 10, 10);
+        const halfExtents = new CANNON.Vec3(1, 1, 1);
         const shape = new CANNON.Box(halfExtents);
         this.collisionMesh = new CANNON.Body({
-            mass: 0, // Set mass to 0 to make the body static
+            mass: 1,
             position: new CANNON.Vec3(this.position.x, this.position.y, this.position.z),
             shape: shape
         });
-        this.collisionMesh.type = CANNON.Body.KINEMATIC; // Make the body kinematic
+        this.collisionMesh.type = CANNON.Body.DYNAMIC; // Make the body kinematic
         this.worldContext.addBody(this.collisionMesh);
     }
 

@@ -44,9 +44,9 @@ export class GroundEnvironment extends GameObject {
 
     private initializeContactMaterialBetweenGroundAndPlayer() {
         const playerMaterial = this.worldContext.defaultMaterial;  // Use the default material, which is now ground's material
-        const contactMaterial = new CANNON.ContactMaterial(playerMaterial, playerMaterial, {
-            friction: 0.1, // Low friction
-            restitution: 0.0, // No bounciness
+        const contactMaterial = new CANNON.ContactMaterial(playerMaterial, new CANNON.Material("groundMaterial"), {
+            friction: 0, // Low friction
+            restitution: 0, // No bounciness
         });
         this.worldContext.addContactMaterial(contactMaterial);
     }

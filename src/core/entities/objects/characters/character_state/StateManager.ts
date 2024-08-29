@@ -27,7 +27,6 @@ export default abstract class StateManager {
             
             // Determine if the character should transition to this state
             if (instance.shouldEnterState(character)) {
-                console.log("Instance", instance);
                 // Exit the current state (if any)
                 currentState?.exit(character);
 
