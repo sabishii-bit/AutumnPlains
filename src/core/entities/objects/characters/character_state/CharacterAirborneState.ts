@@ -1,6 +1,7 @@
 import { CharacterState } from './CharacterState';
 import { BaseCharacter } from '../BaseCharacter';
-import { CharacterIdleState } from './CharacterIdleState';
+import { CharacterDeceleratingState } from './CharacterDeceleratingState';
+import StateManager from './StateManager';
 
 export class CharacterAirborneState extends CharacterState {
     private static readonly stateName: string = "Airborne";
@@ -11,9 +12,8 @@ export class CharacterAirborneState extends CharacterState {
 
     // Determines if the character should enter the Airborne state
     public shouldEnterState(character: BaseCharacter): boolean {
-        const yVelocity = character.getCollisionBody().velocity.y;
-
-        // Enter the airborne state if the y-velocity is below -0.2 (falling)
+        const yVelocity = parseFloat(character.getCollisionBody().velocity.y.toFixed(2));
+        // Enter the airborne state if the y-velocity is greater than epsilon and character is moving upwards or falling
         return Math.abs(yVelocity) > CharacterState.epsilon;
     }
 
@@ -21,11 +21,12 @@ export class CharacterAirborneState extends CharacterState {
         character.setState(this);  // Set this state as the current state
         character.direction.x = 0;
         character.direction.z = 0;
-        // Additional logic for entering the Airborne state (e.g., play airborne animation)
+        // Additional logic for entering the Airborne state
     }
 
     public exit(character: BaseCharacter): void {
-        // Clean-up when exiting the Airborne state, automatically enter idle state
+        // Transition to decelerating state when exiting airborne
+        new CharacterDeceleratingState(character).enter(character);
     }
 
     public canJump(character: BaseCharacter): boolean {

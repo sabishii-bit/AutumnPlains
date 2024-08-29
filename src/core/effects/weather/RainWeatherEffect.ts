@@ -3,6 +3,7 @@ import { GameObjectManager } from '../../entities/GameObjectManager';
 import { ParticleSystem } from '../ParticleSystem';
 import { GroundEnvironment } from '../../entities/objects/environment/ground/GroundEnvironment';
 import { SkyboxEnvironment } from '../../entities/objects/environment/skybox/SkyboxEnvironment';
+import { BaseCharacter } from '../../entities/objects/characters/BaseCharacter';
 
 export class RainWeatherEffect extends ParticleSystem {
     private ceilingHeight: number;
@@ -108,7 +109,7 @@ export class RainWeatherEffect extends ParticleSystem {
     
             // Check for collisions with game objects
             for (const gameObject of gameObjects) {
-                if (gameObject instanceof SkyboxEnvironment) continue;
+                if (gameObject instanceof SkyboxEnvironment || gameObject instanceof BaseCharacter) continue;
     
                 const boundingBox = new THREE.Box3().setFromObject(gameObject.getMesh());
                 const particlePosition = new THREE.Vector3(

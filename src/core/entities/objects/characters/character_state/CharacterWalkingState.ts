@@ -9,16 +9,19 @@ export class CharacterWalkingState extends CharacterState {
     }
 
     public shouldEnterState(character: BaseCharacter): boolean {
-        return (character.direction.x != 0 || character.direction.z != 0) && Math.round(character.getCollisionBody().velocity.y) == 0;
+        const isWalking = (character.direction.x !== 0 || character.direction.z !== 0);
+        const isGrounded = Math.abs(parseFloat(character.getCollisionBody().velocity.y.toFixed(2))) == 0;
+
+        return isWalking && isGrounded;
     }
 
     public enter(character: BaseCharacter): void {
         character.setState(this);  // Set this state as the current state
-        // Additional logic for entering the Walking state (e.g., play walking animation)
+        // Additional logic for entering the Walking state
     }
 
     public exit(character: BaseCharacter): void {
-        // Clean-up when exiting the Walking state (e.g., stop walking animation)
+        // Clean-up when exiting the Walking state
     }
 
     public canJump(character: BaseCharacter): boolean {

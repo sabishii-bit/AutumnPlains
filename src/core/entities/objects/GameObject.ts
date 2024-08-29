@@ -5,10 +5,11 @@ import { WorldContext } from '../../global/world/WorldContext';
 import { SceneContext } from '../../global/scene/SceneContext';
 import { generateUUID } from 'three/src/math/MathUtils';
 import { GameObjectManager } from '../GameObjectManager';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import { PlayerCharacter } from './characters/PlayerCharacter';
 
 export default abstract class GameObject {
-    protected visualMesh: THREE.Mesh;
+    protected visualMesh: THREE.Mesh | THREE.Group;
     protected collisionMesh!: CANNON.Body;
     protected position: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
     protected rotation: THREE.Vector3 | null = null;
@@ -105,7 +106,6 @@ export default abstract class GameObject {
 
     protected syncMeshWithBody() {
         if (this.collisionMesh) {
-
             // Convert CANNON.Vec3 to THREE.Vector3
             const position = new THREE.Vector3(
                 this.collisionMesh.position.x,
@@ -115,7 +115,7 @@ export default abstract class GameObject {
     
             // Synchronize the visual mesh's position and rotation with the physics body's
             this.visualMesh.position.copy(position);
-            
+    
             // Convert the quaternion (rotation) as well
             const quaternion = new THREE.Quaternion(
                 this.collisionMesh.quaternion.x,
@@ -151,7 +151,21 @@ export default abstract class GameObject {
     // Create wireframe based on the existing mesh
     public createCollisionMeshWireframe(): void {
         if (!this.wireframeMesh) {
-            const wireframeGeometry = new THREE.WireframeGeometry(this.visualMesh.geometry);
+            // Handle visualMesh being a Group or a Mesh
+            let wireframeGeometry;
+            if (this.visualMesh instanceof THREE.Group) {
+                // If visualMesh is a group, merge its geometries for the wireframe
+                const geometries: THREE.BufferGeometry[] = [];
+                this.visualMesh.children.forEach(child => {
+                    if (child instanceof THREE.Mesh) {
+                        geometries.push((child as THREE.Mesh).geometry);
+                    }
+                });
+                wireframeGeometry = mergeGeometries(geometries);
+            } else {
+                // Otherwise, use the geometry directly
+                wireframeGeometry = new THREE.WireframeGeometry((this.visualMesh as THREE.Mesh).geometry);
+            }
             const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
             this.wireframeMesh = new THREE.LineSegments(wireframeGeometry, wireframeMaterial);
             this.wireframeMesh.position.copy(this.visualMesh.position);

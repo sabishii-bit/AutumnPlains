@@ -3,6 +3,12 @@ import { PlayerCharacter } from '../entities/objects/characters/PlayerCharacter'
 
 export class PlayerCamera {
     private static instance: PlayerCamera;
+
+    // Constants for camera offsets (will be scaled accordingly)
+    private static readonly CAMERA_X_OFFSET = 0; // Adjust this value as needed (e.g., left/right)
+    private static readonly CAMERA_Y_OFFSET = 3.75; // Adjust this value as needed (e.g., height/eye level)
+    private static readonly CAMERA_Z_OFFSET = 0; // Adjust this value as needed (e.g., forward/backward)
+
     private camera: THREE.PerspectiveCamera;
     private player: PlayerCharacter;
 
@@ -33,7 +39,14 @@ export class PlayerCamera {
     public update(deltaTime: number) {
         // Synchronize the camera position with the player's body
         const collisionBodyPosition = this.player.getCollisionBody().position;
-        this.camera.position.copy(collisionBodyPosition as unknown as THREE.Vector3);
+        const scaleFactor = this.player.getScaleFactor(); // Assume you have a method to get the scale factor
+
+        // Apply the offsets for X, Y, and Z, scaled appropriately
+        this.camera.position.set(
+            collisionBodyPosition.x + PlayerCamera.CAMERA_X_OFFSET * scaleFactor,
+            collisionBodyPosition.y + PlayerCamera.CAMERA_Y_OFFSET * scaleFactor,
+            collisionBodyPosition.z + PlayerCamera.CAMERA_Z_OFFSET * scaleFactor
+        );
     }
 
     public getCamera(): THREE.PerspectiveCamera {

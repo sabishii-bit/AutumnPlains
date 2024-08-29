@@ -32,6 +32,7 @@ export default abstract class StateManager {
 
                 // Enter the new state and update the character's current state
                 instance.enter(character);
+                character.setState(instance);
                 return;  // Exit after setting the new state
             }
         }

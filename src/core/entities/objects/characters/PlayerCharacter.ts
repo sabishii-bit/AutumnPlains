@@ -7,7 +7,7 @@ import StateManager from './character_state/StateManager';
 export class PlayerCharacter extends BaseCharacter {
     public static instance: PlayerCharacter | null = null;
     public jumpHeight: number = 20.0;
-    public moveSpeed: number = 10.0;
+    public moveSpeed: number = 7.5;
     public canJump: boolean = true;
     public direction: THREE.Vector3 = new THREE.Vector3();
 
@@ -27,7 +27,6 @@ export class PlayerCharacter extends BaseCharacter {
             inputVector.normalize();
             this.collisionMesh.velocity.x = inputVector.x * this.moveSpeed;
             this.collisionMesh.velocity.z = inputVector.z * this.moveSpeed;
-            super.update(0);
         }
     }
 
