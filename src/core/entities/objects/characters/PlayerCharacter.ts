@@ -24,6 +24,7 @@ export class PlayerCharacter extends BaseCharacter {
 
     public updatePosition(deltaTime: number, inputVector: THREE.Vector3): void {
         if (this.collisionMesh) {
+            inputVector.normalize();
             this.collisionMesh.velocity.x = inputVector.x * this.moveSpeed;
             this.collisionMesh.velocity.z = inputVector.z * this.moveSpeed;
             super.update(0);
