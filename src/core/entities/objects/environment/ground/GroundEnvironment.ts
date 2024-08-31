@@ -3,10 +3,13 @@ import GameObject from '../../GameObject';
 import * as CANNON from 'cannon-es';
 
 export class GroundEnvironment extends GameObject {
+    private groundMaterial: CANNON.Material;
+
     constructor(initialPosition: THREE.Vector3) {
         super(initialPosition); // Call to parent constructor
+        this.groundMaterial = new CANNON.Material("groundMaterial"); // Initialize the ground material
+        this.groundMaterial.restitution = 0.0; // Ensure no bounce on the ground material
         this.setGroundAsDefaultMaterial();
-        this.initializeContactMaterialBetweenGroundAndPlayer();
     }
 
     protected createVisualMesh() {
@@ -26,28 +29,16 @@ export class GroundEnvironment extends GameObject {
 
     protected createCollisionMesh() {
         const shape = new CANNON.Plane();
-        const groundMaterial = new CANNON.Material("groundMaterial");
         this.collisionMesh = new CANNON.Body({
             mass: 0,
             shape: shape,
-            material: groundMaterial,
+            material: this.groundMaterial, // Use the initialized ground material
         });
         this.collisionMesh.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
         this.worldContext.addBody(this.collisionMesh);
     }
 
     private setGroundAsDefaultMaterial() {
-        const groundMaterial = this.getCollisionBody()?.material;
-        if (groundMaterial)
-            this.worldContext.defaultMaterial = groundMaterial;  // Set the ground material as the default for the world
-    }
-
-    private initializeContactMaterialBetweenGroundAndPlayer() {
-        const playerMaterial = this.worldContext.defaultMaterial;  // Use the default material, which is now ground's material
-        const contactMaterial = new CANNON.ContactMaterial(playerMaterial, new CANNON.Material("groundMaterial"), {
-            friction: 100,
-            restitution: 0,
-        });
-        this.worldContext.addContactMaterial(contactMaterial);
+        this.worldContext.defaultMaterial = this.groundMaterial; // Set the ground material as the default for the world
     }
 }

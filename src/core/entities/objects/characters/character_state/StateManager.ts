@@ -3,14 +3,16 @@ import { CharacterWalkingState } from './CharacterWalkingState';
 import { CharacterAirborneState } from './CharacterAirborneState';
 import { BaseCharacter } from '../BaseCharacter';
 import { CharacterState } from './CharacterState';
+import { CharacterLandingState } from './CharacterLandingState';
 
 export default abstract class StateManager {
 
     // Ensure that all states are registered
     public static registerStates(): void {
-        new CharacterIdleState(null as any);  // Instantiating with a dummy character just for registration
+        new CharacterIdleState(null as any); 
         new CharacterWalkingState(null as any);
         new CharacterAirborneState(null as any);
+        new CharacterLandingState(null as any);
     }
 
     public static decideState(character: BaseCharacter): void {
@@ -22,6 +24,12 @@ export default abstract class StateManager {
 
             // Skip if the character is already in this state
             if (currentState?.getStateName() === instance.getStateName()) {
+                continue;
+            }
+
+            // Check if the transition is allowed
+            const allowedNextStates = currentState?.getAllowedNextStates() || [];
+            if (!allowedNextStates.includes(State)) {
                 continue;
             }
             
@@ -36,5 +44,10 @@ export default abstract class StateManager {
                 return;  // Exit after setting the new state
             }
         }
+    }
+
+    public static executeState(character: BaseCharacter): void {
+        const currentState = character.getCurrentState();
+        currentState?.execute(character);
     }
 }

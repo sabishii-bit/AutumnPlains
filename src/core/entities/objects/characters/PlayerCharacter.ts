@@ -21,16 +21,4 @@ export class PlayerCharacter extends BaseCharacter {
         }
         return PlayerCharacter.instance;
     }
-
-    public updatePosition(deltaTime: number, inputVector: THREE.Vector3): void {
-        if (this.collisionMesh) {
-            inputVector.normalize();
-            this.collisionMesh.velocity.x = inputVector.x * this.moveSpeed;
-            this.collisionMesh.velocity.z = inputVector.z * this.moveSpeed;
-        }
-    }
-
-    public jump() {
-        this.collisionMesh.velocity.y = this.jumpHeight;
-    }
 }
