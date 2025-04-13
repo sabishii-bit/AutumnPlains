@@ -11,6 +11,7 @@ import { CloudWeatherEffect } from '../effects/weather/CloudWeatherEffect';
 import { FogWeatherEffect } from '../effects/weather/FogWeatherEffect';
 import { CubeProp } from '../entities/objects/props/cube/CubeProp';
 import { WallEnvironment } from '../entities/objects/environment/wall/WallEnvironment';
+import { OutskirtStand } from '../entities/objects/imported/outskirt_stand/outskirt_stand';
 
 export class TestMap {
     private lighting: LightingEffect;
@@ -28,10 +29,9 @@ export class TestMap {
         this.rain = new RainWeatherEffect();
         this.fog = new FogWeatherEffect();
         
-        new GroundEnvironment(new THREE.Vector3(0, -1, 0));
+        new GroundEnvironment(new THREE.Vector3(0, 10, 10));
         new SkyboxEnvironment(new THREE.Vector3(0, 0, 0));
-        new JapaneseRestaurant(new THREE.Vector3(10, 0, 0));
-        new CubeProp(new THREE.Vector3(-15, 1, 0))
+        new OutskirtStand(new THREE.Vector3(0, 0, 5));
 
         // Add objects and effects to the scene
         this.lighting.addToScene();

@@ -71,11 +71,11 @@ export abstract class BaseCharacter extends GameObject {
         if (!this.collisionMesh) {
             // Create the material for the character
             const characterMaterial = new CANNON.Material('characterMaterial');
-            characterMaterial.friction = 0.9;  // High friction to reduce sliding
+            characterMaterial.friction = 1.0;  // Increased from 0.9 for maximum friction
             characterMaterial.restitution = 0.0;  // Zero restitution to prevent bouncing
             const groundMaterial = this.worldContext.defaultMaterial;
             const contactMaterial = new CANNON.ContactMaterial(characterMaterial, groundMaterial, {
-                friction: 0.9,
+                friction: 1.0,  // Increased from 0.9
                 restitution: 0.0
             });
             this.worldContext.addContactMaterial(contactMaterial);
@@ -92,7 +92,7 @@ export abstract class BaseCharacter extends GameObject {
             this.collisionMesh = new CANNON.Body({
                 mass: 7,
                 position: new CANNON.Vec3(this.position.x, this.position.y, this.position.z),
-                linearDamping: 0.95,  // Adjust to reduce sliding and improve stability
+                linearDamping: 0.99,  // Increased from 0.95 for faster deceleration
                 angularDamping: 1,  // Increase angular damping to reduce rotation
                 material: characterMaterial, // Apply the material here
             });
@@ -161,9 +161,17 @@ export abstract class BaseCharacter extends GameObject {
 
     public updatePosition(deltaTime: number, inputVector: THREE.Vector3): void {
         if (this.collisionMesh) {
-            inputVector.normalize();
-            this.collisionMesh.velocity.x = inputVector.x * this.moveSpeed;
-            this.collisionMesh.velocity.z = inputVector.z * this.moveSpeed;
+            // Check if there's any input
+            if (inputVector.lengthSq() > 0) {
+                // When there's input, apply velocity based on input
+                inputVector.normalize();
+                this.collisionMesh.velocity.x = inputVector.x * this.moveSpeed;
+                this.collisionMesh.velocity.z = inputVector.z * this.moveSpeed;
+            } else {
+                // When there's no input, immediately stop horizontal movement
+                this.collisionMesh.velocity.x = 0;
+                this.collisionMesh.velocity.z = 0;
+            }
         }
     }
 

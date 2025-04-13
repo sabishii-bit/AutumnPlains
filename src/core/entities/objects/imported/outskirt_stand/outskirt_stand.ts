@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import GameObject from '../../GameObject';
 import { ImportedModelLoaderService } from '../../../../services/model_loader/ImportedModelLoaderService';
 
-export class JapaneseRestaurant extends GameObject {
+export class OutskirtStand extends GameObject {
 
     constructor(initialPosition: THREE.Vector3) {
         super(initialPosition);
@@ -11,7 +11,7 @@ export class JapaneseRestaurant extends GameObject {
 
     protected createVisualMesh() {
         const modelLoader = new ImportedModelLoaderService();
-        modelLoader.loadGltfModel("/assets/gltf/japanese_restaurant/scene.gltf", this.position, false, new THREE.Vector3(0.75, 0.75, 0.75));
+        modelLoader.loadGltfModel("/assets/gltf/outskirt_stand/Outskirt_Stand.gltf", this.position, false, new THREE.Vector3(0.13, 0.13, 0.13));
     }
 
     protected createCollisionMesh() {
