@@ -26,6 +26,10 @@ export class ImportedModelLoaderService {
     private cacheSizeLimit: number = 50; // Maximum number of models to cache
     private cacheExpiryTimeMs: number = 5 * 60 * 1000; // 5 minutes
 
+    // Scene and world context references
+    private scene: THREE.Scene;
+    private cannonWorld: CANNON.World;
+
     constructor() {
         this.gltfLoader = new GLTFLoader();
         this.objLoader = new OBJLoader();
@@ -35,6 +39,10 @@ export class ImportedModelLoaderService {
         
         // Set up the GLTF loader to use caching for textures
         THREE.Cache.enabled = true;
+
+        // Get singleton instances
+        this.scene = SceneContext.getInstance();
+        this.cannonWorld = WorldContext.getInstance();
     }
     
     // Configuration methods for cache settings
@@ -72,7 +80,7 @@ export class ImportedModelLoaderService {
             clonedScene.position.copy(position);
             clonedScene.scale.copy(scale);
             
-            SceneContext.getInstance().add(clonedScene);
+            this.scene.add(clonedScene);
             console.log(`Using cached model: ${objPath}`);
             return;
         }
@@ -95,7 +103,7 @@ export class ImportedModelLoaderService {
                     });
                 }
                 
-                SceneContext.getInstance().add(root);
+                this.scene.add(root);
             });
             return;
         }
@@ -123,7 +131,7 @@ export class ImportedModelLoaderService {
                     });
                 }
                 
-                SceneContext.getInstance().add(root);
+                this.scene.add(root);
             });
         });
     }
@@ -146,14 +154,22 @@ export class ImportedModelLoaderService {
             
             // Clone the cached scene
             const clonedScene = this.cloneModel(cachedModel.scene);
+            
+            // Apply position and scale
             clonedScene.position.copy(position);
             clonedScene.scale.copy(scale);
             
-            SceneContext.getInstance().add(clonedScene);
+            // Add to scene
+            this.scene.add(clonedScene);
+            
+            // Force an update of the world matrix to ensure correct physics
+            clonedScene.updateMatrixWorld(true);
             
             // Create a CANNON.Trimesh for physics if enabled
             if (trimeshCollisionEnabled) {
-                this.createTrimeshPhysics(clonedScene, position, scale, physicsBody);
+                // Create physics immediately instead of using setTimeout
+                const createdBody = this.createTrimeshPhysics(clonedScene, position, scale, physicsBody);
+                console.log(`Physics created for cached model at position (${position.x}, ${position.y}, ${position.z})`, createdBody);
             }
             
             console.log(`Using cached model: ${gltfPath}`);
@@ -170,8 +186,13 @@ export class ImportedModelLoaderService {
                 // Store in cache
                 if (this.cacheEnabled) {
                     this.ensureCacheSizeLimit();
+                    
+                    // Store the original unscaled model for flexible reuse with different scales
+                    const originalScene = gltf.scene.clone();
+                    originalScene.scale.set(1, 1, 1); // Reset to original scale
+                    
                     this.modelCache.set(cacheKey, {
-                        scene: gltf.scene.clone(),
+                        scene: originalScene,
                         timestamp: Date.now()
                     });
                 }
@@ -221,50 +242,274 @@ export class ImportedModelLoaderService {
             }
         });
 
+        // Apply position and scale
         gltf.scene.position.copy(position);
         gltf.scene.scale.copy(scale);
-        SceneContext.getInstance().add(gltf.scene);
+        
+        // Add to scene
+        this.scene.add(gltf.scene);
+        
+        // Force an update of the world matrix to ensure correct physics
+        gltf.scene.updateMatrixWorld(true);
 
         // Create a CANNON.Trimesh for physics if enabled
         if (trimeshCollisionEnabled) {
-            this.createTrimeshPhysics(gltf.scene, position, scale, physicsBody);
+            // Create the physics immediately rather than with setTimeout
+            // This ensures physics is applied properly when model is loaded
+            const createdBody = this.createTrimeshPhysics(gltf.scene, position, scale, physicsBody);
+            
+            // Log successful physics creation for debugging
+            console.log(`Physics created for model at position (${position.x}, ${position.y}, ${position.z})`, createdBody);
         }
     }
 
+    /**
+     * Create trimesh physics for a complex mesh
+     * @param object The object to create physics for
+     * @param position Base position for the object
+     * @param scale Base scale for the object
+     * @param physicsBody Optional existing physics body to use
+     * @returns The created CANNON.js body
+     */
     private createTrimeshPhysics(
-        scene: THREE.Group, 
+        object: THREE.Object3D, 
         position: THREE.Vector3, 
-        scale: THREE.Vector3 = new THREE.Vector3(1, 1, 1),
-        physicsBody: CANNON.Body | null = null
+        scale: THREE.Vector3, 
+        physicsBody: CANNON.Body | null
+    ): CANNON.Body {
+        // Get the CANNON world
+        const world = this.cannonWorld;
+        
+        // Use existing body or create new one
+        let body = physicsBody || new CANNON.Body({ 
+            mass: 0.0, // Use zero mass for static objects by default
+            // Initialize position to match the object's position
+            position: new CANNON.Vec3(position.x, position.y, position.z)
+        });
+        
+        // Track if we've added any shapes to the body
+        let shapesAdded = false;
+        
+        // Process all mesh children
+        object.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                // Extract the mesh's world position, rotation, and scale
+                const worldPosition = new THREE.Vector3();
+                const worldQuaternion = new THREE.Quaternion();
+                const worldScale = new THREE.Vector3();
+                child.matrixWorld.decompose(worldPosition, worldQuaternion, worldScale);
+        
+                // Clone the geometry to avoid modifying the original
+                const geometry = child.geometry.clone();
+                
+                // Make sure the geometry's vertices reflect current transformations
+                if (geometry.attributes.position) {
+                    // Extract vertices and indices from the geometry
+                    const vertices = Array.from(geometry.attributes.position.array as Float32Array) as number[];
+                    
+                    let indices: number[];
+                    if (geometry.index) {
+                        indices = Array.from(geometry.index.array as Uint16Array | Uint32Array) as number[];
+                    } else {
+                        // If no index, create one that just counts up (0,1,2,3,...)
+                        indices = [];
+                        for (let i = 0; i < vertices.length / 3; i++) {
+                            indices.push(i);
+                        }
+                    }
+        
+                    // Create the CANNON.js trimesh shape
+                    const cannonShape = new CANNON.Trimesh(vertices, indices);
+                    
+                    // Apply scale to the shape to match the Three.js mesh scale
+                    cannonShape.setScale(new CANNON.Vec3(
+                        Math.abs(worldScale.x),
+                        Math.abs(worldScale.y),
+                        Math.abs(worldScale.z)
+                    ));
+        
+                    // Calculate the shape's position relative to the body's position
+                    const relativePosition = new CANNON.Vec3(
+                        worldPosition.x - position.x,
+                        worldPosition.y - position.y, 
+                        worldPosition.z - position.z
+                    );
+                    
+                    // Create a quaternion that matches the mesh's orientation
+                    const correctedQuaternion = new CANNON.Quaternion();
+                    correctedQuaternion.set(
+                        worldQuaternion.x,
+                        worldQuaternion.y,
+                        worldQuaternion.z,
+                        worldQuaternion.w
+                    );
+                    
+                    // Add the shape to the body with the corrected transforms
+                    body.addShape(cannonShape, relativePosition, correctedQuaternion);
+                    
+                    // For debugging, log information about each added shape
+                    console.log(`Added shape to physics body at relative position (${relativePosition.x}, ${relativePosition.y}, ${relativePosition.z})`);
+                    
+                    shapesAdded = true;
+                    
+                    // Always create wireframe for visualization, regardless of current visibility
+                    // Initial visibility will be set based on ImportedModelLoaderService.isWireframeVisible
+                    this.createMeshWireframe(
+                        child as THREE.Mesh,
+                        worldPosition,
+                        worldScale,
+                        worldQuaternion,
+                        body
+                    );
+                }
+            }
+        });
+        
+        // If shapes were added, add the body to the CANNON world
+        if (shapesAdded && !physicsBody) {
+            world.addBody(body);
+            console.log("Added physics body to world", body);
+            
+            // Normalize quaternion to prevent rotation drift
+            body.quaternion.normalize();
+        } else if (!shapesAdded) {
+            console.warn("No valid meshes found for physics in the object:", object);
+        }
+        
+        return body;
+    }
+    
+    /**
+     * Creates a wireframe representation of a box physics body for visualization
+     * @param size Box dimensions
+     * @param position Box position
+     * @param physicsBody The physics body to visualize
+     */
+    private createBoxWireframe(size: THREE.Vector3, position: THREE.Vector3, physicsBody: CANNON.Body): void {
+        // Create a box geometry matching the physics body
+        const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+        const wireframe = new THREE.WireframeGeometry(geometry);
+        const wireMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+        const wireframeMesh = new THREE.LineSegments(wireframe, wireMaterial);
+        
+        // Position the wireframe
+        wireframeMesh.position.copy(position);
+        
+        // Add to scene with visibility set based on current state
+        wireframeMesh.visible = ImportedModelLoaderService.isWireframeVisible;
+        this.scene.add(wireframeMesh);
+        
+        // Store wireframe on the imported model registry
+        this.registerWireframeForToggle(wireframeMesh, physicsBody);
+    }
+    
+    /**
+     * Creates a wireframe representation of a mesh's physics body for visualization
+     */
+    private createMeshWireframe(
+        mesh: THREE.Mesh, 
+        position: THREE.Vector3,
+        scale: THREE.Vector3,
+        quaternion: THREE.Quaternion,
+        physicsBody: CANNON.Body
     ): void {
-        scene.traverse((child) => {
-            if (child instanceof THREE.Mesh && child.geometry) {
-                const geometry = child.geometry;
-                const vertices = geometry.attributes.position.array;
-                const indices = geometry.index ? geometry.index.array : [];
+        // Create a wireframe from the mesh's geometry (using a clone to avoid modifying original)
+        const clonedGeometry = mesh.geometry.clone();
+        const wireframe = new THREE.WireframeGeometry(clonedGeometry);
+        const wireMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x00ff00,
+            depthTest: false, // Make wireframe visible through objects
+            opacity: 0.5,
+            transparent: true
+        });
+        const wireframeMesh = new THREE.LineSegments(wireframe, wireMaterial);
+        
+        // Apply the same transformations
+        wireframeMesh.position.copy(position);
+        wireframeMesh.quaternion.copy(quaternion);
+        wireframeMesh.scale.copy(scale);
+        
+        // Add to scene with visibility set based on current state
+        wireframeMesh.visible = ImportedModelLoaderService.isWireframeVisible;
+        wireframeMesh.renderOrder = 999; // Ensure wireframe renders on top
+        this.scene.add(wireframeMesh);
+        
+        // Register wireframe for toggle with 'T' key
+        this.registerWireframeForToggle(wireframeMesh, physicsBody);
+    }
+    
+    /**
+     * Registers a wireframe with the GameObject wireframe registry to toggle with 'T' key
+     */
+    private registerWireframeForToggle(wireframeMesh: THREE.LineSegments, physicsBody: CANNON.Body): void {
+        // Special user data to identify this as a wireframe mesh for imported models
+        wireframeMesh.userData.isImportedModelWireframe = true;
+        wireframeMesh.userData.physicsBody = physicsBody;
+        
+        // Add to global wireframe collection for toggling
+        ImportedModelLoaderService.wireframeMeshes.push(wireframeMesh);
+        
+        // Sync the wireframe with physics in the update loop
+        this.registerPhysicsSync(wireframeMesh, physicsBody);
+    }
+    
+    /**
+     * Registers a callback to sync the wireframe with physics
+     */
+    private registerPhysicsSync(wireframeMesh: THREE.LineSegments, physicsBody: CANNON.Body): void {
+        // Add to a list that will be updated each frame
+        if (!ImportedModelLoaderService.physicsSyncList) {
+            ImportedModelLoaderService.physicsSyncList = [];
+        }
+        
+        ImportedModelLoaderService.physicsSyncList.push({
+            mesh: wireframeMesh,
+            body: physicsBody
+        });
+    }
 
-                const cannonShape = new CANNON.Trimesh(
-                    Array.from(vertices),
-                    Array.from(indices)
+    // Static wireframe registry for imported models
+    private static wireframeMeshes: THREE.LineSegments[] = [];
+    private static physicsSyncList: Array<{mesh: THREE.LineSegments, body: CANNON.Body}> = [];
+    private static isWireframeVisible: boolean = false;
+
+    /**
+     * Toggle the visibility of all wireframes for imported models
+     * Call this method when 'T' is pressed
+     */
+    public static toggleWireframeVisibility(): boolean {
+        ImportedModelLoaderService.isWireframeVisible = !ImportedModelLoaderService.isWireframeVisible;
+        
+        ImportedModelLoaderService.wireframeMeshes.forEach(wireframe => {
+            wireframe.visible = ImportedModelLoaderService.isWireframeVisible;
+        });
+        
+        return ImportedModelLoaderService.isWireframeVisible;
+    }
+
+    /**
+     * Update all wireframes to match their physics bodies
+     * Call this in your main update loop
+     */
+    public static updateWireframes(): void {
+        if (!ImportedModelLoaderService.isWireframeVisible) return;
+        
+        ImportedModelLoaderService.physicsSyncList.forEach(({mesh, body}) => {
+            if (mesh && body) {
+                // Update position
+                mesh.position.set(
+                    body.position.x,
+                    body.position.y,
+                    body.position.z
                 );
                 
-                // Apply scale to the physics shape
-                cannonShape.setScale(new CANNON.Vec3(scale.x, scale.y, scale.z));
-
-                let cannonBody: CANNON.Body;
-                if (physicsBody) {
-                    cannonBody = physicsBody;
-                    cannonBody.position = new CANNON.Vec3(position.x, position.y, position.z);
-                } else {
-                    cannonBody = new CANNON.Body({
-                        mass: 0, // Static body
-                        position: new CANNON.Vec3(position.x, position.y, position.z)
-                    });
-                }
-
-                cannonBody.addShape(cannonShape);
-
-                WorldContext.getInstance().addBody(cannonBody);
+                // Update rotation - need to normalize quaternion to avoid drift
+                mesh.quaternion.set(
+                    body.quaternion.x,
+                    body.quaternion.y,
+                    body.quaternion.z,
+                    body.quaternion.w
+                ).normalize();
             }
         });
     }

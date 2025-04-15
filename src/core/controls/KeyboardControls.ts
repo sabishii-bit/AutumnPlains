@@ -8,6 +8,7 @@ import CommandMovePlayerRight from './keyboard_actions/CommandMovePlayerRight';
 import CommandPlayerJump from './keyboard_actions/CommandPlayerJump';
 import BaseKeyboardCommand from './keyboard_actions/BaseKeyboardCommand';
 import CommandToggleWireframe from './keyboard_actions/CommandToggleWireframe';
+import { ImportedModelLoaderService } from '../services/model_loader/ImportedModelLoaderService';
 
 export class KeyboardControls extends PlayerControls {
     private controls: PointerLockControls;
@@ -68,6 +69,8 @@ export class KeyboardControls extends PlayerControls {
     
             this.player.updatePosition(deltaTime, moveDirection);
         }
+
+        ImportedModelLoaderService.updateWireframes();
     }
 
     public getControls(): PointerLockControls {
