@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import GameObject from '../../GameObject';
+import GameObject, { GameObjectOptions } from '../../GameObject';
 import { ImportedModelLoaderService } from '../../../../services/model_loader/ImportedModelLoaderService';
 
 export class OutskirtStand extends GameObject {
 
     constructor(initialPosition: THREE.Vector3) {
-        super(initialPosition);
+        super({ position: initialPosition });
         this.createVisualMesh();
     }
 

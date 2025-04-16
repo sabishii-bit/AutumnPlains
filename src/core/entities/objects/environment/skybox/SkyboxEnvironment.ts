@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import GameObject from '../../GameObject';
+import GameObject, { GameObjectOptions } from '../../GameObject';
 import * as CANNON from 'cannon-es';
 
 export class SkyboxEnvironment extends GameObject {
     constructor(initialPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
-        super(initialPosition);  // No physics world needed for Skybox
+        super({ position: initialPosition });  // No physics world needed for Skybox
     }
 
     protected createVisualMesh() {

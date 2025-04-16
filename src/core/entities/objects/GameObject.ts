@@ -6,7 +6,21 @@ import { SceneContext } from '../../global/scene/SceneContext';
 import { generateUUID } from 'three/src/math/MathUtils';
 import { GameObjectManager } from '../GameObjectManager';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils';
+import { MaterialType, PhysicsMaterialsManager } from '../../materials/PhysicsMaterialsManager';
 import { PlayerCharacter } from './characters/PlayerCharacter';
+
+/**
+ * Options interface for GameObject initialization
+ */
+export interface GameObjectOptions {
+    position?: THREE.Vector3;
+    objectId?: string;
+    visualMeshOptions?: THREE.Mesh;
+    collisionMeshOptions?: CANNON.Body;
+    addToScene?: boolean;
+    addToCollection?: boolean;
+    materialType?: MaterialType;
+}
 
 export default abstract class GameObject {
     protected visualMesh: THREE.Mesh | THREE.Group;
@@ -17,38 +31,62 @@ export default abstract class GameObject {
     protected sceneContext: Scene = SceneContext.getInstance();
     protected gameObjectManager: GameObjectManager | null = null;
     protected objectId: string = "";
+    protected materialType: MaterialType = MaterialType.DEFAULT;
+    protected physicsManager: PhysicsMaterialsManager = PhysicsMaterialsManager.getInstance();
     private wireframeMesh: THREE.LineSegments | null = null;
     private isWireframeVisible: boolean = false;
 
-    constructor(
-            initialPosition: THREE.Vector3 | undefined = undefined, 
-            objectId: string = "", 
-            visualMeshOptions: THREE.Mesh | undefined = undefined, 
-            collisionMeshOptions: CANNON.Body | undefined = undefined
-        ) {
-        // Initialize mesh with a simple placeholder
-        this.visualMesh = new THREE.Mesh(
+    /**
+     * Creates a new GameObject with the specified options
+     * @param options Configuration options for the GameObject
+     */
+    constructor(options: GameObjectOptions = {}) {
+        // Initialize mesh with a simple placeholder if no visualMeshOptions provided
+        this.visualMesh = options.visualMeshOptions || new THREE.Mesh(
             new THREE.BoxGeometry(0, 0, 0), // Placeholder geometry
             new THREE.MeshBasicMaterial() // Placeholder material
         );
-        // If there is no initial position, default to center axes
-        if (initialPosition)
-            this.setPosition(initialPosition);
-        else
-            this.setPosition(new THREE.Vector3(0,0,0));
+        
+        // Set position
+        this.setPosition(options.position || new THREE.Vector3(0, 0, 0));
         
         // Apply translation to the object's visual mesh
         this.visualMesh.position.copy(this.position);
 
-        // If an ID wasn't assigned to the object, give it one
-        if (!objectId)
-            this.objectId = generateUUID();
+        // Set object ID
+        this.objectId = options.objectId || generateUUID();
+        
+        // Set material type
+        if (options.materialType) {
+            this.materialType = options.materialType;
+        }
 
-        // Setup the object's mesh, use options parameters if they were passed
+        // Initialize the GameObject by setting up meshes
         this.createVisualMesh();
         this.createCollisionMesh();
-        this.addObjectToCollection();
-        this.addToScene();
+        
+        // Add to collection and scene if needed (default: true)
+        const shouldAddToCollection = options.addToCollection !== false;
+        const shouldAddToScene = options.addToScene !== false;
+        
+        if (shouldAddToCollection) {
+            this.addObjectToCollection();
+        }
+        
+        if (shouldAddToScene) {
+            this.addToScene();
+        }
+    }
+
+    /**
+     * Creates a physics body with the appropriate material
+     * @param options Body options
+     * @param materialType Optional override material type
+     * @returns CANNON.Body with material applied
+     */
+    protected createPhysicsBody(options: CANNON.BodyOptions, materialType?: MaterialType): CANNON.Body {
+        const type = materialType || this.materialType;
+        return this.physicsManager.createBodyWithMaterial(options, type);
     }
 
     // Abstract method to create the visual part of the object
@@ -78,7 +116,6 @@ export default abstract class GameObject {
     }
 
     public addToScene(scene?: THREE.Scene) {
-        
         if (!scene) {
             scene = this.sceneContext;
         }
@@ -105,7 +142,9 @@ export default abstract class GameObject {
     }
 
     protected syncMeshWithBody() {
-        if (this.collisionMesh) {
+        if (!this.collisionMesh) return;
+        
+        try {
             // Convert CANNON.Vec3 to THREE.Vector3
             const position = new THREE.Vector3(
                 this.collisionMesh.position.x,
@@ -113,7 +152,15 @@ export default abstract class GameObject {
                 this.collisionMesh.position.z
             );
     
-            // Synchronize the visual mesh's position and rotation with the physics body's
+            // Check for invalid values (NaN, Infinity)
+            if (isNaN(position.x) || isNaN(position.y) || isNaN(position.z) ||
+                !isFinite(position.x) || !isFinite(position.y) || !isFinite(position.z)) {
+                console.error(`Invalid physics position detected for ${this.objectId}:`, position);
+                // Prevent applying invalid positions to the visual mesh
+                return;
+            }
+            
+            // Synchronize the visual mesh's position with the physics body's
             this.visualMesh.position.copy(position);
     
             // Convert the quaternion (rotation) as well
@@ -123,6 +170,19 @@ export default abstract class GameObject {
                 this.collisionMesh.quaternion.z,
                 this.collisionMesh.quaternion.w
             );
+            
+            // Check for invalid quaternion values
+            if (isNaN(quaternion.x) || isNaN(quaternion.y) || isNaN(quaternion.z) || isNaN(quaternion.w) ||
+                !isFinite(quaternion.x) || !isFinite(quaternion.y) || !isFinite(quaternion.z) || !isFinite(quaternion.w)) {
+                console.error(`Invalid physics quaternion detected for ${this.objectId}:`, quaternion);
+                // Prevent applying invalid rotation to the visual mesh
+                return;
+            }
+            
+            // Normalize the quaternion to avoid rendering issues
+            quaternion.normalize();
+            
+            // Apply the quaternion to the visual mesh
             this.visualMesh.quaternion.copy(quaternion);
     
             // Sync wireframe position and rotation with the main mesh if wireframe is enabled
@@ -130,6 +190,8 @@ export default abstract class GameObject {
                 this.wireframeMesh.position.copy(this.visualMesh.position);
                 this.wireframeMesh.quaternion.copy(this.visualMesh.quaternion);
             }
+        } catch (error) {
+            console.error(`Error in syncMeshWithBody for object ${this.objectId}:`, error);
         }
     }
 

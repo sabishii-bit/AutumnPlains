@@ -1,11 +1,15 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import GameObject from '../../GameObject';
+import GameObject, { GameObjectOptions } from '../../GameObject';
+import { MaterialType } from '../../../../materials/PhysicsMaterialsManager';
 
 export class CubeProp extends GameObject {
     
     constructor(initialPosition: THREE.Vector3) {
-        super(initialPosition);
+        super({ 
+            position: initialPosition,
+            materialType: MaterialType.DYNAMIC
+        });
     }
 
     protected createVisualMesh() {
@@ -17,12 +21,12 @@ export class CubeProp extends GameObject {
     protected createCollisionMesh() {
         const halfExtents = new CANNON.Vec3(1, 1, 1);
         const shape = new CANNON.Box(halfExtents);
-        this.collisionMesh = new CANNON.Body({
+        this.collisionMesh = this.createPhysicsBody({
             mass: 1,
             position: new CANNON.Vec3(this.position.x, this.position.y, this.position.z),
             shape: shape
         });
-        this.collisionMesh.type = CANNON.Body.DYNAMIC; // Make the body kinematic
+        this.collisionMesh.type = CANNON.Body.DYNAMIC; // Make the body dynamic
         this.worldContext.addBody(this.collisionMesh);
     }
 

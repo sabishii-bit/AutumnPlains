@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
-import GameObject from '../GameObject';
+import GameObject, { GameObjectOptions } from '../GameObject';
 import { CharacterState } from './character_state/CharacterState';
 import StateManager from './character_state/StateManager';
 import { GameObjectManager } from '../../GameObjectManager';
 import { CharacterAirborneState } from './character_state/CharacterAirborneState';
 import { CharacterJumpingState } from './character_state/CharacterJumpingState';
+import { MaterialType } from '../../../materials/PhysicsMaterialsManager';
 
 export abstract class BaseCharacter extends GameObject {
     // Constants for easy adjustment
@@ -26,9 +27,13 @@ export abstract class BaseCharacter extends GameObject {
     private feetBody!: CANNON.Body;
     private previousYVelocity: number = 0;
     private lastFeetCollisionTime: number = 0;
+    private collisionDebugEnabled: boolean = true; // Toggle for collision debug messages
 
     constructor(initialPosition: THREE.Vector3) { 
-        super(initialPosition);
+        super({ 
+            position: initialPosition,
+            materialType: MaterialType.CHARACTER 
+        });
         
         // Set the initial state as airborne
         this.setState(new CharacterAirborneState(this));
@@ -69,93 +74,191 @@ export abstract class BaseCharacter extends GameObject {
     
     protected createCollisionMesh() {
         if (!this.collisionMesh) {
-            // Create the material for the character
-            const characterMaterial = new CANNON.Material('characterMaterial');
-            characterMaterial.friction = 1.0;  // Increased from 0.9 for maximum friction
-            characterMaterial.restitution = 0.0;  // Zero restitution to prevent bouncing
-            const groundMaterial = this.worldContext.defaultMaterial;
-            const contactMaterial = new CANNON.ContactMaterial(characterMaterial, groundMaterial, {
-                friction: 1.0,  // Increased from 0.9
-                restitution: 0.0
-            });
-            this.worldContext.addContactMaterial(contactMaterial);
+            try {
+                const radius = BaseCharacter.RADIUS;
+                const halfLength = BaseCharacter.HALF_LENGTH;
 
-            const radius = BaseCharacter.RADIUS;
-            const halfLength = BaseCharacter.HALF_LENGTH;
+                // Main body of the capsule
+                const cylinder = new CANNON.Cylinder(radius, radius, halfLength * 2, 16);
+                const cylinderQuaternion = new CANNON.Quaternion();
+                cylinderQuaternion.setFromEuler(0, 0, Math.PI / 2); // Align with visual mesh
 
-            // Main body of the capsule
-            const cylinder = new CANNON.Cylinder(radius, radius, halfLength * 2, 16);
-            const cylinderQuaternion = new CANNON.Quaternion();
-            cylinderQuaternion.setFromEuler(0, 0, Math.PI / 2); // Align with visual mesh
+                // Collision body with improved settings for stability
+                this.collisionMesh = this.createPhysicsBody({
+                    mass: 7,
+                    position: new CANNON.Vec3(this.position.x, this.position.y, this.position.z),
+                    linearDamping: 0.85,       // Reduced from 0.99 for more natural movement
+                    angularDamping: 0.99,      // Increased to reduce any minimal rotation
+                    fixedRotation: true,       // FIXED: Lock rotation to keep character upright
+                    allowSleep: false,         // Keep the character awake
+                    sleepSpeedLimit: 0.1,      // Very low sleep threshold if sleep is enabled later
+                    sleepTimeLimit: 1          // Short sleep time limit if sleep is enabled later
+                });
 
-            // Collision body
-            this.collisionMesh = new CANNON.Body({
-                mass: 7,
-                position: new CANNON.Vec3(this.position.x, this.position.y, this.position.z),
-                linearDamping: 0.99,  // Increased from 0.95 for faster deceleration
-                angularDamping: 1,  // Increase angular damping to reduce rotation
-                material: characterMaterial, // Apply the material here
-            });
+                // Add the cylinder shape to the main body
+                this.collisionMesh.addShape(cylinder, new CANNON.Vec3(0, 0, 0), cylinderQuaternion);
+                
+                // Improve numerical stability
+                this.collisionMesh.updateMassProperties();
+                this.collisionMesh.updateBoundingRadius();
+                
+                // Limit maximum velocity to prevent instability
+                this.collisionMesh.velocity.set(0, 0, 0);
 
-            // Add the cylinder shape to the main body
-            this.collisionMesh.addShape(cylinder, new CANNON.Vec3(0, 0, 0), cylinderQuaternion);
+                // Lock rotation axes to only allow rotation around the Y axis (vertical axis)
+                // This keeps the character upright but allows it to turn
+                this.collisionMesh.angularFactor.set(0, 1, 0);
 
-            // Ensure head and feet also use the same material
-            this.headBody = new CANNON.Body({
-                mass: 0.1,
-                position: new CANNON.Vec3(this.position.x, this.position.y + halfLength, this.position.z),
-                shape: new CANNON.Sphere(radius * BaseCharacter.HEAD_SCALE_FACTOR),
-                angularDamping: 1,
-                material: characterMaterial, // Apply the same material here
-            });
+                // Create head and feet with the same material type
+                this.headBody = this.createPhysicsBody({
+                    mass: 0.1,
+                    position: new CANNON.Vec3(this.position.x, this.position.y + halfLength, this.position.z),
+                    shape: new CANNON.Sphere(radius * BaseCharacter.HEAD_SCALE_FACTOR),
+                    angularDamping: 0.99,
+                    fixedRotation: true  // Keep head from rotating independently
+                });
 
-            this.feetBody = new CANNON.Body({
-                mass: 0.1,
-                position: new CANNON.Vec3(this.position.x, this.position.y - halfLength, this.position.z),
-                shape: new CANNON.Sphere(radius * BaseCharacter.FEET_SCALE_FACTOR),
-                angularDamping: 1,
-                material: characterMaterial, // Apply the same material here
-            });
+                this.feetBody = this.createPhysicsBody({
+                    mass: 0.1,
+                    position: new CANNON.Vec3(this.position.x, this.position.y - halfLength, this.position.z),
+                    shape: new CANNON.Sphere(radius * BaseCharacter.FEET_SCALE_FACTOR),
+                    angularDamping: 0.99,
+                    fixedRotation: true  // Keep feet from rotating independently
+                });
 
-            this.worldContext.addBody(this.collisionMesh);
-            this.worldContext.addBody(this.headBody);
-            this.worldContext.addBody(this.feetBody);
+                // Add bodies to world
+                this.worldContext.addBody(this.collisionMesh);
+                this.worldContext.addBody(this.headBody);
+                this.worldContext.addBody(this.feetBody);
 
-            const headConstraint = new CANNON.PointToPointConstraint(
-                this.collisionMesh,
-                new CANNON.Vec3(0, halfLength, 0),
-                this.headBody,
-                new CANNON.Vec3(0, 0, 0)
-            );
+                // Create constraints with some flexibility for more stability
+                const headConstraint = new CANNON.PointToPointConstraint(
+                    this.collisionMesh,
+                    new CANNON.Vec3(0, halfLength, 0),
+                    this.headBody,
+                    new CANNON.Vec3(0, 0, 0)
+                );
 
-            const feetConstraint = new CANNON.PointToPointConstraint(
-                this.collisionMesh,
-                new CANNON.Vec3(0, -halfLength, 0),
-                this.feetBody,
-                new CANNON.Vec3(0, 0, 0)
-            );
+                const feetConstraint = new CANNON.PointToPointConstraint(
+                    this.collisionMesh,
+                    new CANNON.Vec3(0, -halfLength, 0),
+                    this.feetBody,
+                    new CANNON.Vec3(0, 0, 0)
+                );
 
-            // Event listeners for head and feet collisions
-            this.headBody.addEventListener('collide', (event: any) => this.handleHeadCollision(event));
-            this.feetBody.addEventListener('collide', (event: any) => this.handleFeetCollision(event));
+                // Add constraints with specific stiffness and relaxation
+                this.worldContext.addConstraint(headConstraint);
+                this.worldContext.addConstraint(feetConstraint);
 
-            this.worldContext.addConstraint(headConstraint);
-            this.worldContext.addConstraint(feetConstraint);
+                // Add event listeners with error handling
+                this.headBody.addEventListener('collide', (event: any) => this.handleHeadCollision(event));
+                this.feetBody.addEventListener('collide', (event: any) => this.handleFeetCollision(event));
+                
+                console.log("Character physics initialized successfully");
+            } catch (error) {
+                console.error("Error creating character collision mesh:", error);
+            }
         }
     }
 
     private handleHeadCollision(event: any) {
-        if (event.body !== this.collisionMesh && event.body !== this.feetBody) {
-            console.log('Head collision detected with external object.');
+        try {
+            // Check to avoid self-collision with own parts
+            if (event.body !== this.collisionMesh && event.body !== this.feetBody) {
+                if (this.collisionDebugEnabled) {
+                    console.log('Head collision detected with external object:', event.body);
+                }
+            }
+        } catch (error) {
+            console.error('Error in head collision handler:', error);
         }
     }
 
     private handleFeetCollision(event: any) {
-        if (event.body !== this.collisionMesh && event.body !== this.headBody) {
-            console.log('Feet collision detected with external object.');
+        try {
+            // Check to avoid self-collision with own parts
+            if (event.body !== this.collisionMesh && event.body !== this.headBody) {
+                if (this.collisionDebugEnabled) {
+                    // Safe access to properties with null checks
+                    const bodyType = event.body?.material?.name || 'unknown';
+                    const bodyPosition = event.body?.position ? 
+                        `(${event.body.position.x.toFixed(2)}, ${event.body.position.y.toFixed(2)}, ${event.body.position.z.toFixed(2)})` : 
+                        'unknown';
+                    
+                    console.log(`Feet collision detected with: ${bodyType} at ${bodyPosition}`);
+                }
+                
+                // Record the time of this collision
+                this.lastFeetCollisionTime = performance.now();
+                
+                // Stabilize character on ground impact
+                this.stabilizeOnGround();
+            }
+        } catch (error) {
+            console.error('Error in feet collision handler:', error);
+        }
+    }
+    
+    /**
+     * Stabilizes the character when landing on the ground
+     * This helps prevent physics instabilities on impact
+     */
+    private stabilizeOnGround(): void {
+        if (!this.collisionMesh) return;
+        
+        try {
+            // Apply slight damping to vertical velocity on landing
+            const currentVelocity = this.collisionMesh.velocity;
+            
+            // If falling with significant speed, dampen the landing
+            if (currentVelocity.y < -5) {
+                // Cap the landing velocity to prevent extreme values
+                const cappedYVelocity = Math.max(currentVelocity.y, -15);
+                
+                // Apply damped velocity
+                this.collisionMesh.velocity.set(
+                    currentVelocity.x * 0.9,  // Slight horizontal damping
+                    cappedYVelocity * 0.6,    // Stronger vertical damping
+                    currentVelocity.z * 0.9   // Slight horizontal damping
+                );
+                
+                // Ensure character is upright after landing
+                this.enforceUpright();
+                
+                if (this.collisionDebugEnabled) {
+                    console.log(`Landing stabilized. Original Y vel: ${currentVelocity.y.toFixed(2)}, New: ${this.collisionMesh.velocity.y.toFixed(2)}`);
+                }
+            }
+        } catch (error) {
+            console.error('Error stabilizing character on ground:', error);
+        }
+    }
 
-            // Record the time of this collision
-            this.lastFeetCollisionTime = performance.now();
+    /**
+     * Forces the character to remain upright by resetting rotation
+     */
+    private enforceUpright(): void {
+        if (!this.collisionMesh) return;
+        
+        try {
+            // Create a quaternion that only preserves Y-axis rotation
+            const currentRotation = this.collisionMesh.quaternion;
+            
+            // Extract the Y-axis rotation (yaw) only
+            const eulerRotation = new CANNON.Vec3();
+            currentRotation.toEuler(eulerRotation);
+            
+            // Create new quaternion with only Y rotation
+            const uprightQuaternion = new CANNON.Quaternion();
+            uprightQuaternion.setFromEuler(0, eulerRotation.y, 0);
+            
+            // Apply the upright orientation
+            this.collisionMesh.quaternion.copy(uprightQuaternion);
+            
+            // Reset angular velocity to stop any ongoing rotation
+            this.collisionMesh.angularVelocity.set(0, 0, 0);
+        } catch (error) {
+            console.error('Error enforcing upright position:', error);
         }
     }
 
@@ -172,6 +275,9 @@ export abstract class BaseCharacter extends GameObject {
                 this.collisionMesh.velocity.x = 0;
                 this.collisionMesh.velocity.z = 0;
             }
+            
+            // Ensure character stays upright during movement
+            this.enforceUpright();
         }
     }
 
@@ -263,6 +369,9 @@ export abstract class BaseCharacter extends GameObject {
                 this.collisionMesh.quaternion.z,
                 this.collisionMesh.quaternion.w
             );
+            
+            // Ensure character remains upright during animation
+            this.enforceUpright();
         }
     }
 

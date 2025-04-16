@@ -1,21 +1,21 @@
 import * as THREE from 'three';
-import GameObject from '../../GameObject';
+import GameObject, { GameObjectOptions } from '../../GameObject';
 import * as CANNON from 'cannon-es';
+import { MaterialType } from '../../../../materials/PhysicsMaterialsManager';
 
 export class GroundEnvironment extends GameObject {
-    private groundMaterial: CANNON.Material;
     private isVisible: boolean = true;
 
     /**
      * Create a ground environment
      * @param initialPosition Position of the ground
-     * @param visible Whether the ground should be visible (default: true)
+     * @param visible Whether the ground should be visible (default: false)
      */
     constructor(initialPosition: THREE.Vector3, visible: boolean = false) {
-        super(initialPosition); // Call to parent constructor
-        this.groundMaterial = new CANNON.Material("groundMaterial"); // Initialize the ground material
-        this.groundMaterial.restitution = 0.0; // Ensure no bounce on the ground material
-        this.setGroundAsDefaultMaterial();
+        super({ 
+            position: initialPosition,
+            materialType: MaterialType.GROUND
+        });
         
         // Set initial visibility
         if (!visible) {
@@ -41,18 +41,36 @@ export class GroundEnvironment extends GameObject {
     }
 
     protected createCollisionMesh() {
+        // Use a plane shape for the ground
         const shape = new CANNON.Plane();
-        this.collisionMesh = new CANNON.Body({
-            mass: 0,
-            shape: shape,
-            material: this.groundMaterial, // Use the initialized ground material
-        });
-        this.collisionMesh.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-        this.worldContext.addBody(this.collisionMesh);
-    }
-
-    private setGroundAsDefaultMaterial() {
-        this.worldContext.defaultMaterial = this.groundMaterial; // Set the ground material as the default for the world
+        
+        try {
+            // Create the collision body with the ground material
+            this.collisionMesh = this.createPhysicsBody({
+                mass: 0,  // Static body (immovable)
+                shape: shape,
+                // Add small damping to help with stability
+                linearDamping: 0.01,
+                angularDamping: 0.01
+            });
+            
+            // Rotate to make it face up
+            this.collisionMesh.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+            
+            // Set a specific collision group and mask if needed
+            // this.collisionMesh.collisionFilterGroup = 1;  // Ground group
+            // this.collisionMesh.collisionFilterMask = -1;  // Collide with everything
+            
+            // Add the body to the physics world
+            this.worldContext.addBody(this.collisionMesh);
+            
+            console.log("Ground collision mesh created successfully", {
+                position: this.position,
+                material: this.materialType
+            });
+        } catch (error) {
+            console.error("Error creating ground collision mesh:", error);
+        }
     }
     
     /**
