@@ -57,9 +57,9 @@ export class GroundEnvironment extends GameObject {
             // Rotate to make it face up
             this.collisionMesh.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
             
-            // Set a specific collision group and mask if needed
-            // this.collisionMesh.collisionFilterGroup = 1;  // Ground group
-            // this.collisionMesh.collisionFilterMask = -1;  // Collide with everything
+            // Set specific collision group and mask for better jumping detection
+            this.collisionMesh.collisionFilterGroup = 1;  // Ground group
+            this.collisionMesh.collisionFilterMask = -1;  // Collide with everything
             
             // Add the body to the physics world
             this.worldContext.addBody(this.collisionMesh);

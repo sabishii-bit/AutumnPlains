@@ -107,17 +107,31 @@ export class PhysicsMaterialsManager {
     private setupDefaultContactMaterials(): void {
         console.log("Setting up contact materials...");
         
-        // Character interactions - ADJUSTED FOR STABILITY
+        // Character interactions - ADJUSTED FOR JUMPING
         this.createContactMaterial(
             MaterialType.CHARACTER, 
             MaterialType.GROUND, 
             { 
-                friction: 0.8,               // Reduced from 1.0 for stability
-                restitution: 0.0,           // No bounce
-                contactEquationStiffness: 1e6,  // More stable contact
-                contactEquationRelaxation: 3,   // More relaxed solving
-                frictionEquationStiffness: 1e6,
-                frictionEquationRelaxation: 3
+                friction: 0.6,               // Reduced friction for better movement
+                restitution: 0.1,           // Slight bounce to help with jumping
+                contactEquationStiffness: 1e5,  // Reduced stiffness from 1e6
+                contactEquationRelaxation: 4,   // More relaxed solving for jumping
+                frictionEquationStiffness: 1e5,  // Reduced from 1e6
+                frictionEquationRelaxation: 4   // Increased for better response
+            }
+        );
+        
+        // Add CHARACTER-WALL contact material to prevent walking through walls
+        this.createContactMaterial(
+            MaterialType.CHARACTER,
+            MaterialType.WALL,
+            {
+                friction: 0.7,               // High friction to prevent sliding along walls
+                restitution: 0.0,           // No bounce off walls
+                contactEquationStiffness: 1e7,  // Very stiff for solid wall feel
+                contactEquationRelaxation: 3,   // Standard relaxation
+                frictionEquationStiffness: 1e6,  // Strong friction
+                frictionEquationRelaxation: 3    // Standard relaxation
             }
         );
         

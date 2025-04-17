@@ -17,8 +17,10 @@ export abstract class BaseCharacter extends GameObject {
     private static readonly FEET_SCALE_FACTOR = 0.5; // Scale factor for the feet
     private static readonly VISUAL_MESH_COLOR = 0xff0000;
     private static readonly VISUAL_MESH_VISIBLE = false;
+    private static readonly DEFAULT_JUMP_HEIGHT = 6;
+    private static readonly JUMP_FORCE_MULTIPLIER = 5;
     
-    public jumpHeight!: number;
+    public jumpHeight: number;
     public moveSpeed!: number;
     public direction!: THREE.Vector3;
     private currentState!: CharacterState;
@@ -34,6 +36,9 @@ export abstract class BaseCharacter extends GameObject {
             position: initialPosition,
             materialType: MaterialType.CHARACTER 
         });
+        
+        // Initialize jump height with default value
+        this.jumpHeight = BaseCharacter.DEFAULT_JUMP_HEIGHT;
         
         // Set the initial state as airborne
         this.setState(new CharacterAirborneState(this));
@@ -102,6 +107,10 @@ export abstract class BaseCharacter extends GameObject {
                 this.collisionMesh.updateMassProperties();
                 this.collisionMesh.updateBoundingRadius();
                 
+                // Set character collision group and mask
+                this.collisionMesh.collisionFilterGroup = 4; // Character group
+                this.collisionMesh.collisionFilterMask = -1; // Collide with everything
+                
                 // Limit maximum velocity to prevent instability
                 this.collisionMesh.velocity.set(0, 0, 0);
 
@@ -125,6 +134,12 @@ export abstract class BaseCharacter extends GameObject {
                     angularDamping: 0.99,
                     fixedRotation: true  // Keep feet from rotating independently
                 });
+                
+                // Set head and feet collision groups
+                this.headBody.collisionFilterGroup = 4; // Character group
+                this.headBody.collisionFilterMask = -1; // Collide with everything
+                this.feetBody.collisionFilterGroup = 4; // Character group
+                this.feetBody.collisionFilterMask = -1; // Collide with everything
 
                 // Add bodies to world
                 this.worldContext.addBody(this.collisionMesh);
@@ -263,27 +278,91 @@ export abstract class BaseCharacter extends GameObject {
     }
 
     public updatePosition(deltaTime: number, inputVector: THREE.Vector3): void {
-        if (this.collisionMesh) {
+        if (!this.collisionMesh) return;
+        
+        try {
             // Check if there's any input
             if (inputVector.lengthSq() > 0) {
                 // When there's input, apply velocity based on input
                 inputVector.normalize();
+                
+                // Store current position before moving (for collision resolution)
+                const previousPosition = new CANNON.Vec3().copy(this.collisionMesh.position);
+                
+                // Apply velocity for movement
                 this.collisionMesh.velocity.x = inputVector.x * this.moveSpeed;
                 this.collisionMesh.velocity.z = inputVector.z * this.moveSpeed;
+                
+                // Keep vertical velocity the same (for jumping/falling)
+                const currentYVelocity = this.collisionMesh.velocity.y;
+                
+                // Set a maximum velocity limit to prevent tunneling through walls
+                const maxSpeed = 5; // Maximum speed in any direction
+                const currentSpeed = Math.sqrt(
+                    this.collisionMesh.velocity.x * this.collisionMesh.velocity.x + 
+                    this.collisionMesh.velocity.z * this.collisionMesh.velocity.z
+                );
+                
+                if (currentSpeed > maxSpeed) {
+                    const scaleFactor = maxSpeed / currentSpeed;
+                    this.collisionMesh.velocity.x *= scaleFactor;
+                    this.collisionMesh.velocity.z *= scaleFactor;
+                }
+                
+                // Log collision info if debug is enabled
+                if (this.collisionDebugEnabled) {
+                    console.log(`Character moving with velocity: (${this.collisionMesh.velocity.x.toFixed(2)}, ${this.collisionMesh.velocity.y.toFixed(2)}, ${this.collisionMesh.velocity.z.toFixed(2)})`);
+                }
             } else {
                 // When there's no input, immediately stop horizontal movement
                 this.collisionMesh.velocity.x = 0;
                 this.collisionMesh.velocity.z = 0;
             }
             
+            // Sync connected bodies
+            if (this.headBody && this.feetBody) {
+                // Update head and feet positions to match main body
+                const halfLength = BaseCharacter.HALF_LENGTH;
+                
+                this.headBody.position.set(
+                    this.collisionMesh.position.x,
+                    this.collisionMesh.position.y + halfLength,
+                    this.collisionMesh.position.z
+                );
+                
+                this.feetBody.position.set(
+                    this.collisionMesh.position.x,
+                    this.collisionMesh.position.y - halfLength,
+                    this.collisionMesh.position.z
+                );
+            }
+            
             // Ensure character stays upright during movement
             this.enforceUpright();
+        } catch (error) {
+            console.error('Error updating character position:', error);
         }
     }
 
     public jump() {
-        this.collisionMesh.velocity.y = this.jumpHeight;
+        if (!this.collisionMesh) return;
+        
+        // Apply a jump impulse instead of directly setting velocity
+        // This works better with physics and allows for the jump height to be properly adjusted
+        const jumpForce = this.jumpHeight * BaseCharacter.JUMP_FORCE_MULTIPLIER;
+        
+        // Apply the impulse in the world's up direction
+        this.collisionMesh.applyImpulse(
+            new CANNON.Vec3(0, jumpForce, 0),
+            new CANNON.Vec3(0, 0, 0)
+        );
+        
+        // Set the state to jumping
         this.setState(new CharacterJumpingState(this));
+        
+        if (this.collisionDebugEnabled) {
+            console.log(`Jump applied with force: ${jumpForce} (height: ${this.jumpHeight})`);
+        }
     }
 
     public setVelocity(options: { x?: number; y?: number; z?: number } = {}): void {
@@ -397,5 +476,54 @@ export abstract class BaseCharacter extends GameObject {
 
     public getFeetHeight(): number {
         return BaseCharacter.FEET_SCALE_FACTOR * BaseCharacter.SCALE_FACTOR;
+    }
+
+    /**
+     * Sets the jump height to a new value
+     * @param height The new jump height value
+     */
+    public setJumpHeight(height: number): void {
+        this.jumpHeight = height;
+        if (this.collisionDebugEnabled) {
+            console.log(`Jump height set to: ${height}`);
+        }
+    }
+
+    /**
+     * Increases or decreases the jump height by the given amount
+     * @param amount The amount to adjust the jump height by (positive or negative)
+     */
+    public adjustJumpHeight(amount: number): void {
+        this.jumpHeight += amount;
+        // Ensure jump height doesn't go negative
+        if (this.jumpHeight < 0) {
+            this.jumpHeight = 0;
+        }
+        if (this.collisionDebugEnabled) {
+            console.log(`Jump height adjusted to: ${this.jumpHeight}`);
+        }
+    }
+
+    /**
+     * Resets the jump height to the default value
+     */
+    public resetJumpHeight(): void {
+        this.jumpHeight = BaseCharacter.DEFAULT_JUMP_HEIGHT;
+    }
+
+    /**
+     * Gets the current jump height
+     * @returns The current jump height
+     */
+    public getJumpHeight(): number {
+        return this.jumpHeight;
+    }
+
+    /**
+     * Gets the jump force multiplier
+     * @returns The current jump force multiplier
+     */
+    public getJumpForceMultiplier(): number {
+        return BaseCharacter.JUMP_FORCE_MULTIPLIER;
     }
 }

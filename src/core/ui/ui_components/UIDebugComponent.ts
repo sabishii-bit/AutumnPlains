@@ -84,7 +84,7 @@ export class UIDebugComponent {
         const playerCollisionBody = this.player.getCollisionBody();
         this.positionElement.textContent = `Position: X=${playerCollisionBody.position.x.toFixed(2)}, Y=${playerCollisionBody.position.y.toFixed(2)}, Z=${playerCollisionBody.position.z.toFixed(2)}`;
         this.velocityElement.textContent = `Velocity: X=${playerCollisionBody.velocity.x.toFixed(2)}, Y=${playerCollisionBody.velocity.y.toFixed(2)}, Z=${playerCollisionBody.velocity.z.toFixed(2)}`;
-        this.fpsElement.textContent = `FPS: ${fps.toFixed(2)}`;
+        this.fpsElement.textContent = `FPS: ${fps.toFixed(0)}`;
         this.cameraRotationElement.textContent = `Camera: Pitch=${pitch}, Yaw=${yaw}, Roll=${roll}`;
         
         // Update the state element with the player's current state name

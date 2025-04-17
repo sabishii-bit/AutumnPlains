@@ -17,7 +17,16 @@ export interface GameObjectOptions {
     objectId?: string;
     visualMeshOptions?: THREE.Mesh;
     collisionMeshOptions?: CANNON.Body;
+    /**
+     * Whether to automatically add the object to the scene. Default: true
+     * @deprecated Use addToCollection instead which handles both scene and physics world
+     */
     addToScene?: boolean;
+    /**
+     * Whether to automatically add the object to the GameObjectManager collection.
+     * When true (default), the object will be automatically added to the scene and physics world.
+     * When false, you must manually add the object using GameObjectManager.
+     */
     addToCollection?: boolean;
     materialType?: MaterialType;
 }
@@ -29,7 +38,7 @@ export default abstract class GameObject {
     protected rotation: THREE.Vector3 | null = null;
     protected worldContext: CANNON.World = WorldContext.getInstance();
     protected sceneContext: Scene = SceneContext.getInstance();
-    protected gameObjectManager: GameObjectManager | null = null;
+    protected gameObjectManager: GameObjectManager = GameObjectManager.getInstance();
     protected objectId: string = "";
     protected materialType: MaterialType = MaterialType.DEFAULT;
     protected physicsManager: PhysicsMaterialsManager = PhysicsMaterialsManager.getInstance();
@@ -65,16 +74,9 @@ export default abstract class GameObject {
         this.createVisualMesh();
         this.createCollisionMesh();
         
-        // Add to collection and scene if needed (default: true)
-        const shouldAddToCollection = options.addToCollection !== false;
-        const shouldAddToScene = options.addToScene !== false;
-        
-        if (shouldAddToCollection) {
-            this.addObjectToCollection();
-        }
-        
-        if (shouldAddToScene) {
-            this.addToScene();
+        // Auto-add to collection unless specified not to
+        if (options.addToCollection !== false) {
+            this.gameObjectManager.addGameObject(this);
         }
     }
 
@@ -113,18 +115,6 @@ export default abstract class GameObject {
 
     public getPosition(): THREE.Vector3 {
         return this.position;
-    }
-
-    public addToScene(scene?: THREE.Scene) {
-        if (!scene) {
-            scene = this.sceneContext;
-        }
-
-        scene.add(this.visualMesh);
-        if (this.collisionMesh) {
-            // Initial synchronization
-            this.syncMeshWithBody();
-        }
     }
 
     public getCollisionBody(): CANNON.Body {
@@ -193,13 +183,6 @@ export default abstract class GameObject {
         } catch (error) {
             console.error(`Error in syncMeshWithBody for object ${this.objectId}:`, error);
         }
-    }
-
-    private addObjectToCollection(): void {
-        if (this.gameObjectManager == null) {
-            this.gameObjectManager = new GameObjectManager();
-        }
-        this.gameObjectManager.addGameObject(this);
     }
 
     public getID(): string {

@@ -35,7 +35,6 @@ export class TestMap {
 
         // Add objects and effects to the scene
         this.lighting.addToScene();
-        this.gameObjectManager.loadObjects();
 
     }
 
