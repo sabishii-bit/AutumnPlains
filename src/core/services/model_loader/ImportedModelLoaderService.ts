@@ -198,7 +198,7 @@ export class ImportedModelLoaderService {
                 }
             },
             (xhr) => {
-                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                
             },
             (error) => {
                 console.error('An error happened during loading: ' + error);

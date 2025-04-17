@@ -75,6 +75,9 @@ export default abstract class GameObject {
         this.createCollisionMesh();
         
         // Auto-add to collection unless specified not to
+        // Note: Some child classes (like BaseCharacter) may have special physics components
+        // (such as constraints or additional bodies) that require direct world context access.
+        // These special cases should be documented in the child classes.
         if (options.addToCollection !== false) {
             this.gameObjectManager.addGameObject(this);
         }

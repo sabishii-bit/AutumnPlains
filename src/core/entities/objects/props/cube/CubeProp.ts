@@ -27,7 +27,6 @@ export class CubeProp extends GameObject {
             shape: shape
         });
         this.collisionMesh.type = CANNON.Body.DYNAMIC; // Make the body dynamic
-        this.worldContext.addBody(this.collisionMesh);
     }
 
     animate(deltaTime: number): void {

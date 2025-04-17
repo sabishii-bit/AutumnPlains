@@ -73,8 +73,6 @@ export abstract class BaseCharacter extends GameObject {
         // Set the visibility based on the static constant
         this.visualMesh.visible = BaseCharacter.VISUAL_MESH_VISIBLE;
     
-        // Add the visual mesh to the scene
-        this.sceneContext.add(this.visualMesh);
     }
     
     protected createCollisionMesh() {
@@ -141,8 +139,8 @@ export abstract class BaseCharacter extends GameObject {
                 this.feetBody.collisionFilterGroup = 4; // Character group
                 this.feetBody.collisionFilterMask = -1; // Collide with everything
 
-                // Add bodies to world
-                this.worldContext.addBody(this.collisionMesh);
+                // NOTE: Special case - we need to manually add these bodies to the world
+                // since they're not directly managed by the GameObjectManager
                 this.worldContext.addBody(this.headBody);
                 this.worldContext.addBody(this.feetBody);
 
@@ -161,7 +159,8 @@ export abstract class BaseCharacter extends GameObject {
                     new CANNON.Vec3(0, 0, 0)
                 );
 
-                // Add constraints with specific stiffness and relaxation
+                // NOTE: Special case - constraints need to be added directly
+                // Future improvement: Add constraint management to GameObjectManager
                 this.worldContext.addConstraint(headConstraint);
                 this.worldContext.addConstraint(feetConstraint);
 
@@ -193,15 +192,6 @@ export abstract class BaseCharacter extends GameObject {
         try {
             // Check to avoid self-collision with own parts
             if (event.body !== this.collisionMesh && event.body !== this.headBody) {
-                if (this.collisionDebugEnabled) {
-                    // Safe access to properties with null checks
-                    const bodyType = event.body?.material?.name || 'unknown';
-                    const bodyPosition = event.body?.position ? 
-                        `(${event.body.position.x.toFixed(2)}, ${event.body.position.y.toFixed(2)}, ${event.body.position.z.toFixed(2)})` : 
-                        'unknown';
-                    
-                    console.log(`Feet collision detected with: ${bodyType} at ${bodyPosition}`);
-                }
                 
                 // Record the time of this collision
                 this.lastFeetCollisionTime = performance.now();
@@ -239,10 +229,7 @@ export abstract class BaseCharacter extends GameObject {
                 
                 // Ensure character is upright after landing
                 this.enforceUpright();
-                
-                if (this.collisionDebugEnabled) {
-                    console.log(`Landing stabilized. Original Y vel: ${currentVelocity.y.toFixed(2)}, New: ${this.collisionMesh.velocity.y.toFixed(2)}`);
-                }
+
             }
         } catch (error) {
             console.error('Error stabilizing character on ground:', error);
@@ -309,10 +296,6 @@ export abstract class BaseCharacter extends GameObject {
                     this.collisionMesh.velocity.z *= scaleFactor;
                 }
                 
-                // Log collision info if debug is enabled
-                if (this.collisionDebugEnabled) {
-                    console.log(`Character moving with velocity: (${this.collisionMesh.velocity.x.toFixed(2)}, ${this.collisionMesh.velocity.y.toFixed(2)}, ${this.collisionMesh.velocity.z.toFixed(2)})`);
-                }
             } else {
                 // When there's no input, immediately stop horizontal movement
                 this.collisionMesh.velocity.x = 0;
@@ -359,10 +342,6 @@ export abstract class BaseCharacter extends GameObject {
         
         // Set the state to jumping
         this.setState(new CharacterJumpingState(this));
-        
-        if (this.collisionDebugEnabled) {
-            console.log(`Jump applied with force: ${jumpForce} (height: ${this.jumpHeight})`);
-        }
     }
 
     public setVelocity(options: { x?: number; y?: number; z?: number } = {}): void {

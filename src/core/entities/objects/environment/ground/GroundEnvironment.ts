@@ -61,8 +61,7 @@ export class GroundEnvironment extends GameObject {
             this.collisionMesh.collisionFilterGroup = 1;  // Ground group
             this.collisionMesh.collisionFilterMask = -1;  // Collide with everything
             
-            // Add the body to the physics world
-            this.worldContext.addBody(this.collisionMesh);
+            // No need to add to physics world as GameObjectManager handles this
             
             console.log("Ground collision mesh created successfully", {
                 position: this.position,

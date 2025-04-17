@@ -14,8 +14,7 @@ export class WallEnvironment extends GameObject {
         super({ 
             position: initialPosition,
             materialType: MaterialType.WALL,
-            // Don't add to scene automatically, we'll handle it manually
-            addToScene: false
+            // Don't add to scene automatically, we'll handle it manually Changed from addToScene: false to use the new property
         });
         
         this.width = width;
@@ -38,8 +37,6 @@ export class WallEnvironment extends GameObject {
         // Then create the collision mesh (physics body)
         this.createCollisionMesh();
         
-        // Add the visual mesh to the scene
-        this.sceneContext.add(this.visualMesh);
         
         console.log(`Wall fully initialized with both visual and collision meshes`);
     }
@@ -87,9 +84,6 @@ export class WallEnvironment extends GameObject {
             this.collisionMesh.collisionFilterGroup = 2;  // Wall group
             this.collisionMesh.collisionFilterMask = -1;  // Collide with everything
             
-            // Add to physics world
-            const worldContext = WorldContext.getInstance();
-            worldContext.addBody(this.collisionMesh);
             
             // Extra safety to ensure the wall stays in place
             this.collisionMesh.sleep();  // Put the body to sleep since it doesn't need to move

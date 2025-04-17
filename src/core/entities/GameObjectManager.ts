@@ -44,9 +44,12 @@ export class GameObjectManager {
                 this.worldContext.addBody(body);
             }
             
-            console.log(`Object with ID ${objectId} added to the game.`);
+            // Get the class name of the object for more informative logging
+            const objectType = object.constructor.name;
+            console.log(`${objectType} with ID ${objectId} added to the game.`);
         } else {
-            console.warn(`Object with ID ${objectId} already exists in the collection.`);
+            const objectType = object.constructor.name;
+            console.warn(`${objectType} with ID ${objectId} already exists in the collection.`);
         }
     }
 
@@ -60,6 +63,9 @@ export class GameObjectManager {
         const objectBody = object?.getCollisionBody();
         
         if (object) {
+            // Get the object type for logging
+            const objectType = object.constructor.name;
+            
             // Remove the object's mesh from the scene
             if (objectMesh) {
                 this.sceneContext.remove(objectMesh);
@@ -70,7 +76,7 @@ export class GameObjectManager {
             }
             // Finally, remove the object from the collection
             GameObjectManager.objectCollection.delete(objectID);
-            console.log(`Object with ID ${objectID} has been removed.`);
+            console.log(`${objectType} with ID ${objectID} has been removed.`);
         } else {
             console.error(`Object with ID ${objectID} not found.`);
         }
