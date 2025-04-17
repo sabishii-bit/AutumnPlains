@@ -29,6 +29,7 @@ export interface GameObjectOptions {
      */
     addToCollection?: boolean;
     materialType?: MaterialType;
+    skipMeshCreation?: boolean;
 }
 
 export default abstract class GameObject {
@@ -44,6 +45,7 @@ export default abstract class GameObject {
     protected physicsManager: PhysicsMaterialsManager = PhysicsMaterialsManager.getInstance();
     private wireframeMesh: THREE.LineSegments | null = null;
     private isWireframeVisible: boolean = false;
+    private hasCreatedWireframe: boolean = false;
 
     /**
      * Creates a new GameObject with the specified options
@@ -71,8 +73,12 @@ export default abstract class GameObject {
         }
 
         // Initialize the GameObject by setting up meshes
-        this.createVisualMesh();
-        this.createCollisionMesh();
+        // NOTE: Some specialized child classes (like BaseProjectile) may handle
+        // their own initialization timing, so they can set options.skipMeshCreation = true
+        if (!options.skipMeshCreation) {
+            this.createVisualMesh();
+            this.createCollisionMesh();
+        }
         
         // Auto-add to collection unless specified not to
         // Note: Some child classes (like BaseCharacter) may have special physics components
@@ -198,27 +204,56 @@ export default abstract class GameObject {
 
     // Create wireframe based on the existing mesh
     public createCollisionMeshWireframe(): void {
-        if (!this.wireframeMesh) {
-            // Handle visualMesh being a Group or a Mesh
-            let wireframeGeometry;
-            if (this.visualMesh instanceof THREE.Group) {
-                // If visualMesh is a group, merge its geometries for the wireframe
-                const geometries: THREE.BufferGeometry[] = [];
-                this.visualMesh.children.forEach(child => {
-                    if (child instanceof THREE.Mesh) {
-                        geometries.push((child as THREE.Mesh).geometry);
+        // Only create the wireframe if it doesn't exist yet
+        if (!this.wireframeMesh && !this.hasCreatedWireframe) {
+            try {
+                // Handle visualMesh being a Group or a Mesh
+                let wireframeGeometry;
+                if (this.visualMesh instanceof THREE.Group) {
+                    // If visualMesh is a group, merge its geometries for the wireframe
+                    const geometries: THREE.BufferGeometry[] = [];
+                    this.visualMesh.children.forEach(child => {
+                        if (child instanceof THREE.Mesh) {
+                            geometries.push((child as THREE.Mesh).geometry);
+                        }
+                    });
+                    
+                    if (geometries.length > 0) {
+                        wireframeGeometry = mergeGeometries(geometries);
+                    } else {
+                        console.warn(`No valid geometries found in group for wireframe on ${this.objectId}`);
+                        return;
                     }
+                } else if (this.visualMesh instanceof THREE.Mesh) {
+                    // Otherwise, use the geometry directly
+                    wireframeGeometry = new THREE.WireframeGeometry((this.visualMesh as THREE.Mesh).geometry);
+                } else {
+                    console.warn(`Cannot create wireframe for ${this.objectId} - unsupported mesh type`);
+                    return;
+                }
+                
+                const wireframeMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0x00ff00,
+                    depthTest: false,
+                    opacity: 0.5,
+                    transparent: true
                 });
-                wireframeGeometry = mergeGeometries(geometries);
-            } else {
-                // Otherwise, use the geometry directly
-                wireframeGeometry = new THREE.WireframeGeometry((this.visualMesh as THREE.Mesh).geometry);
+                this.wireframeMesh = new THREE.LineSegments(wireframeGeometry, wireframeMaterial);
+                this.wireframeMesh.position.copy(this.visualMesh.position);
+                this.wireframeMesh.quaternion.copy(this.visualMesh.quaternion);
+                this.wireframeMesh.scale.copy(this.visualMesh.scale);
+                
+                // Set initial visibility to match current global state
+                this.wireframeMesh.visible = this.isWireframeVisible;
+                this.wireframeMesh.renderOrder = 999; // Ensure wireframe renders on top
+                
+                this.sceneContext.add(this.wireframeMesh);
+                this.hasCreatedWireframe = true;
+                
+                console.log(`Created wireframe for GameObject ${this.objectId}`);
+            } catch (error) {
+                console.error(`Failed to create wireframe for ${this.objectId}:`, error);
             }
-            const wireframeMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
-            this.wireframeMesh = new THREE.LineSegments(wireframeGeometry, wireframeMaterial);
-            this.wireframeMesh.position.copy(this.visualMesh.position);
-            this.wireframeMesh.quaternion.copy(this.visualMesh.quaternion);
-            this.sceneContext.add(this.wireframeMesh);
         }
     }
 
@@ -226,7 +261,38 @@ export default abstract class GameObject {
     public toggleWireframeVisibility(): void {
         if (this.wireframeMesh) {
             this.isWireframeVisible = !this.isWireframeVisible;
-            this.wireframeMesh.visible = this.isWireframeVisible;
+            // Use type assertion to avoid type issues
+            (this.wireframeMesh as THREE.Object3D).visible = this.isWireframeVisible;
+        } else if (!this.hasCreatedWireframe) {
+            // Create wireframe if we haven't tried yet
+            this.createCollisionMeshWireframe();
+            if (this.wireframeMesh) {
+                this.isWireframeVisible = true;
+                // Use type assertion to avoid type issues
+                (this.wireframeMesh as THREE.Object3D).visible = this.isWireframeVisible;
+            }
         }
+    }
+    
+    // Directly set wireframe visibility
+    public setWireframeVisibility(isVisible: boolean): void {
+        if (this.wireframeMesh) {
+            this.isWireframeVisible = isVisible;
+            // Use type assertion to avoid type issues
+            (this.wireframeMesh as THREE.Object3D).visible = this.isWireframeVisible;
+        } else if (isVisible && !this.hasCreatedWireframe) {
+            // Create wireframe if needed and we're turning visibility on
+            this.createCollisionMeshWireframe();
+            if (this.wireframeMesh) {
+                this.isWireframeVisible = isVisible;
+                // Use type assertion to avoid type issues
+                (this.wireframeMesh as THREE.Object3D).visible = this.isWireframeVisible;
+            }
+        }
+    }
+    
+    // Get current wireframe visibility
+    public getWireframeVisibility(): boolean {
+        return this.isWireframeVisible;
     }
 }

@@ -8,6 +8,7 @@ import CommandMovePlayerRight from './keyboard_actions/CommandMovePlayerRight';
 import CommandPlayerJump from './keyboard_actions/CommandPlayerJump';
 import BaseKeyboardCommand from './keyboard_actions/BaseKeyboardCommand';
 import CommandToggleWireframe from './keyboard_actions/CommandToggleWireframe';
+import CommandFireTestProjectile from './keyboard_actions/CommandFireTestProjectile';
 import { ImportedModelLoaderService } from '../services/model_loader/ImportedModelLoaderService';
 
 export class KeyboardControls extends PlayerControls {
@@ -27,6 +28,7 @@ export class KeyboardControls extends PlayerControls {
         this.commands.push(new CommandMovePlayerRight(this.player, this.keyStates));
         this.commands.push(new CommandPlayerJump(this.player, this.keyStates));
         this.commands.push(new CommandToggleWireframe(this.keyStates));
+        this.commands.push(new CommandFireTestProjectile(this.keyStates));
 
         // Listen for pointer lock changes
         document.addEventListener('pointerlockchange', this.onPointerLockChange.bind(this), false);
@@ -70,6 +72,7 @@ export class KeyboardControls extends PlayerControls {
             this.player.updatePosition(deltaTime, moveDirection);
         }
 
+        // Update wireframes for imported models if they're visible
         ImportedModelLoaderService.updateWireframes();
     }
 

@@ -12,6 +12,7 @@ import { GameObjectManager } from '../entities/GameObjectManager';
 import { ParticleSystemManager } from '../effects/ParticleSystemManager';
 import { UIManager } from '../ui/UIManager';
 import StateManager from '../entities/objects/characters/character_state/StateManager';
+import { ProjectileManager } from '../entities/objects/projectiles/ProjectileManager';
 
 export default class Initialize {
     private scene: THREE.Scene;
@@ -25,6 +26,7 @@ export default class Initialize {
     private gameObjectManager: GameObjectManager;
     private particleSystemManager: ParticleSystemManager;
     private uiManager: UIManager;  // Declare UIManager
+    private projectileManager: ProjectileManager; // Declare ProjectileManager
 
     constructor() {
         this.world = WorldContext.getInstance();
@@ -39,6 +41,7 @@ export default class Initialize {
         this.gameObjectManager = new GameObjectManager();
         this.particleSystemManager = new ParticleSystemManager();
         this.uiManager = new UIManager();  // Initialize UIManager
+        this.projectileManager = ProjectileManager.getInstance(); // Initialize ProjectileManager
         StateManager.registerStates();
         this.animate();
     }
@@ -51,6 +54,7 @@ export default class Initialize {
         this.gameObjectManager.updateGameObjects(frameDeltaTime);
         this.particleSystemManager.update(frameDeltaTime);
         this.uiManager.updateUI(frameDeltaTime);  // Update UI components
+        this.projectileManager.update(frameDeltaTime); // Update ProjectileManager
         this.camera.update(frameDeltaTime);
         this.controls.update(frameDeltaTime);
         this.renderer.getRenderer().render(this.scene, this.camera.getCamera());

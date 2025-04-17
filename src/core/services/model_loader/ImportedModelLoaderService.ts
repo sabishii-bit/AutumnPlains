@@ -429,7 +429,7 @@ export class ImportedModelLoaderService {
         wireframeMesh.quaternion.copy(quaternion);
         wireframeMesh.scale.copy(scale);
         
-        // Add to scene with visibility set based on current state
+        // Always start with wireframes invisible - they'll be toggled with the 'T' key
         wireframeMesh.visible = ImportedModelLoaderService.isWireframeVisible;
         wireframeMesh.renderOrder = 999; // Ensure wireframe renders on top
         this.scene.add(wireframeMesh);
@@ -485,6 +485,27 @@ export class ImportedModelLoaderService {
         });
         
         return ImportedModelLoaderService.isWireframeVisible;
+    }
+
+    /**
+     * Get the current wireframe visibility state
+     */
+    public static getWireframeVisibilityState(): boolean {
+        return ImportedModelLoaderService.isWireframeVisible;
+    }
+
+    /**
+     * Set the wireframe visibility state directly
+     * This allows external systems to sync wireframe visibility
+     */
+    public static setWireframeVisibilityState(isVisible: boolean): void {
+        if (ImportedModelLoaderService.isWireframeVisible !== isVisible) {
+            ImportedModelLoaderService.isWireframeVisible = isVisible;
+            
+            ImportedModelLoaderService.wireframeMeshes.forEach(wireframe => {
+                wireframe.visible = isVisible;
+            });
+        }
     }
 
     /**

@@ -3,19 +3,25 @@ import { GameObjectManager } from "../../entities/GameObjectManager";
 import { ImportedModelLoaderService } from "../../services/model_loader/ImportedModelLoaderService";
 
 export default class CommandToggleWireframe extends BaseKeyboardCommand {
+    // Track wireframe visibility state globally
+    private static wireframeVisibilityState: boolean = false;
+
     constructor(keyStates: Map<string, boolean>) {
         super(['KeyT'], keyStates); // Press 'T' to toggle wireframes
     }
 
     public execute() {
-        // Toggle game object wireframes
-        GameObjectManager.getAllGameObjects().forEach(obj => {
-            obj.createCollisionMeshWireframe(); // Ensure wireframe is created
-            obj.toggleWireframeVisibility(); // Toggle visibility
-        });
+        // Toggle global wireframe state
+        CommandToggleWireframe.wireframeVisibilityState = !CommandToggleWireframe.wireframeVisibilityState;
         
-        // Also toggle imported model wireframes
-        ImportedModelLoaderService.toggleWireframeVisibility();
+        console.log(`Toggling wireframes: ${CommandToggleWireframe.wireframeVisibilityState ? 'ON' : 'OFF'}`);
+        
+        // Use the new centralized methods for toggling wireframes
+        // This ensures all wireframes are created and visibility is synced
+        GameObjectManager.setAllWireframesVisibility(CommandToggleWireframe.wireframeVisibilityState);
+        
+        // Synchronize imported model wireframes with the same state
+        ImportedModelLoaderService.setWireframeVisibilityState(CommandToggleWireframe.wireframeVisibilityState);
     }
 
     public release() {
@@ -23,4 +29,11 @@ export default class CommandToggleWireframe extends BaseKeyboardCommand {
     }
 
     public update() { }
+    
+    /**
+     * Get the current global wireframe visibility state
+     */
+    public static getWireframeVisibilityState(): boolean {
+        return CommandToggleWireframe.wireframeVisibilityState;
+    }
 }

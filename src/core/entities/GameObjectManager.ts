@@ -101,4 +101,39 @@ export class GameObjectManager {
         // Filter objects by the specified type
         return allObjects.filter(obj => obj instanceof type);
     }
+    
+    /**
+     * Sets the wireframe visibility state for all GameObjects
+     * @param isVisible Whether wireframes should be visible
+     */
+    public static setAllWireframesVisibility(isVisible: boolean): void {
+        const allObjects = GameObjectManager.getAllGameObjects();
+        
+        console.log(`Setting wireframe visibility to ${isVisible ? 'visible' : 'hidden'} for ${allObjects.length} GameObjects`);
+        
+        // First ensure all wireframes are created
+        allObjects.forEach(obj => {
+            // Create the wireframe if it doesn't exist yet
+            try {
+                obj.createCollisionMeshWireframe();
+            } catch (error) {
+                console.warn(`Failed to create wireframe for object ${obj.getId()}: ${error}`);
+            }
+        });
+        
+        // Then set visibility
+        allObjects.forEach(obj => {
+            // Since we added the setWireframeVisibility method to GameObject,
+            // we can now call it directly
+            try {
+                if (typeof obj.setWireframeVisibility === 'function') {
+                    obj.setWireframeVisibility(isVisible);
+                } else {
+                    console.warn(`Object ${obj.getId()} doesn't have setWireframeVisibility method`);
+                }
+            } catch (error) {
+                console.warn(`Failed to set wireframe visibility for object ${obj.getId()}: ${error}`);
+            }
+        });
+    }
 }
