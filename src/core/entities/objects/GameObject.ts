@@ -202,17 +202,18 @@ export default abstract class GameObject {
         // Default animate logic (if any), can be overridden in subclasses
     }
 
-    // Create wireframe based on the existing mesh
+    // Create wireframe based on the existing collision mesh
     public createCollisionMeshWireframe(): void {
         // Only create the wireframe if it doesn't exist yet
-        if (!this.wireframeMesh && !this.hasCreatedWireframe) {
+        // AND if this object has a collision mesh
+        if (!this.wireframeMesh && !this.hasCreatedWireframe && this.collisionMesh) {
             try {
                 // Handle visualMesh being a Group or a Mesh
                 let wireframeGeometry;
                 if (this.visualMesh instanceof THREE.Group) {
                     // If visualMesh is a group, merge its geometries for the wireframe
                     const geometries: THREE.BufferGeometry[] = [];
-                    this.visualMesh.children.forEach(child => {
+                    this.visualMesh.traverse(child => {
                         if (child instanceof THREE.Mesh) {
                             geometries.push((child as THREE.Mesh).geometry);
                         }

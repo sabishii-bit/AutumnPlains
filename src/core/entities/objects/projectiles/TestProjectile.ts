@@ -3,6 +3,7 @@ import BaseProjectile from './BaseProjectile';
 import { GameObjectOptions } from '../GameObject';
 
 export class TestProjectile extends BaseProjectile {
+    
     private rayLine!: THREE.Line;
     private lineGeometry!: THREE.BufferGeometry;
     private lineMaterial!: THREE.LineBasicMaterial;
@@ -215,5 +216,9 @@ export class TestProjectile extends BaseProjectile {
      */
     public getVisualDistance(): number {
         return this.visualDistance;
+    }
+
+    protected createCollisionMesh(): void {
+        // No collision body needed for a simple visual ray
     }
 } 

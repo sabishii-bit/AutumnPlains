@@ -7,10 +7,10 @@ export default class CommandFireTestProjectile extends BaseKeyboardCommand {
     private lastFireTime: number = 0;
 
     constructor(keyStates: Map<string, boolean>) {
-        // Instead of KeyboardEvent.code, we'll use 'mouse0' for left click
-        // This is a custom identifier we'll handle in addEventListeners
-        super(['mouse0'], keyStates);
+        // Use 'mouse1' for middle mouse click (button index 1)
+        super(['mouse1'], keyStates);
         
+        // Get ProjectileManager instance
         this.projectileManager = ProjectileManager.getInstance();
         
         // Add mouse event listeners
@@ -19,17 +19,17 @@ export default class CommandFireTestProjectile extends BaseKeyboardCommand {
     }
 
     private onMouseDown(event: MouseEvent) {
-        // Check if it's a left click (button 0)
-        if (event.button === 0 && !BaseKeyboardCommand.pauseState) {
-            this.keyStates.set('mouse0', true);
+        // Check if it's a middle click (button 1)
+        if (event.button === 1 && !BaseKeyboardCommand.pauseState) {
+            this.keyStates.set('mouse1', true);
             this.execute();
         }
     }
 
     private onMouseUp(event: MouseEvent) {
-        // Check if it's a left click (button 0)
-        if (event.button === 0) {
-            this.keyStates.set('mouse0', false);
+        // Check if it's a middle click (button 1)
+        if (event.button === 1) {
+            this.keyStates.set('mouse1', false);
             this.release();
         }
     }
@@ -45,10 +45,8 @@ export default class CommandFireTestProjectile extends BaseKeyboardCommand {
         // Reset the last fire time
         this.lastFireTime = currentTime;
         
-        // Use ProjectileManager to create and fire the projectile
+        // Use ProjectileManager to fire the test projectile
         this.projectileManager.fireTestProjectile();
-        
-        console.log('Test projectile fired!');
     }
 
     public release() {
@@ -56,6 +54,6 @@ export default class CommandFireTestProjectile extends BaseKeyboardCommand {
     }
 
     public update() {
-        // No continuous update needed for firing
+        // No continuous update needed for this command
     }
 } 
