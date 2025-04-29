@@ -81,7 +81,65 @@ export class TestProjectile extends BaseProjectile {
             endPoint = this.hitPosition;
             // Set hit color (green)
             this.setColor(this.hitColor);
-            console.log(`[TestProjectile] Hit object: ${this.hitObject?.getId()}`);
+            
+            // Enhanced hit object logging
+            if (this.hitObject) {
+                const hitObjId = this.hitObject.getId();
+                const hitObjType = this.hitObject.constructor.name;
+                const hitObjPos = this.hitObject.getPosition();
+                
+                console.log(`%c[TestProjectile] Hit Details`, 'color: #00ff00; font-weight: bold');
+                console.log(`  Hit Object ID: ${hitObjId}`);
+                console.log(`  Object Type: ${hitObjType}`);
+                console.log(`  Object Position: (${hitObjPos.x.toFixed(2)}, ${hitObjPos.y.toFixed(2)}, ${hitObjPos.z.toFixed(2)})`);
+                console.log(`  Hit Position: (${this.hitPosition.x.toFixed(2)}, ${this.hitPosition.y.toFixed(2)}, ${this.hitPosition.z.toFixed(2)})`);
+                console.log(`  Hit Distance: ${this.origin.distanceTo(this.hitPosition).toFixed(2)} units`);
+                
+                // Display hit normal if available
+                const hitNormal = this.getHitNormal();
+                if (hitNormal) {
+                    console.log(`  Hit Normal: (${hitNormal.x.toFixed(2)}, ${hitNormal.y.toFixed(2)}, ${hitNormal.z.toFixed(2)})`);
+                    
+                    // Determine which face was hit based on the normal
+                    let face = "Unknown";
+                    const threshold = 0.7; // Threshold for determining primary direction
+                    
+                    if (Math.abs(hitNormal.y) > threshold) {
+                        face = hitNormal.y > 0 ? "TOP" : "BOTTOM";
+                    } else if (Math.abs(hitNormal.x) > threshold) {
+                        face = hitNormal.x > 0 ? "RIGHT" : "LEFT";
+                    } else if (Math.abs(hitNormal.z) > threshold) {
+                        face = hitNormal.z > 0 ? "FRONT" : "BACK";
+                    }
+                    
+                    console.log(`  Hit Face: ${face}`);
+                }
+                
+                // Try to get the material if available
+                const body = this.hitObject.getCollisionBody();
+                if (body && body.material) {
+                    console.log(`  Physics Material: ${body.material.name || 'unnamed'}`);
+                }
+            } else {
+                // We have a hit but couldn't find the corresponding GameObject
+                console.log(`%c[TestProjectile] Hit detected but no GameObject found`, 'color: orange; font-weight: bold');
+                
+                // Show what we do know about the hit
+                console.log(`  Hit Position: (${this.hitPosition.x.toFixed(2)}, ${this.hitPosition.y.toFixed(2)}, ${this.hitPosition.z.toFixed(2)})`);
+                console.log(`  Hit Distance: ${this.origin.distanceTo(this.hitPosition).toFixed(2)} units`);
+                
+                const hitNormal = this.getHitNormal();
+                if (hitNormal) {
+                    console.log(`  Hit Normal: (${hitNormal.x.toFixed(2)}, ${hitNormal.y.toFixed(2)}, ${hitNormal.z.toFixed(2)})`);
+                    
+                    // Try to identify what was hit based on the normal and position
+                    if (Math.abs(hitNormal.y) > 0.9 && Math.abs(this.hitPosition.y) < 0.2) {
+                        console.log(`  %cLikely hit the ground plane`, 'color: #88ff88');
+                    } else if (this.origin.distanceTo(this.hitPosition) < 2.0) {
+                        console.log(`  %cLikely hit part of the player character`, 'color: #ff8888');
+                    }
+                }
+            }
         } else {
             // If we didn't hit anything, use default distance
             endPoint = this.origin.clone().add(this.direction.clone().multiplyScalar(this.visualDistance));
@@ -180,6 +238,48 @@ export class TestProjectile extends BaseProjectile {
         console.log(`  Direction: (${this.direction.x.toFixed(2)}, ${this.direction.y.toFixed(2)}, ${this.direction.z.toFixed(2)})`);
         console.log(`  End point: (${endPoint.x.toFixed(2)}, ${endPoint.y.toFixed(2)}, ${endPoint.z.toFixed(2)})`);
         console.log(`  Distance: ${actualDistance.toFixed(2)} units`);
+        
+        // Add ray hit status info
+        if (this.hitObject) {
+            console.log(`  Hit Status: %cHIT`, 'color: #00ff00; font-weight: bold');
+            console.log(`  Target: ${this.hitObject.constructor.name} (ID: ${this.hitObject.getId()})`);
+            
+            // Use the hit normal if available
+            const hitNormal = this.getHitNormal();
+            if (hitNormal) {
+                let face = "Unknown";
+                const threshold = 0.7; // Threshold for determining primary direction
+                
+                if (Math.abs(hitNormal.y) > threshold) {
+                    face = hitNormal.y > 0 ? "TOP" : "BOTTOM";
+                } else if (Math.abs(hitNormal.x) > threshold) {
+                    face = hitNormal.x > 0 ? "RIGHT" : "LEFT";
+                } else if (Math.abs(hitNormal.z) > threshold) {
+                    face = hitNormal.z > 0 ? "FRONT" : "BACK";
+                }
+                
+                console.log(`  Hit Surface: ${face} (based on normal)`);
+                console.log(`  Surface Normal: (${hitNormal.x.toFixed(2)}, ${hitNormal.y.toFixed(2)}, ${hitNormal.z.toFixed(2)})`);
+            } else {
+                // Fallback to estimate based on ray direction
+                const rayDir = this.direction.clone().normalize();
+                
+                // Try to estimate which side was hit based on ray direction
+                if (Math.abs(rayDir.y) > Math.abs(rayDir.x) && Math.abs(rayDir.y) > Math.abs(rayDir.z)) {
+                    // Mostly vertical hit
+                    console.log(`  Hit Surface: ${rayDir.y < 0 ? 'TOP' : 'BOTTOM'} (estimated)`);
+                } else if (Math.abs(rayDir.x) > Math.abs(rayDir.z)) {
+                    // Mostly on x-axis
+                    console.log(`  Hit Surface: ${rayDir.x < 0 ? 'RIGHT' : 'LEFT'} (estimated)`);
+                } else {
+                    // Mostly on z-axis
+                    console.log(`  Hit Surface: ${rayDir.z < 0 ? 'FRONT' : 'BACK'} (estimated)`);
+                }
+            }
+        } else {
+            console.log(`  Hit Status: %cMISS`, 'color: #ff3333; font-weight: bold');
+        }
+        
         console.log('%c-----------------------------------', 'color: gray');
     }
     

@@ -3,6 +3,7 @@ import GameObject, { GameObjectOptions } from "../GameObject";
 import { PlayerCamera } from "../../../camera/PlayerCamera";
 import * as CANNON from 'cannon-es';
 import { GameObjectManager } from "../../../entities/GameObjectManager";
+import { PlayerCharacter } from "../characters/PlayerCharacter";
 
 export default abstract class BaseProjectile extends GameObject {
     protected origin: THREE.Vector3;
@@ -11,6 +12,7 @@ export default abstract class BaseProjectile extends GameObject {
     protected hitObject: GameObject | null = null;
     protected hitPosition: THREE.Vector3 | null = null;
     protected maxRaycastDistance: number = 1000;
+    protected hitNormal: THREE.Vector3 | null = null;
 
     /**
      * Creates a projectile originating from the player camera's position
@@ -143,6 +145,10 @@ export default abstract class BaseProjectile extends GameObject {
      * @returns True if the ray intersects with a valid object
      */
     protected checkCollisions(): boolean {
+        // Get player character to exclude from collisions
+        const playerCharacter = PlayerCharacter.getInstance();
+        const playerBody = playerCharacter.getCollisionBody();
+        
         // Create ray for CANNON
         const rayFrom = new CANNON.Vec3(this.origin.x, this.origin.y, this.origin.z);
         const rayTo = new CANNON.Vec3(
@@ -151,10 +157,10 @@ export default abstract class BaseProjectile extends GameObject {
             this.origin.z + this.direction.z * this.maxRaycastDistance
         );
         
-        // Create raycast options - only collide with bodies that aren't projectiles
+        // Create raycast options - only collide with bodies that aren't projectiles or player
         const raycastOptions = {
-            skipBackfaces: true,
-            collisionFilterMask: -1,  // Collide with everything by default
+            skipBackfaces: false, // Changed from true to false to allow hitting both sides of planes
+            collisionFilterMask: ~(4), // Collide with everything EXCEPT group 4 (character group)
             from: rayFrom,
             to: rayTo,
         };
@@ -165,6 +171,17 @@ export default abstract class BaseProjectile extends GameObject {
         
         // Check if we hit anything
         if (result.hasHit) {
+            // Store hit normal if available
+            if (result.hitNormalWorld) {
+                this.hitNormal = new THREE.Vector3(
+                    result.hitNormalWorld.x,
+                    result.hitNormalWorld.y,
+                    result.hitNormalWorld.z
+                );
+            } else {
+                this.hitNormal = null;
+            }
+            
             // Find which GameObject this body belongs to
             const hitBody = result.body;
             const allObjects = GameObjectManager.getAllGameObjects();
@@ -181,12 +198,44 @@ export default abstract class BaseProjectile extends GameObject {
                 result.hitPointWorld.z
             );
             
+            // Log more details about the hit for debugging
+            console.log(`[BaseProjectile] Ray hit details:`, {
+                hitBody: hitBody ? `ID: ${hitBody.id}, Mass: ${hitBody.mass}, Type: ${hitBody.shapes[0] ? hitBody.shapes[0].type : 'unknown'}` : 'unknown',
+                hitPosition: this.hitPosition,
+                hitNormal: this.hitNormal,
+                hitDistance: result.distance,
+                rayFrom: new THREE.Vector3(rayFrom.x, rayFrom.y, rayFrom.z),
+                rayTo: new THREE.Vector3(rayTo.x, rayTo.y, rayTo.z),
+                collisionGroup: hitBody ? hitBody.collisionFilterGroup : 'unknown',
+                collisionMask: hitBody ? hitBody.collisionFilterMask : 'unknown'
+            });
+            
+            // Attempt to identify special objects like ground plane
+            if (hitBody && hitBody.shapes[0] && hitBody.shapes[0].type === CANNON.Shape.types.PLANE) {
+                console.log(`[BaseProjectile] Hit appears to be a ground plane`);
+                
+                // If we hit a plane with id 1, it's likely the ground
+                if (hitBody.id === 1) {
+                    // Try to find the ground object manually
+                    const allObjects = GameObjectManager.getAllGameObjects();
+                    const groundObjects = allObjects.filter(obj => 
+                        obj.constructor.name.includes('Ground') || 
+                        obj.constructor.name.includes('Environment'));
+                        
+                    if (groundObjects.length > 0) {
+                        this.hitObject = groundObjects[0];
+                        console.log(`[BaseProjectile] Identified hit as ground: ${this.hitObject.constructor.name}`);
+                    }
+                }
+            }
+            
             return true;
         }
         
         // No hit
         this.hitObject = null;
         this.hitPosition = null;
+        this.hitNormal = null;
         return false;
     }
     
@@ -209,5 +258,12 @@ export default abstract class BaseProjectile extends GameObject {
      */
     public setMaxRaycastDistance(distance: number): void {
         this.maxRaycastDistance = distance;
+    }
+
+    /**
+     * Get the normal vector at the hit point, if any
+     */
+    public getHitNormal(): THREE.Vector3 | null {
+        return this.hitNormal ? this.hitNormal.clone() : null;
     }
 }
