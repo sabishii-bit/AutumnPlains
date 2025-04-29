@@ -9,6 +9,8 @@ export class TestProjectile extends BaseProjectile {
     private lineMaterial!: THREE.LineBasicMaterial;
     private isActive: boolean = false;
     private visualDistance: number = 100; // For visualization purposes only
+    private hitColor: THREE.Color = new THREE.Color(0x00ff00); // Green for hits
+    private missColor: THREE.Color = new THREE.Color(0xff3333); // Red for misses
 
     constructor(options: GameObjectOptions = {}) {
         super(options);
@@ -67,15 +69,31 @@ export class TestProjectile extends BaseProjectile {
         // Log ray information before firing
         console.log(`[TestProjectile] Firing ray from: (${this.origin.x.toFixed(2)}, ${this.origin.y.toFixed(2)}, ${this.origin.z.toFixed(2)})`);
         console.log(`[TestProjectile] Direction: (${this.direction.x.toFixed(2)}, ${this.direction.y.toFixed(2)}, ${this.direction.z.toFixed(2)})`);
-        console.log(`[TestProjectile] Visual distance: ${this.visualDistance}`);
         
-        // Create endpoint for the ray visualization
-        const endPoint = this.origin.clone().add(this.direction.clone().multiplyScalar(this.visualDistance));
+        // Check for collisions
+        const hasHit = this.checkCollisions();
+        
+        // Determine end point based on hit
+        let endPoint;
+        
+        if (hasHit && this.hitPosition) {
+            // If we hit something, set the end point to the hit position
+            endPoint = this.hitPosition;
+            // Set hit color (green)
+            this.setColor(this.hitColor);
+            console.log(`[TestProjectile] Hit object: ${this.hitObject?.getId()}`);
+        } else {
+            // If we didn't hit anything, use default distance
+            endPoint = this.origin.clone().add(this.direction.clone().multiplyScalar(this.visualDistance));
+            // Set miss color (red)
+            this.setColor(this.missColor);
+            console.log(`[TestProjectile] No hit detected`);
+        }
         
         // Update ray geometry
         const points = [
-            this.origin.clone(), // Make sure to clone to avoid reference issues
-            endPoint.clone()     // Clone end point too
+            this.origin.clone(),
+            endPoint.clone()
         ];
         
         try {
@@ -154,11 +172,14 @@ export class TestProjectile extends BaseProjectile {
      * Log ray information
      */
     private logRayInfo(endPoint: THREE.Vector3): void {
+        // Calculate the actual distance between origin and endpoint
+        const actualDistance = this.origin.distanceTo(endPoint);
+        
         console.log(`%c[TestProjectile] Ray Visualization`, 'color: green; font-weight: bold');
         console.log(`  Origin: (${this.origin.x.toFixed(2)}, ${this.origin.y.toFixed(2)}, ${this.origin.z.toFixed(2)})`);
         console.log(`  Direction: (${this.direction.x.toFixed(2)}, ${this.direction.y.toFixed(2)}, ${this.direction.z.toFixed(2)})`);
         console.log(`  End point: (${endPoint.x.toFixed(2)}, ${endPoint.y.toFixed(2)}, ${endPoint.z.toFixed(2)})`);
-        console.log(`  Distance: ${this.visualDistance} units`);
+        console.log(`  Distance: ${actualDistance.toFixed(2)} units`);
         console.log('%c-----------------------------------', 'color: gray');
     }
     

@@ -1,11 +1,16 @@
 import * as THREE from 'three';
 import GameObject, { GameObjectOptions } from "../GameObject";
 import { PlayerCamera } from "../../../camera/PlayerCamera";
+import * as CANNON from 'cannon-es';
+import { GameObjectManager } from "../../../entities/GameObjectManager";
 
 export default abstract class BaseProjectile extends GameObject {
     protected origin: THREE.Vector3;
     protected direction: THREE.Vector3;
     protected playerCamera: PlayerCamera;
+    protected hitObject: GameObject | null = null;
+    protected hitPosition: THREE.Vector3 | null = null;
+    protected maxRaycastDistance: number = 1000;
 
     /**
      * Creates a projectile originating from the player camera's position
@@ -131,5 +136,78 @@ export default abstract class BaseProjectile extends GameObject {
         }
         
         console.log(`Projectile reset for recycling`);
+    }
+
+    /**
+     * Check for collisions with other game objects
+     * @returns True if the ray intersects with a valid object
+     */
+    protected checkCollisions(): boolean {
+        // Create ray for CANNON
+        const rayFrom = new CANNON.Vec3(this.origin.x, this.origin.y, this.origin.z);
+        const rayTo = new CANNON.Vec3(
+            this.origin.x + this.direction.x * this.maxRaycastDistance,
+            this.origin.y + this.direction.y * this.maxRaycastDistance,
+            this.origin.z + this.direction.z * this.maxRaycastDistance
+        );
+        
+        // Create raycast options - only collide with bodies that aren't projectiles
+        const raycastOptions = {
+            skipBackfaces: true,
+            collisionFilterMask: -1,  // Collide with everything by default
+            from: rayFrom,
+            to: rayTo,
+        };
+        
+        // Perform the raycast
+        const result = new CANNON.RaycastResult();
+        this.worldContext.raycastClosest(rayFrom, rayTo, raycastOptions, result);
+        
+        // Check if we hit anything
+        if (result.hasHit) {
+            // Find which GameObject this body belongs to
+            const hitBody = result.body;
+            const allObjects = GameObjectManager.getAllGameObjects();
+            
+            // Find the object that owns this body
+            this.hitObject = allObjects.find((obj: GameObject) => {
+                return obj.getCollisionBody() === hitBody && !(obj instanceof BaseProjectile);
+            }) || null;
+            
+            // Calculate hit position in THREE.js coordinates
+            this.hitPosition = new THREE.Vector3(
+                result.hitPointWorld.x,
+                result.hitPointWorld.y,
+                result.hitPointWorld.z
+            );
+            
+            return true;
+        }
+        
+        // No hit
+        this.hitObject = null;
+        this.hitPosition = null;
+        return false;
+    }
+    
+    /**
+     * Get the object hit by this projectile, if any
+     */
+    public getHitObject(): GameObject | null {
+        return this.hitObject;
+    }
+    
+    /**
+     * Get the hit position, if any
+     */
+    public getHitPosition(): THREE.Vector3 | null {
+        return this.hitPosition ? this.hitPosition.clone() : null;
+    }
+    
+    /**
+     * Set maximum raycast distance
+     */
+    public setMaxRaycastDistance(distance: number): void {
+        this.maxRaycastDistance = distance;
     }
 }

@@ -32,6 +32,7 @@ export class TestMap {
         new GroundEnvironment(new THREE.Vector3(0, 10, 10));
         new SkyboxEnvironment(new THREE.Vector3(0, 0, 0));
         new OutskirtStand(new THREE.Vector3(0, 0, 5));
+        new CubeProp(new THREE.Vector3(5, 15, 12));
 
         // Add objects and effects to the scene
         this.lighting.addToScene();

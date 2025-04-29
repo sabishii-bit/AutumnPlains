@@ -7,8 +7,7 @@ export class CubeProp extends GameObject {
     
     constructor(initialPosition: THREE.Vector3) {
         super({ 
-            position: initialPosition,
-            materialType: MaterialType.DYNAMIC
+            position: initialPosition
         });
     }
 
