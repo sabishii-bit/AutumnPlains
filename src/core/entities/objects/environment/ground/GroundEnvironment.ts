@@ -111,12 +111,10 @@ export class GroundEnvironment extends GameObject {
                 const Ammo = WorldContext.getAmmo();
                 // Create a transform to hold the rigid body's position
                 const transform = new Ammo.btTransform();
-                
                 // Get the transform from the motion state
-                if (this.motionState) {
-                    this.motionState.getWorldTransform(transform);
-                } else if (this.collisionMesh.getMotionState()) {
-                    this.collisionMesh.getMotionState().getWorldTransform(transform);
+                const motionState = this.collisionMesh.getMotionState();
+                if (motionState) {
+                    motionState.getWorldTransform(transform);
                 }
                 
                 // Only sync position, not rotation
