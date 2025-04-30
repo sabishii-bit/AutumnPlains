@@ -22,21 +22,24 @@ export class TestMap {
     private clouds: CloudWeatherEffect;
 
     constructor(renderer: Renderer) {
-        this.gameObjectManager = new GameObjectManager();
+        this.gameObjectManager = GameObjectManager.getInstance();
         this.lighting = new LightingEffect();
         this.bloom = new BloomEffect();
         this.clouds = new CloudWeatherEffect();
         this.rain = new RainWeatherEffect();
         this.fog = new FogWeatherEffect();
         
-        new GroundEnvironment(new THREE.Vector3(0, 10, 10));
+        // Create ground at Y=0 for proper physics collision
+        new GroundEnvironment(new THREE.Vector3(0, 0, 0), false); // Make ground visible for debugging
         new SkyboxEnvironment(new THREE.Vector3(0, 0, 0));
         new OutskirtStand(new THREE.Vector3(0, 0, 5));
-        // new CubeProp(new THREE.Vector3(5, 15, 12));
+        // Add a test cube to verify physics
+        new CubeProp(new THREE.Vector3(5, 15, 12));
 
         // Add objects and effects to the scene
         this.lighting.addToScene();
 
+        console.log("Test map initialized with ground plane");
     }
 
     update(deltaTime: number) {

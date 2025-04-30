@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import GameObject, { GameObjectOptions } from '../../GameObject';
 import { MaterialType } from '../../../../physics/PhysicsMaterialsManager';
-import { AmmoUtils } from '../../../../physics/AmmoUtils';
+import { WorldContext } from '../../../../global/world/WorldContext';
 
 // Declare Ammo global
 declare const Ammo: any;
@@ -22,6 +22,7 @@ export class CubeProp extends GameObject {
     }
 
     protected createCollisionMesh() {
+        const Ammo = WorldContext.getAmmo();
         // Create an Ammo box shape (half-extents)
         const halfExtents = new Ammo.btVector3(1, 1, 1);
         const shape = new Ammo.btBoxShape(halfExtents);

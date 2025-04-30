@@ -39,6 +39,11 @@ export class GroundEnvironment extends GameObject {
         });
         this.visualMesh = new THREE.Mesh(geometry, material); // Override the initial placeholder mesh
         this.visualMesh.rotation.x = -Math.PI / 2;
+        
+        // Ensure position is set correctly
+        this.visualMesh.position.copy(this.position);
+        
+        console.log("Ground visual mesh created with rotation", this.visualMesh.rotation);
     }
 
     protected createCollisionMesh() {
@@ -90,6 +95,41 @@ export class GroundEnvironment extends GameObject {
             });
         } catch (error) {
             console.error("Error creating ground collision mesh:", error);
+        }
+    }
+    
+    /**
+     * Override the syncMeshWithBody method to prevent automatic syncing
+     * for the ground plane. We need to maintain the visual rotation regardless
+     * of the physics body orientation.
+     */
+    protected syncMeshWithBody() {
+        // For the ground plane, we don't want to sync the rotation from physics
+        // We only sync the position if needed
+        if (this.collisionMesh && this.visualMesh) {
+            try {
+                const Ammo = WorldContext.getAmmo();
+                // Create a transform to hold the rigid body's position
+                const transform = new Ammo.btTransform();
+                
+                // Get the transform from the motion state
+                if (this.motionState) {
+                    this.motionState.getWorldTransform(transform);
+                } else if (this.collisionMesh.getMotionState()) {
+                    this.collisionMesh.getMotionState().getWorldTransform(transform);
+                }
+                
+                // Only sync position, not rotation
+                const origin = transform.getOrigin();
+                if (origin) {
+                    this.visualMesh.position.set(origin.x(), origin.y(), origin.z());
+                }
+                
+                // Clean up transform
+                Ammo.destroy(transform);
+            } catch (error) {
+                console.error(`Error in syncMeshWithBody for ground:`, error);
+            }
         }
     }
     

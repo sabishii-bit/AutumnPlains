@@ -28,9 +28,11 @@ export class WorldContext {
             WorldContext.collisionConfiguration
         );
         
-        // Set gravity (similar value to the previous -30.82 in Cannon-es)
+        // Set stronger gravity (similar value to the previous -30.82 in Cannon-es)
         const gravity = new WorldContext.ammo.btVector3(0, -30.82, 0);
         WorldContext.instance.setGravity(gravity);
+        
+        console.log("Physics world created with gravity:", -30.82);
     }
 
     // Static method to get the singleton instance

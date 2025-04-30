@@ -28,9 +28,14 @@ export class PhysicsSystem {
         this.scene = SceneContext.getInstance();
         this.debugEnabled = enableDebug;
         
+        // Reset gravity to ensure proper physics (Ammo gravity in y-dir: -9.8 m/s²)
+        this.resetGravity();
+        
         if (enableDebug) {
             this.initDebugDrawer();
         }
+        
+        console.log("PhysicsSystem initialized. Gravity:", this.getGravity());
     }
 
     /**
@@ -43,6 +48,17 @@ export class PhysicsSystem {
             PhysicsSystem.instance = new PhysicsSystem(enableDebug);
         }
         return PhysicsSystem.instance;
+    }
+
+    /**
+     * Reset gravity to the default value
+     */
+    public resetGravity(): void {
+        const Ammo = WorldContext.getAmmo();
+        // Set standard gravity (negative y-direction)
+        const gravity = new Ammo.btVector3(0, -9.8, 0);
+        this.physicsWorld.setGravity(gravity);
+        Ammo.destroy(gravity);
     }
 
     /**
@@ -122,9 +138,11 @@ export class PhysicsSystem {
      * @param gravity THREE.Vector3 representing gravity direction and strength
      */
     public setGravity(gravity: THREE.Vector3): void {
+        const Ammo = WorldContext.getAmmo();
         const gravityVec = new Ammo.btVector3(gravity.x, gravity.y, gravity.z);
         this.physicsWorld.setGravity(gravityVec);
         Ammo.destroy(gravityVec);
+        console.log("Gravity set to:", gravity);
     }
 
     /**

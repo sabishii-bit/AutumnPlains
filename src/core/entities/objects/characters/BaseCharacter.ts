@@ -26,16 +26,19 @@ export abstract class BaseCharacter extends GameObject {
     public direction!: THREE.Vector3;
     private currentState!: CharacterState;
 
-    private headBody!: any; // Ammo.btRigidBody
-    private feetBody!: any; // Ammo.btRigidBody
-    private headShape!: any; // Ammo.btSphereShape
-    private feetShape!: any; // Ammo.btSphereShape
     private previousYVelocity: number = 0;
-    private lastFeetCollisionTime: number = 0;
+    private lastCollisionTime: number = 0;
     private collisionDebugEnabled: boolean = true; // Toggle for collision debug messages
-    private headMotionState!: any; // Ammo.btDefaultMotionState
-    private feetMotionState!: any; // Ammo.btDefaultMotionState
     private mainBodyTransform!: any; // Ammo.btTransform for reading position
+    
+    // Raycasting for ground detection
+    private groundRaycastDistance: number = 0.25; // Distance to raycast below the character
+    private isOnGround: boolean = false;
+    private raycastStartTime: number = 0;
+    private raycastResults: any = null;
+    // Store these vectors to avoid recreating them on every raycast
+    private rayStart: any = null; 
+    private rayEnd: any = null;
 
     constructor(initialPosition: THREE.Vector3) { 
         super({ 
@@ -49,6 +52,41 @@ export abstract class BaseCharacter extends GameObject {
         // Set the initial state as airborne
         this.setState(new CharacterAirborneState(this));
         StateManager.decideState(this);
+        
+        // Initialize raycasting objects right away
+        this.initRaycastObjects();
+    }
+    
+    /**
+     * Initialize raycast objects for ground detection
+     */
+    private initRaycastObjects(): void {
+        try {
+            const Ammo = WorldContext.getAmmo();
+            
+            if (!this.raycastResults) {
+                // Initialize from vector and to vector
+                const fromVec = new Ammo.btVector3(0, 0, 0);
+                const toVec = new Ammo.btVector3(0, -1, 0);
+                
+                // Create the raycast result callback
+                this.raycastResults = new Ammo.ClosestRayResultCallback(fromVec, toVec);
+                
+                // Create reusable ray vectors
+                this.rayStart = new Ammo.btVector3(0, 0, 0);
+                this.rayEnd = new Ammo.btVector3(0, 0, 0);
+                
+                // Clean up temporary vectors
+                Ammo.destroy(fromVec);
+                Ammo.destroy(toVec);
+                
+                if (this.collisionDebugEnabled) {
+                    console.log("Raycast objects initialized");
+                }
+            }
+        } catch (error) {
+            console.error("Error initializing raycast objects:", error);
+        }
     }
 
     protected createVisualMesh() {
@@ -100,7 +138,7 @@ export abstract class BaseCharacter extends GameObject {
                 const motionState = new Ammo.btDefaultMotionState(transform);
                 
                 // Create a capsule shape for the main body
-                // Y up in Ammo.js, so we use Y axis capsule (unlike CANNON's Z axis)
+                // Y up in Ammo.js, so we use Y axis capsule
                 const capsuleShape = new Ammo.btCapsuleShape(radius, halfLength * 2);
                 
                 // Calculate inertia for dynamic body
@@ -118,7 +156,7 @@ export abstract class BaseCharacter extends GameObject {
                 
                 // Create the body and apply damping
                 this.collisionMesh = new Ammo.btRigidBody(rbInfo);
-                this.collisionMesh.setDamping(0.85, 0.99); // linear and angular damping
+                this.collisionMesh.setDamping(0.5, 0.5); // linear and angular damping
                 
                 // Lock rotation to only allow Y-axis rotation
                 this.collisionMesh.setAngularFactor(new Ammo.btVector3(0, 1, 0));
@@ -126,137 +164,149 @@ export abstract class BaseCharacter extends GameObject {
                 // Prevent sleeping for continuous physics updates
                 this.collisionMesh.setActivationState(4); // DISABLE_DEACTIVATION
                 
-                // Create head and feet shapes
-                this.headShape = new Ammo.btSphereShape(radius * BaseCharacter.HEAD_SCALE_FACTOR);
-                this.feetShape = new Ammo.btSphereShape(radius * BaseCharacter.FEET_SCALE_FACTOR);
-                
-                // Create transforms for head and feet
-                const headTransform = new Ammo.btTransform();
-                headTransform.setIdentity();
-                headTransform.setOrigin(new Ammo.btVector3(
-                    this.position.x, 
-                    this.position.y + halfLength, 
-                    this.position.z
-                ));
-                
-                const feetTransform = new Ammo.btTransform();
-                feetTransform.setIdentity();
-                feetTransform.setOrigin(new Ammo.btVector3(
-                    this.position.x, 
-                    this.position.y - halfLength, 
-                    this.position.z
-                ));
-                
-                // Create motion states
-                this.headMotionState = new Ammo.btDefaultMotionState(headTransform);
-                this.feetMotionState = new Ammo.btDefaultMotionState(feetTransform);
-                
-                // Calculate inertia for head and feet
-                const headInertia = new Ammo.btVector3(0, 0, 0);
-                const feetInertia = new Ammo.btVector3(0, 0, 0);
-                this.headShape.calculateLocalInertia(0.1, headInertia);
-                this.feetShape.calculateLocalInertia(0.1, feetInertia);
-                
-                // Create head and feet bodies
-                const headRBInfo = new Ammo.btRigidBodyConstructionInfo(
-                    0.1,
-                    this.headMotionState,
-                    this.headShape,
-                    headInertia
-                );
-                
-                const feetRBInfo = new Ammo.btRigidBodyConstructionInfo(
-                    0.1,
-                    this.feetMotionState,
-                    this.feetShape,
-                    feetInertia
-                );
-                
-                this.headBody = new Ammo.btRigidBody(headRBInfo);
-                this.feetBody = new Ammo.btRigidBody(feetRBInfo);
-                
-                // Apply properties to head and feet
-                this.headBody.setDamping(0.9, 0.9);
-                this.feetBody.setDamping(0.9, 0.9);
-                this.headBody.setActivationState(4); // DISABLE_DEACTIVATION
-                this.feetBody.setActivationState(4); // DISABLE_DEACTIVATION
-                
                 // Apply material properties
                 this.physicsManager.applyMaterialToBody(this.collisionMesh, MaterialType.CHARACTER);
-                this.physicsManager.applyMaterialToBody(this.headBody, MaterialType.CHARACTER);
-                this.physicsManager.applyMaterialToBody(this.feetBody, MaterialType.CHARACTER);
                 
-                // Add head and feet bodies to the world
-                this.worldContext.addRigidBody(this.headBody);
-                this.worldContext.addRigidBody(this.feetBody);
+                // Explicitly add to the physics world
+                this.worldContext.addRigidBody(this.collisionMesh);
                 
-                // Create constraints (joints) between main body and head/feet
+                // Ensure body is active
+                this.collisionMesh.activate(true);
                 
-                // Head constraint
-                const pivotInMainA = new Ammo.btVector3(0, halfLength, 0);
-                const pivotInHeadB = new Ammo.btVector3(0, 0, 0);
-                const headConstraint = new Ammo.btPoint2PointConstraint(
-                    this.collisionMesh,
-                    this.headBody,
-                    pivotInMainA,
-                    pivotInHeadB
-                );
-                
-                // Feet constraint
-                const pivotInMainC = new Ammo.btVector3(0, -halfLength, 0);
-                const pivotInFeetD = new Ammo.btVector3(0, 0, 0);
-                const feetConstraint = new Ammo.btPoint2PointConstraint(
-                    this.collisionMesh,
-                    this.feetBody,
-                    pivotInMainC,
-                    pivotInFeetD
-                );
-                
-                // Add constraints to the world
-                this.worldContext.addConstraint(headConstraint, true);
-                this.worldContext.addConstraint(feetConstraint, true);
+                // Make sure raycast objects are initialized
+                this.initRaycastObjects();
                 
                 // Clean up
                 Ammo.destroy(rbInfo);
-                Ammo.destroy(headRBInfo);
-                Ammo.destroy(feetRBInfo);
-                Ammo.destroy(headTransform);
-                Ammo.destroy(feetTransform);
+                Ammo.destroy(transform);
                 Ammo.destroy(localInertia);
-                Ammo.destroy(headInertia);
-                Ammo.destroy(feetInertia);
-                Ammo.destroy(pivotInMainA);
-                Ammo.destroy(pivotInHeadB);
-                Ammo.destroy(pivotInMainC);
-                Ammo.destroy(pivotInFeetD);
                 
-                // Setup collision detection callbacks - Ammo.js doesn't support direct event listeners
-                // We'll need to handle collisions in the update method
+                console.log("Character physics initialized successfully at position", this.position);
                 
-                console.log("Character physics initialized successfully");
+                // Debug: Print gravity
+                const gravity = this.worldContext.getGravity();
+                console.log("Physics world gravity:", gravity.y());
             } catch (error) {
                 console.error("Error creating character collision mesh:", error);
             }
         }
     }
 
-    // Since Ammo.js doesn't support collision callbacks directly like CANNON, 
-    // we'll use a different approach to detect collisions
-    
-    private checkCollisions() {
-        // A simple check for ground collisions based on velocity changes
-        if (this.collisionMesh) {
-            const velocity = this.collisionMesh.getLinearVelocity();
-            const currentY = velocity.y();
+    // Instead of relying on multiple bodies for collision detection,
+    // use raycasting to detect ground contact
+    private checkGroundContact() {
+        if (!this.collisionMesh) return;
+        
+        try {
+            const Ammo = WorldContext.getAmmo();
+            const now = performance.now();
             
-            // If velocity suddenly changed from negative to near-zero, likely hit ground
-            if (this.previousYVelocity < -2 && currentY > -0.5) {
-                this.lastFeetCollisionTime = performance.now();
-                this.stabilizeOnGround();
+            // Ensure we have raycast objects
+            if (!this.raycastResults || !this.rayStart || !this.rayEnd) {
+                this.initRaycastObjects();
+                
+                // If still null after initialization, skip the raycast this frame
+                if (!this.raycastResults || !this.rayStart || !this.rayEnd) {
+                    console.warn("Raycast objects not available, skipping ground check");
+                    return;
+                }
             }
             
-            // Store for next frame
-            this.previousYVelocity = currentY;
+            // Ensure transform is initialized
+            if (!this.mainBodyTransform) {
+                this.mainBodyTransform = new Ammo.btTransform();
+                this.mainBodyTransform.setIdentity();
+            }
+            
+            // Only perform raycast check periodically for performance
+            if (now - this.raycastStartTime > 50) { // Check every 50ms
+                this.raycastStartTime = now;
+                
+                // Get current position
+                if (this.collisionMesh.getMotionState()) {
+                    // Get the motion state's transform
+                    const motionState = this.collisionMesh.getMotionState();
+                    if (!motionState) {
+                        console.warn("No motion state available for character");
+                        return;
+                    }
+                    
+                    // Get the world transform into our transform object
+                    motionState.getWorldTransform(this.mainBodyTransform);
+                    if (!this.mainBodyTransform) {
+                        console.warn("Transform not available after getWorldTransform");
+                        return;
+                    }
+                    
+                    // Get the origin from the transform
+                    const origin = this.mainBodyTransform.getOrigin();
+                    if (!origin) {
+                        console.warn("Origin not available from transform");
+                        return;
+                    }
+                    
+                    // Make sure we have valid coordinates
+                    const x = origin.x();
+                    const y = origin.y();
+                    const z = origin.z();
+                    
+                    if (isNaN(x) || isNaN(y) || isNaN(z)) {
+                        console.warn("Invalid coordinates from physics transform:", x, y, z);
+                        return;
+                    }
+                    
+                    // Set up raycast from bottom of capsule
+                    this.rayStart.setValue(
+                        x,
+                        y - (BaseCharacter.HALF_LENGTH * 0.9), // Just below character's feet
+                        z
+                    );
+                    
+                    this.rayEnd.setValue(
+                        x,
+                        y - (BaseCharacter.HALF_LENGTH + this.groundRaycastDistance),
+                        z
+                    );
+                    
+                    // Reset the raycast callback
+                    this.raycastResults.set_m_closestHitFraction(1);
+                    this.raycastResults.set_m_collisionObject(null);
+                    this.raycastResults.m_rayFromWorld = this.rayStart;
+                    this.raycastResults.m_rayToWorld = this.rayEnd;
+                    
+                    // Perform the raycast - worldContext is the dynamics world directly in this implementation
+                    this.worldContext.rayTest(this.rayStart, this.rayEnd, this.raycastResults);
+                    
+                    // Check if we hit something
+                    this.isOnGround = this.raycastResults.hasHit();
+                    
+                    if (this.isOnGround) {
+                        this.lastCollisionTime = now;
+                        this.stabilizeOnGround();
+                    }
+                }
+            }
+            
+            // Also check using velocity changes as a backup method
+            if (this.collisionMesh) {
+                const velocity = this.collisionMesh.getLinearVelocity();
+                if (velocity) {
+                    const currentY = velocity.y();
+                    
+                    // If velocity suddenly changed from negative to near-zero, likely hit ground
+                    if (this.previousYVelocity < -2 && currentY > -0.5) {
+                        this.lastCollisionTime = performance.now();
+                        this.stabilizeOnGround();
+                        this.isOnGround = true;
+                    }
+                    
+                    // Store for next frame
+                    this.previousYVelocity = currentY;
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error checking ground contact:', error);
         }
     }
 
@@ -334,6 +384,10 @@ export abstract class BaseCharacter extends GameObject {
         
         try {
             const Ammo = WorldContext.getAmmo();
+            
+            // Make sure the body is active
+            this.collisionMesh.activate(true);
+            
             // Check if there's any input
             if (inputVector.lengthSq() > 0) {
                 // When there's input, apply velocity based on input
@@ -343,7 +397,18 @@ export abstract class BaseCharacter extends GameObject {
                 const velocity = this.collisionMesh.getLinearVelocity();
                 const currentYVelocity = velocity.y();
                 
-                // Apply new velocity
+                // Calculate new velocity
+                const moveForce = this.moveSpeed * 10; // Apply stronger force
+                const moveDirection = new Ammo.btVector3(
+                    inputVector.x * moveForce,
+                    0, // Don't affect vertical movement
+                    inputVector.z * moveForce
+                );
+                
+                // Apply central force for more responsive movement
+                this.collisionMesh.applyCentralForce(moveDirection);
+                
+                // Apply horizontal velocity directly for immediate response
                 const newVelocity = new Ammo.btVector3(
                     inputVector.x * this.moveSpeed,
                     currentYVelocity,
@@ -363,12 +428,23 @@ export abstract class BaseCharacter extends GameObject {
                 }
                 
                 this.collisionMesh.setLinearVelocity(newVelocity);
+                
+                // Clean up
+                Ammo.destroy(moveDirection);
                 Ammo.destroy(newVelocity);
                 
+                // Debug message
+                if (this.collisionDebugEnabled) {
+                    console.log("Applied movement force:", inputVector.x, inputVector.z);
+                }
             } else {
-                // When there's no input, stop horizontal movement
+                // When there's no input, add horizontal damping
                 const velocity = this.collisionMesh.getLinearVelocity();
-                const newVelocity = new Ammo.btVector3(0, velocity.y(), 0);
+                const newVelocity = new Ammo.btVector3(
+                    velocity.x() * 0.9, // Apply horizontal damping
+                    velocity.y(),
+                    velocity.z() * 0.9  // Apply horizontal damping
+                );
                 this.collisionMesh.setLinearVelocity(newVelocity);
                 Ammo.destroy(newVelocity);
             }
@@ -376,15 +452,15 @@ export abstract class BaseCharacter extends GameObject {
             // Ensure character stays upright
             this.enforceUpright();
             
-            // Check for collisions
-            this.checkCollisions();
+            // Check for ground contact
+            this.checkGroundContact();
         } catch (error) {
             console.error('Error updating character position:', error);
         }
     }
 
     public jump() {
-        if (!this.collisionMesh) return;
+        if (!this.collisionMesh || !this.isOnGround) return;
         
         try {
             const Ammo = WorldContext.getAmmo();
@@ -402,6 +478,7 @@ export abstract class BaseCharacter extends GameObject {
             
             // Set the state to jumping
             this.setState(new CharacterJumpingState(this));
+            this.isOnGround = false;
         } catch (error) {
             console.error('Error during jump:', error);
         }
@@ -480,7 +557,11 @@ export abstract class BaseCharacter extends GameObject {
 
     public hasLandedRecently(threshold: number = 10): boolean {
         const currentTime = performance.now();
-        return currentTime - this.lastFeetCollisionTime <= threshold;
+        return currentTime - this.lastCollisionTime <= threshold;
+    }
+    
+    public isGrounded(): boolean {
+        return this.isOnGround;
     }
 
     public animate(deltaTime: number): void {
@@ -490,11 +571,8 @@ export abstract class BaseCharacter extends GameObject {
         // Custom animation logic for the player character, if any
         StateManager.decideState(this);
     
-        // Update position of head and feet bodies from constraints
-        // Ammo.js does this automatically through the constraints
-        
-        // Check for collisions (since we don't have direct event listeners)
-        this.checkCollisions();
+        // Check for ground contact
+        this.checkGroundContact();
         
         // Additional custom animations could go here
     }
@@ -612,5 +690,41 @@ export abstract class BaseCharacter extends GameObject {
             position: position,
             velocity: velocity
         };
+    }
+    
+    // Clean up physics resources when the character is destroyed
+    public cleanup(): void {
+        if (this.rayStart) {
+            try {
+                const Ammo = WorldContext.getAmmo();
+                Ammo.destroy(this.rayStart);
+                this.rayStart = null;
+            } catch (error) {
+                console.error('Error destroying ray start vector:', error);
+            }
+        }
+        
+        if (this.rayEnd) {
+            try {
+                const Ammo = WorldContext.getAmmo();
+                Ammo.destroy(this.rayEnd);
+                this.rayEnd = null;
+            } catch (error) {
+                console.error('Error destroying ray end vector:', error);
+            }
+        }
+        
+        if (this.raycastResults) {
+            try {
+                const Ammo = WorldContext.getAmmo();
+                Ammo.destroy(this.raycastResults);
+                this.raycastResults = null;
+            } catch (error) {
+                console.error('Error destroying raycast results:', error);
+            }
+        }
+        
+        // Let the GameObjectManager handle removal from the scene and physics world
+        GameObjectManager.getInstance().deleteObject(this.objectId);
     }
 }
