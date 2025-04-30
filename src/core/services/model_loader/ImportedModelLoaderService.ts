@@ -1,11 +1,14 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 import { GLTF } from 'three/examples/jsm/loaders/GLTFLoader';
 import { SceneContext } from '../../global/scene/SceneContext';
 import { WorldContext } from '../../global/world/WorldContext';
+import { AmmoUtils } from '../../physics/AmmoUtils';
+
+// Declare Ammo global
+declare const Ammo: any;
 
 interface CachedModel {
     scene: THREE.Group;
@@ -28,7 +31,7 @@ export class ImportedModelLoaderService {
 
     // Scene and world context references
     private scene: THREE.Scene;
-    private cannonWorld: CANNON.World;
+    private physicsWorld: any; // Ammo.btDiscreteDynamicsWorld
 
     constructor() {
         this.gltfLoader = new GLTFLoader();
@@ -42,7 +45,7 @@ export class ImportedModelLoaderService {
 
         // Get singleton instances
         this.scene = SceneContext.getInstance();
-        this.cannonWorld = WorldContext.getInstance();
+        this.physicsWorld = WorldContext.getInstance();
     }
     
     // Configuration methods for cache settings
@@ -141,7 +144,7 @@ export class ImportedModelLoaderService {
         position: THREE.Vector3, 
         trimeshCollisionEnabled: boolean = false, 
         scale: THREE.Vector3 = new THREE.Vector3(1, 1, 1),
-        physicsBody: CANNON.Body | null = null
+        physicsBody: any | null = null // Ammo.btRigidBody
     ): void {
         const cacheKey = gltfPath;
         
@@ -165,7 +168,7 @@ export class ImportedModelLoaderService {
             // Force an update of the world matrix to ensure correct physics
             clonedScene.updateMatrixWorld(true);
             
-            // Create a CANNON.Trimesh for physics if enabled
+            // Create a trimesh for physics if enabled
             if (trimeshCollisionEnabled) {
                 // Create physics immediately instead of using setTimeout
                 const createdBody = this.createTrimeshPhysics(clonedScene, position, scale, physicsBody);
@@ -212,7 +215,7 @@ export class ImportedModelLoaderService {
         position: THREE.Vector3,
         scale: THREE.Vector3,
         trimeshCollisionEnabled: boolean,
-        physicsBody: CANNON.Body | null
+        physicsBody: any | null // Ammo.btRigidBody
     ): void {
         // Traverse the model to enable shadows and set up materials
         gltf.scene.traverse((child) => {
@@ -252,7 +255,7 @@ export class ImportedModelLoaderService {
         // Force an update of the world matrix to ensure correct physics
         gltf.scene.updateMatrixWorld(true);
 
-        // Create a CANNON.Trimesh for physics if enabled
+        // Create a trimesh for physics if enabled
         if (trimeshCollisionEnabled) {
             // Create the physics immediately rather than with setTimeout
             // This ensures physics is applied properly when model is loaded
@@ -269,23 +272,47 @@ export class ImportedModelLoaderService {
      * @param position Base position for the object
      * @param scale Base scale for the object
      * @param physicsBody Optional existing physics body to use
-     * @returns The created CANNON.js body
+     * @returns The created Ammo.js rigid body
      */
     private createTrimeshPhysics(
         object: THREE.Object3D, 
         position: THREE.Vector3, 
         scale: THREE.Vector3, 
-        physicsBody: CANNON.Body | null
-    ): CANNON.Body {
-        // Get the CANNON world
-        const world = this.cannonWorld;
+        physicsBody: any | null // Ammo.btRigidBody
+    ): any { // Ammo.btRigidBody
+        // Get the Ammo world
+        const world = this.physicsWorld;
         
         // Use existing body or create new one
-        let body = physicsBody || new CANNON.Body({ 
-            mass: 0.0, // Use zero mass for static objects by default
-            // Initialize position to match the object's position
-            position: new CANNON.Vec3(position.x, position.y, position.z)
-        });
+        let body = physicsBody;
+        if (!body) {
+            // For Ammo.js, we need to create a new motion state first
+            const transform = new Ammo.btTransform();
+            transform.setIdentity();
+            transform.setOrigin(new Ammo.btVector3(position.x, position.y, position.z));
+            
+            const motionState = new Ammo.btDefaultMotionState(transform);
+            
+            // We'll build a compound shape for the entire model
+            const compoundShape = new Ammo.btCompoundShape();
+            
+            // Rigid body construction info with zero mass for static objects
+            const rbInfo = new Ammo.btRigidBodyConstructionInfo(
+                0, // Zero mass makes it static
+                motionState,
+                compoundShape,
+                new Ammo.btVector3(0, 0, 0) // Zero inertia for static objects
+            );
+            
+            body = new Ammo.btRigidBody(rbInfo);
+            
+            // Set static collision flags
+            body.setCollisionFlags(body.getCollisionFlags() | 1); // 1 = STATIC_OBJECT
+            
+            // Clean up construction objects
+            Ammo.destroy(rbInfo);
+            Ammo.destroy(transform);
+        }
         
         // Track if we've added any shapes to the body
         let shapesAdded = false;
@@ -304,55 +331,47 @@ export class ImportedModelLoaderService {
                 
                 // Make sure the geometry's vertices reflect current transformations
                 if (geometry.attributes.position) {
-                    // Extract vertices and indices from the geometry
-                    const vertices = Array.from(geometry.attributes.position.array as Float32Array) as number[];
+                    // Create a triangle mesh for the geometry
+                    const mesh = this.createTriangleMesh(geometry);
                     
-                    let indices: number[];
-                    if (geometry.index) {
-                        indices = Array.from(geometry.index.array as Uint16Array | Uint32Array) as number[];
-                    } else {
-                        // If no index, create one that just counts up (0,1,2,3,...)
-                        indices = [];
-                        for (let i = 0; i < vertices.length / 3; i++) {
-                            indices.push(i);
-                        }
-                    }
-        
-                    // Create the CANNON.js trimesh shape
-                    const cannonShape = new CANNON.Trimesh(vertices, indices);
+                    // Create a btBvhTriangleMeshShape from the triangle mesh
+                    const shape = new Ammo.btBvhTriangleMeshShape(mesh, true, true);
                     
-                    // Apply scale to the shape to match the Three.js mesh scale
-                    cannonShape.setScale(new CANNON.Vec3(
-                        Math.abs(worldScale.x),
-                        Math.abs(worldScale.y),
-                        Math.abs(worldScale.z)
-                    ));
-        
-                    // Calculate the shape's position relative to the body's position
-                    const relativePosition = new CANNON.Vec3(
+                    // Calculate the shape's transform relative to the body
+                    const localTransform = new Ammo.btTransform();
+                    localTransform.setIdentity();
+                    
+                    // Set relative position
+                    const relativePosition = new Ammo.btVector3(
                         worldPosition.x - position.x,
                         worldPosition.y - position.y, 
                         worldPosition.z - position.z
                     );
+                    localTransform.setOrigin(relativePosition);
                     
-                    // Create a quaternion that matches the mesh's orientation
-                    const correctedQuaternion = new CANNON.Quaternion();
-                    correctedQuaternion.set(
+                    // Set relative rotation
+                    const relativeRotation = new Ammo.btQuaternion(
                         worldQuaternion.x,
                         worldQuaternion.y,
                         worldQuaternion.z,
                         worldQuaternion.w
                     );
+                    localTransform.setRotation(relativeRotation);
                     
-                    // Add the shape to the body with the corrected transforms
-                    body.addShape(cannonShape, relativePosition, correctedQuaternion);
+                    // Add the shape to the compound shape if not using an existing body
+                    if (!physicsBody) {
+                        // Get compound shape from the body
+                        const compoundShape = body.getCollisionShape();
+                        
+                        // Apply scale to the shape
+                        // Ammo transforms don't directly support scale, so we need to scale
+                        // the mesh itself or use a specific scaled shape
+                        compoundShape.addChildShape(localTransform, shape);
+                        
+                        shapesAdded = true;
+                    }
                     
-                    // For debugging, log information about each added shape
-                    console.log(`Added shape to physics body at relative position (${relativePosition.x}, ${relativePosition.y}, ${relativePosition.z})`);
-                    
-                    shapesAdded = true;
-                    
-                    // Always create wireframe for visualization, regardless of current visibility
+                    // Create wireframe for visualization, regardless of current visibility
                     // Initial visibility will be set based on ImportedModelLoaderService.isWireframeVisible
                     this.createMeshWireframe(
                         child as THREE.Mesh,
@@ -361,17 +380,24 @@ export class ImportedModelLoaderService {
                         worldQuaternion,
                         body
                     );
+                    
+                    // Clean up Ammo objects
+                    Ammo.destroy(relativePosition);
+                    Ammo.destroy(relativeRotation);
+                    Ammo.destroy(localTransform);
+                    
+                    // Note: We don't destroy the shape as it's now owned by the compound shape
+                    // Same for the triangle mesh as it's referenced by the shape
+                    
+                    console.log(`Added shape to physics body at relative position (${worldPosition.x - position.x}, ${worldPosition.y - position.y}, ${worldPosition.z - position.z})`);
                 }
             }
         });
         
-        // If shapes were added, add the body to the CANNON world
+        // If shapes were added, add the body to the Ammo world
         if (shapesAdded && !physicsBody) {
-            world.addBody(body);
+            world.addRigidBody(body);
             console.log("Added physics body to world", body);
-            
-            // Normalize quaternion to prevent rotation drift
-            body.quaternion.normalize();
         } else if (!shapesAdded) {
             console.warn("No valid meshes found for physics in the object:", object);
         }
@@ -380,12 +406,62 @@ export class ImportedModelLoaderService {
     }
     
     /**
+     * Creates an Ammo.js triangle mesh from a Three.js buffer geometry
+     * @param geometry Three.js buffer geometry to convert
+     * @returns Ammo.btTriangleMesh
+     */
+    private createTriangleMesh(geometry: THREE.BufferGeometry): any {
+        // Create triangle mesh
+        const triangleMesh = new Ammo.btTriangleMesh(true, true);
+        
+        // Extract vertices from the geometry
+        const positions = geometry.attributes.position.array;
+        
+        // Get indices if available, or create them
+        let indices: number[];
+        if (geometry.index) {
+            indices = Array.from(geometry.index.array as Uint16Array | Uint32Array);
+        } else {
+            // If no index, create one that just counts up (0,1,2,3,...)
+            indices = [];
+            for (let i = 0; i < positions.length / 3; i++) {
+                indices.push(i);
+            }
+        }
+        
+        // Temporary vectors for vertices
+        const v0 = new Ammo.btVector3(0, 0, 0);
+        const v1 = new Ammo.btVector3(0, 0, 0);
+        const v2 = new Ammo.btVector3(0, 0, 0);
+        
+        // Add all triangles to the mesh
+        for (let i = 0; i < indices.length; i += 3) {
+            const i0 = indices[i] * 3;
+            const i1 = indices[i+1] * 3;
+            const i2 = indices[i+2] * 3;
+            
+            v0.setValue(positions[i0], positions[i0+1], positions[i0+2]);
+            v1.setValue(positions[i1], positions[i1+1], positions[i1+2]);
+            v2.setValue(positions[i2], positions[i2+1], positions[i2+2]);
+            
+            triangleMesh.addTriangle(v0, v1, v2, true);
+        }
+        
+        // Clean up temporary vectors
+        Ammo.destroy(v0);
+        Ammo.destroy(v1);
+        Ammo.destroy(v2);
+        
+        return triangleMesh;
+    }
+    
+    /**
      * Creates a wireframe representation of a box physics body for visualization
      * @param size Box dimensions
      * @param position Box position
      * @param physicsBody The physics body to visualize
      */
-    private createBoxWireframe(size: THREE.Vector3, position: THREE.Vector3, physicsBody: CANNON.Body): void {
+    private createBoxWireframe(size: THREE.Vector3, position: THREE.Vector3, physicsBody: any): void {
         // Create a box geometry matching the physics body
         const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
         const wireframe = new THREE.WireframeGeometry(geometry);
@@ -411,7 +487,7 @@ export class ImportedModelLoaderService {
         position: THREE.Vector3,
         scale: THREE.Vector3,
         quaternion: THREE.Quaternion,
-        physicsBody: CANNON.Body
+        physicsBody: any // Ammo.btRigidBody
     ): void {
         // Create a wireframe from the mesh's geometry (using a clone to avoid modifying original)
         const clonedGeometry = mesh.geometry.clone();
@@ -441,7 +517,7 @@ export class ImportedModelLoaderService {
     /**
      * Registers a wireframe with the GameObject wireframe registry to toggle with 'T' key
      */
-    private registerWireframeForToggle(wireframeMesh: THREE.LineSegments, physicsBody: CANNON.Body): void {
+    private registerWireframeForToggle(wireframeMesh: THREE.LineSegments, physicsBody: any): void {
         // Special user data to identify this as a wireframe mesh for imported models
         wireframeMesh.userData.isImportedModelWireframe = true;
         wireframeMesh.userData.physicsBody = physicsBody;
@@ -456,7 +532,7 @@ export class ImportedModelLoaderService {
     /**
      * Registers a callback to sync the wireframe with physics
      */
-    private registerPhysicsSync(wireframeMesh: THREE.LineSegments, physicsBody: CANNON.Body): void {
+    private registerPhysicsSync(wireframeMesh: THREE.LineSegments, physicsBody: any): void {
         // Add to a list that will be updated each frame
         if (!ImportedModelLoaderService.physicsSyncList) {
             ImportedModelLoaderService.physicsSyncList = [];
@@ -470,7 +546,7 @@ export class ImportedModelLoaderService {
 
     // Static wireframe registry for imported models
     private static wireframeMeshes: THREE.LineSegments[] = [];
-    private static physicsSyncList: Array<{mesh: THREE.LineSegments, body: CANNON.Body}> = [];
+    private static physicsSyncList: Array<{mesh: THREE.LineSegments, body: any}> = [];
     private static isWireframeVisible: boolean = false;
 
     /**
@@ -517,20 +593,29 @@ export class ImportedModelLoaderService {
         
         ImportedModelLoaderService.physicsSyncList.forEach(({mesh, body}) => {
             if (mesh && body) {
+                // Get the transform from the motion state
+                const transform = new Ammo.btTransform();
+                body.getMotionState().getWorldTransform(transform);
+                
                 // Update position
+                const origin = transform.getOrigin();
                 mesh.position.set(
-                    body.position.x,
-                    body.position.y,
-                    body.position.z
+                    origin.x(),
+                    origin.y(),
+                    origin.z()
                 );
                 
-                // Update rotation - need to normalize quaternion to avoid drift
+                // Update rotation
+                const rotation = transform.getRotation();
                 mesh.quaternion.set(
-                    body.quaternion.x,
-                    body.quaternion.y,
-                    body.quaternion.z,
-                    body.quaternion.w
+                    rotation.x(),
+                    rotation.y(),
+                    rotation.z(),
+                    rotation.w()
                 ).normalize();
+                
+                // Clean up Ammo.js object
+                Ammo.destroy(transform);
             }
         });
     }

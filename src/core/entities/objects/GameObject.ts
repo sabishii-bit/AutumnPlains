@@ -1,13 +1,14 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
+// Replace CANNON import with Ammo declaration
 import { Scene, Vector3 } from 'three';
 import { WorldContext } from '../../global/world/WorldContext';
 import { SceneContext } from '../../global/scene/SceneContext';
 import { generateUUID } from 'three/src/math/MathUtils';
 import { GameObjectManager } from '../GameObjectManager';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils';
-import { MaterialType, PhysicsMaterialsManager } from '../../materials/PhysicsMaterialsManager';
+import { MaterialType, PhysicsMaterialsManager } from '../../physics/PhysicsMaterialsManager';
 import { PlayerCharacter } from './characters/PlayerCharacter';
+import { AmmoUtils } from '../../physics/AmmoUtils';
 
 /**
  * Options interface for GameObject initialization
@@ -16,7 +17,8 @@ export interface GameObjectOptions {
     position?: THREE.Vector3;
     objectId?: string;
     visualMeshOptions?: THREE.Mesh;
-    collisionMeshOptions?: CANNON.Body;
+    // Update collision mesh options to use Ammo
+    collisionMeshOptions?: any; // Ammo.btRigidBody
     /**
      * Whether to automatically add the object to the scene. Default: true
      * @deprecated Use addToCollection instead which handles both scene and physics world
@@ -32,12 +34,24 @@ export interface GameObjectOptions {
     skipMeshCreation?: boolean;
 }
 
+// Simple interface for Ammo.js body options
+export interface AmmoBodyOptions {
+    mass: number;
+    shape?: any; // Ammo.btCollisionShape
+    position?: THREE.Vector3;
+    quaternion?: THREE.Quaternion;
+    linearDamping?: number;
+    angularDamping?: number;
+    friction?: number;
+    restitution?: number;
+}
+
 export default abstract class GameObject {
     protected visualMesh: THREE.Mesh | THREE.Group;
-    protected collisionMesh!: CANNON.Body;
+    protected collisionMesh!: any; // Ammo.btRigidBody
     protected position: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
     protected rotation: THREE.Vector3 | null = null;
-    protected worldContext: CANNON.World = WorldContext.getInstance();
+    protected worldContext: any = WorldContext.getInstance(); // Ammo.btDiscreteDynamicsWorld
     protected sceneContext: Scene = SceneContext.getInstance();
     protected gameObjectManager: GameObjectManager = GameObjectManager.getInstance();
     protected objectId: string = "";
@@ -46,6 +60,8 @@ export default abstract class GameObject {
     private wireframeMesh: THREE.LineSegments | null = null;
     private isWireframeVisible: boolean = false;
     private hasCreatedWireframe: boolean = false;
+    // Transformation for Ammo
+    private motionState: any = null; // Ammo.btDefaultMotionState
 
     /**
      * Creates a new GameObject with the specified options
@@ -93,11 +109,54 @@ export default abstract class GameObject {
      * Creates a physics body with the appropriate material
      * @param options Body options
      * @param materialType Optional override material type
-     * @returns CANNON.Body with material applied
+     * @returns Ammo.btRigidBody with material applied
      */
-    protected createPhysicsBody(options: CANNON.BodyOptions, materialType?: MaterialType): CANNON.Body {
+    protected createPhysicsBody(options: AmmoBodyOptions, materialType?: MaterialType): any {
         const type = materialType || this.materialType;
-        return this.physicsManager.createBodyWithMaterial(options, type);
+        const Ammo = WorldContext.getAmmo();
+        
+        // Get position and quaternion from options or defaults
+        const pos = options.position || this.position;
+        const quat = options.quaternion || new THREE.Quaternion();
+        
+        // Create motion state using AmmoUtils
+        this.motionState = AmmoUtils.createMotionState(pos, quat);
+        
+        // Create collision shape if not provided
+        const shape = options.shape || new Ammo.btBoxShape(new Ammo.btVector3(0.5, 0.5, 0.5));
+        
+        // Calculate local inertia if mass > 0
+        const localInertia = AmmoUtils.createZeroVector();
+        if (options.mass > 0) {
+            shape.calculateLocalInertia(options.mass, localInertia);
+        }
+        
+        // Create the rigid body
+        const body = AmmoUtils.createRigidBody(options.mass, this.motionState, shape, localInertia);
+        
+        // Apply material properties from PhysicsMaterialsManager
+        this.physicsManager.applyMaterialToBody(body, type);
+        
+        // Apply additional options if provided
+        if (options.linearDamping !== undefined || options.angularDamping !== undefined) {
+            body.setDamping(
+                options.linearDamping || 0, 
+                options.angularDamping || 0
+            );
+        }
+        
+        if (options.friction !== undefined) {
+            body.setFriction(options.friction);
+        }
+        
+        if (options.restitution !== undefined) {
+            body.setRestitution(options.restitution);
+        }
+        
+        // Clean up local inertia
+        Ammo.destroy(localInertia);
+        
+        return body;
     }
 
     // Abstract method to create the visual part of the object
@@ -126,7 +185,7 @@ export default abstract class GameObject {
         return this.position;
     }
 
-    public getCollisionBody(): CANNON.Body {
+    public getCollisionBody(): any { // Ammo.btRigidBody
         return this.collisionMesh;
     }
     
@@ -144,12 +203,23 @@ export default abstract class GameObject {
         if (!this.collisionMesh) return;
         
         try {
-            // Convert CANNON.Vec3 to THREE.Vector3
-            const position = new THREE.Vector3(
-                this.collisionMesh.position.x,
-                this.collisionMesh.position.y,
-                this.collisionMesh.position.z
-            );
+            const Ammo = WorldContext.getAmmo();
+            // Create a transform to hold the rigid body's position and rotation
+            const transform = new Ammo.btTransform();
+            
+            // Get the transform from the motion state
+            if (this.motionState) {
+                this.motionState.getWorldTransform(transform);
+            } else {
+                // Alternatively get directly from the body
+                this.collisionMesh.getMotionState().getWorldTransform(transform);
+            }
+            
+            // Use AmmoUtils to read the transform into Three.js objects
+            const position = this.visualMesh.position;
+            const quaternion = this.visualMesh.quaternion;
+            
+            AmmoUtils.readTransform(transform, position, quaternion);
     
             // Check for invalid values (NaN, Infinity)
             if (isNaN(position.x) || isNaN(position.y) || isNaN(position.z) ||
@@ -158,17 +228,6 @@ export default abstract class GameObject {
                 // Prevent applying invalid positions to the visual mesh
                 return;
             }
-            
-            // Synchronize the visual mesh's position with the physics body's
-            this.visualMesh.position.copy(position);
-    
-            // Convert the quaternion (rotation) as well
-            const quaternion = new THREE.Quaternion(
-                this.collisionMesh.quaternion.x,
-                this.collisionMesh.quaternion.y,
-                this.collisionMesh.quaternion.z,
-                this.collisionMesh.quaternion.w
-            );
             
             // Check for invalid quaternion values
             if (isNaN(quaternion.x) || isNaN(quaternion.y) || isNaN(quaternion.z) || isNaN(quaternion.w) ||
@@ -181,14 +240,14 @@ export default abstract class GameObject {
             // Normalize the quaternion to avoid rendering issues
             quaternion.normalize();
             
-            // Apply the quaternion to the visual mesh
-            this.visualMesh.quaternion.copy(quaternion);
-    
             // Sync wireframe position and rotation with the main mesh if wireframe is enabled
             if (this.wireframeMesh) {
                 this.wireframeMesh.position.copy(this.visualMesh.position);
                 this.wireframeMesh.quaternion.copy(this.visualMesh.quaternion);
             }
+            
+            // Clean up transform (memory management for Ammo.js)
+            Ammo.destroy(transform);
         } catch (error) {
             console.error(`Error in syncMeshWithBody for object ${this.objectId}:`, error);
         }
@@ -200,6 +259,57 @@ export default abstract class GameObject {
 
     protected animate(deltaTime: number): void {
         // Default animate logic (if any), can be overridden in subclasses
+    }
+
+    /**
+     * Apply a force to the center of mass of this object
+     * @param force Force vector to apply
+     */
+    public applyCentralForce(force: THREE.Vector3): void {
+        if (this.collisionMesh) {
+            AmmoUtils.applyCentralForce(this.collisionMesh, force);
+        }
+    }
+
+    /**
+     * Apply an impulse to the center of mass of this object
+     * @param impulse Impulse vector to apply
+     */
+    public applyCentralImpulse(impulse: THREE.Vector3): void {
+        if (this.collisionMesh) {
+            AmmoUtils.applyCentralImpulse(this.collisionMesh, impulse);
+        }
+    }
+
+    /**
+     * Get the current linear velocity of this object
+     * @returns THREE.Vector3 representing the velocity
+     */
+    public getLinearVelocity(): THREE.Vector3 {
+        if (this.collisionMesh) {
+            return AmmoUtils.getLinearVelocity(this.collisionMesh);
+        }
+        return new THREE.Vector3();
+    }
+
+    /**
+     * Set the linear velocity of this object
+     * @param velocity THREE.Vector3 representing the new velocity
+     */
+    public setLinearVelocity(velocity: THREE.Vector3): void {
+        if (this.collisionMesh) {
+            AmmoUtils.setLinearVelocity(this.collisionMesh, velocity);
+        }
+    }
+
+    /**
+     * Activate the physics body (wake it up)
+     * @param forceActivation Whether to force activation
+     */
+    public activate(forceActivation: boolean = false): void {
+        if (this.collisionMesh) {
+            AmmoUtils.activateRigidBody(this.collisionMesh, forceActivation);
+        }
     }
 
     // Create wireframe based on the existing collision mesh

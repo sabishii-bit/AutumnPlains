@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import GameObject, { GameObjectOptions } from '../../GameObject';
-import * as CANNON from 'cannon-es';
-import { MaterialType } from '../../../../materials/PhysicsMaterialsManager';
+import GameObject, { GameObjectOptions, AmmoBodyOptions } from '../../GameObject';
+import { MaterialType } from '../../../../physics/PhysicsMaterialsManager';
+import { WorldContext } from '../../../../global/world/WorldContext';
+import { AmmoUtils } from '../../../../physics/AmmoUtils';
 
 export class GroundEnvironment extends GameObject {
     private isVisible: boolean = true;
@@ -41,27 +42,47 @@ export class GroundEnvironment extends GameObject {
     }
 
     protected createCollisionMesh() {
-        // Use a plane shape for the ground
-        const shape = new CANNON.Plane();
-        
         try {
-            // Create the collision body with the ground material
-            this.collisionMesh = this.createPhysicsBody({
-                mass: 0,  // Static body (immovable)
-                shape: shape,
-                // Add small damping to help with stability
-                linearDamping: 0.01,
-                angularDamping: 0.01
-            });
+            const Ammo = WorldContext.getAmmo();
             
-            // Rotate to make it face up
-            this.collisionMesh.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+            // Create a transform for the ground
+            const transform = new Ammo.btTransform();
+            transform.setIdentity();
+            transform.setOrigin(new Ammo.btVector3(this.position.x, this.position.y, this.position.z));
+            
+            // Create the ground plane shape
+            // The normal for the plane (pointing up)
+            const planeNormal = new Ammo.btVector3(0, 1, 0);
+            // The plane constant (distance from origin)
+            const planeConstant = 0;
+            
+            // Create a static plane shape
+            const groundShape = new Ammo.btStaticPlaneShape(planeNormal, planeConstant);
+            
+            // Create the motion state from the transform
+            const motionState = new Ammo.btDefaultMotionState(transform);
+            
+            // Zero mass means static object
+            const mass = 0;
+            
+            // Create an empty local inertia vector
+            const localInertia = new Ammo.btVector3(0, 0, 0);
+            
+            // Create rigid body with the ground material
+            const bodyOptions: AmmoBodyOptions = {
+                mass: mass,
+                shape: groundShape
+            };
+            
+            // Create physics body with the physicsManager to apply the right material
+            this.collisionMesh = this.createPhysicsBody(bodyOptions, MaterialType.GROUND);
             
             // Set specific collision group and mask for better jumping detection
-            this.collisionMesh.collisionFilterGroup = 1;  // Ground group
-            this.collisionMesh.collisionFilterMask = -1;  // Collide with everything
+            this.collisionMesh.setCollisionFlags(this.collisionMesh.getCollisionFlags() | 1); // CF_STATIC_OBJECT
             
-            // No need to add to physics world as GameObjectManager handles this
+            // Clean up Ammo.js objects
+            Ammo.destroy(planeNormal);
+            Ammo.destroy(localInertia);
             
             console.log("Ground collision mesh created successfully", {
                 position: this.position,

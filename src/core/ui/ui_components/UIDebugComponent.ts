@@ -80,15 +80,36 @@ export class UIDebugComponent {
         const yaw = THREE.MathUtils.radToDeg(euler.y).toFixed(2);
         const roll = THREE.MathUtils.radToDeg(euler.z).toFixed(2);
 
-        // Update the HTML content
-        const playerCollisionBody = this.player.getCollisionBody();
-        this.positionElement.textContent = `Position: X=${playerCollisionBody.position.x.toFixed(2)}, Y=${playerCollisionBody.position.y.toFixed(2)}, Z=${playerCollisionBody.position.z.toFixed(2)}`;
-        this.velocityElement.textContent = `Velocity: X=${playerCollisionBody.velocity.x.toFixed(2)}, Y=${playerCollisionBody.velocity.y.toFixed(2)}, Z=${playerCollisionBody.velocity.z.toFixed(2)}`;
+        // Get player data safely
+        try {
+            // Get collision body data
+            const playerCollisionBody = this.player.getCollisionBody();
+            
+            // Update position and velocity
+            if (playerCollisionBody) {
+                this.positionElement.textContent = `Position: X=${playerCollisionBody.position.x.toFixed(2)}, Y=${playerCollisionBody.position.y.toFixed(2)}, Z=${playerCollisionBody.position.z.toFixed(2)}`;
+                this.velocityElement.textContent = `Velocity: X=${playerCollisionBody.velocity.x.toFixed(2)}, Y=${playerCollisionBody.velocity.y.toFixed(2)}, Z=${playerCollisionBody.velocity.z.toFixed(2)}`;
+            } else {
+                this.positionElement.textContent = "Position: Waiting for physics...";
+                this.velocityElement.textContent = "Velocity: Waiting for physics...";
+            }
+        } catch (error) {
+            console.warn("Error getting physics data for UI:", error);
+            this.positionElement.textContent = "Position: Error";
+            this.velocityElement.textContent = "Velocity: Error";
+        }
+        
+        // These don't depend on physics
         this.fpsElement.textContent = `FPS: ${fps.toFixed(0)}`;
         this.cameraRotationElement.textContent = `Camera: Pitch=${pitch}, Yaw=${yaw}, Roll=${roll}`;
         
         // Update the state element with the player's current state name
-        const currentState = this.player.getCurrentState();
-        this.stateElement.textContent = `State: ${currentState ? currentState.getStateName() : "Unknown"}`;
+        try {
+            const currentState = this.player.getCurrentState();
+            this.stateElement.textContent = `State: ${currentState ? currentState.getStateName() : "Unknown"}`;
+        } catch (error) {
+            console.warn("Error getting player state:", error);
+            this.stateElement.textContent = "State: Waiting...";
+        }
     }
 }

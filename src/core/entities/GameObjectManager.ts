@@ -1,14 +1,16 @@
 import { WorldContext } from "../global/world/WorldContext";
 import { SceneContext } from "../global/scene/SceneContext";
 import GameObject from "./objects/GameObject";
-import * as CANNON from 'cannon-es';
 import { Scene } from "three";
+
+// Declaration for Ammo since it's a UMD module
+declare const Ammo: any;
 
 export class GameObjectManager {
     private static instance: GameObjectManager;
     private static objectCollection: Map<string, GameObject> = new Map<string, GameObject>();
     private sceneContext: Scene = SceneContext.getInstance();
-    private worldContext: CANNON.World = WorldContext.getInstance();
+    private worldContext: any = WorldContext.getInstance(); // Ammo.btDiscreteDynamicsWorld
 
     constructor() {}
 
@@ -41,7 +43,8 @@ export class GameObjectManager {
             // Add collision body to physics world
             const body = object.getCollisionBody();
             if (body) {
-                this.worldContext.addBody(body);
+                // With Ammo.js we use addRigidBody instead of addBody
+                this.worldContext.addRigidBody(body);
             }
             
             // Get the class name of the object for more informative logging
@@ -72,7 +75,8 @@ export class GameObjectManager {
             }
             // Remove the object's physics body from the world
             if (objectBody) {
-                this.worldContext.removeBody(objectBody);
+                // With Ammo.js we use removeRigidBody instead of removeBody
+                this.worldContext.removeRigidBody(objectBody);
             }
             // Finally, remove the object from the collection
             GameObjectManager.objectCollection.delete(objectID);

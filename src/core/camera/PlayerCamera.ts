@@ -38,15 +38,22 @@ export class PlayerCamera {
 
     public update(deltaTime: number) {
         // Synchronize the camera position with the player's body
-        const collisionBodyPosition = this.player.getCollisionBody().position;
-        const scaleFactor = this.player.getScaleFactor(); // Assume you have a method to get the scale factor
+        try {
+            const collisionBodyData = this.player.getCollisionBody();
+            if (collisionBodyData) {
+                const position = collisionBodyData.position;
+                const scaleFactor = this.player.getScaleFactor(); // Assume you have a method to get the scale factor
 
-        // Apply the offsets for X, Y, and Z, scaled appropriately
-        this.camera.position.set(
-            collisionBodyPosition.x + PlayerCamera.CAMERA_X_OFFSET * scaleFactor,
-            collisionBodyPosition.y + PlayerCamera.CAMERA_Y_OFFSET * scaleFactor,
-            collisionBodyPosition.z + PlayerCamera.CAMERA_Z_OFFSET * scaleFactor
-        );
+                // Apply the offsets for X, Y, and Z, scaled appropriately
+                this.camera.position.set(
+                    position.x + PlayerCamera.CAMERA_X_OFFSET * scaleFactor,
+                    position.y + PlayerCamera.CAMERA_Y_OFFSET * scaleFactor,
+                    position.z + PlayerCamera.CAMERA_Z_OFFSET * scaleFactor
+                );
+            }
+        } catch (error) {
+            console.warn("Error updating camera position:", error);
+        }
     }
 
     public getCamera(): THREE.PerspectiveCamera {

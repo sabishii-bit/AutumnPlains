@@ -1,4 +1,3 @@
-import * as CANNON from 'cannon-es';
 import * as THREE from 'three';
 import GameObject from '../GameObject';
 import { BaseCharacter } from './BaseCharacter';

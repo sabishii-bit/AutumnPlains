@@ -1,12 +1,13 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
-import GameObject, { GameObjectOptions } from '../GameObject';
+import GameObject, { GameObjectOptions, AmmoBodyOptions } from '../GameObject';
 import { CharacterState } from './character_state/CharacterState';
 import StateManager from './character_state/StateManager';
 import { GameObjectManager } from '../../GameObjectManager';
 import { CharacterAirborneState } from './character_state/CharacterAirborneState';
 import { CharacterJumpingState } from './character_state/CharacterJumpingState';
-import { MaterialType } from '../../../materials/PhysicsMaterialsManager';
+import { MaterialType } from '../../../physics/PhysicsMaterialsManager';
+import { WorldContext } from '../../../global/world/WorldContext';
+import { AmmoUtils } from '../../../physics/AmmoUtils';
 
 export abstract class BaseCharacter extends GameObject {
     // Constants for easy adjustment
@@ -25,11 +26,16 @@ export abstract class BaseCharacter extends GameObject {
     public direction!: THREE.Vector3;
     private currentState!: CharacterState;
 
-    private headBody!: CANNON.Body;
-    private feetBody!: CANNON.Body;
+    private headBody!: any; // Ammo.btRigidBody
+    private feetBody!: any; // Ammo.btRigidBody
+    private headShape!: any; // Ammo.btSphereShape
+    private feetShape!: any; // Ammo.btSphereShape
     private previousYVelocity: number = 0;
     private lastFeetCollisionTime: number = 0;
     private collisionDebugEnabled: boolean = true; // Toggle for collision debug messages
+    private headMotionState!: any; // Ammo.btDefaultMotionState
+    private feetMotionState!: any; // Ammo.btDefaultMotionState
+    private mainBodyTransform!: any; // Ammo.btTransform for reading position
 
     constructor(initialPosition: THREE.Vector3) { 
         super({ 
@@ -72,101 +78,160 @@ export abstract class BaseCharacter extends GameObject {
     
         // Set the visibility based on the static constant
         this.visualMesh.visible = BaseCharacter.VISUAL_MESH_VISIBLE;
-    
     }
     
     protected createCollisionMesh() {
         if (!this.collisionMesh) {
             try {
+                const Ammo = WorldContext.getAmmo();
                 const radius = BaseCharacter.RADIUS;
                 const halfLength = BaseCharacter.HALF_LENGTH;
 
-                // Main body of the capsule
-                const cylinder = new CANNON.Cylinder(radius, radius, halfLength * 2, 16);
-                const cylinderQuaternion = new CANNON.Quaternion();
-                cylinderQuaternion.setFromEuler(0, 0, Math.PI / 2); // Align with visual mesh
-
-                // Collision body with improved settings for stability
-                this.collisionMesh = this.createPhysicsBody({
-                    mass: 7,
-                    position: new CANNON.Vec3(this.position.x, this.position.y, this.position.z),
-                    linearDamping: 0.85,       // Reduced from 0.99 for more natural movement
-                    angularDamping: 0.99,      // Increased to reduce any minimal rotation
-                    fixedRotation: true,       // FIXED: Lock rotation to keep character upright
-                    allowSleep: false,         // Keep the character awake
-                    sleepSpeedLimit: 0.1,      // Very low sleep threshold if sleep is enabled later
-                    sleepTimeLimit: 1          // Short sleep time limit if sleep is enabled later
-                });
-
-                // Add the cylinder shape to the main body
-                this.collisionMesh.addShape(cylinder, new CANNON.Vec3(0, 0, 0), cylinderQuaternion);
+                // Create a transform for the main body
+                const transform = new Ammo.btTransform();
+                transform.setIdentity();
+                transform.setOrigin(new Ammo.btVector3(this.position.x, this.position.y, this.position.z));
                 
-                // Improve numerical stability
-                this.collisionMesh.updateMassProperties();
-                this.collisionMesh.updateBoundingRadius();
+                // Store transform for later use
+                this.mainBodyTransform = new Ammo.btTransform();
+                this.mainBodyTransform.setIdentity();
                 
-                // Set character collision group and mask
-                this.collisionMesh.collisionFilterGroup = 4; // Character group
-                this.collisionMesh.collisionFilterMask = -1; // Collide with everything
+                // Create a motion state (manages the transform)
+                const motionState = new Ammo.btDefaultMotionState(transform);
                 
-                // Limit maximum velocity to prevent instability
-                this.collisionMesh.velocity.set(0, 0, 0);
-
-                // Lock rotation axes to only allow rotation around the Y axis (vertical axis)
-                // This keeps the character upright but allows it to turn
-                this.collisionMesh.angularFactor.set(0, 1, 0);
-
-                // Create head and feet with the same material type
-                this.headBody = this.createPhysicsBody({
-                    mass: 0.1,
-                    position: new CANNON.Vec3(this.position.x, this.position.y + halfLength, this.position.z),
-                    shape: new CANNON.Sphere(radius * BaseCharacter.HEAD_SCALE_FACTOR),
-                    angularDamping: 0.99,
-                    fixedRotation: true  // Keep head from rotating independently
-                });
-
-                this.feetBody = this.createPhysicsBody({
-                    mass: 0.1,
-                    position: new CANNON.Vec3(this.position.x, this.position.y - halfLength, this.position.z),
-                    shape: new CANNON.Sphere(radius * BaseCharacter.FEET_SCALE_FACTOR),
-                    angularDamping: 0.99,
-                    fixedRotation: true  // Keep feet from rotating independently
-                });
+                // Create a capsule shape for the main body
+                // Y up in Ammo.js, so we use Y axis capsule (unlike CANNON's Z axis)
+                const capsuleShape = new Ammo.btCapsuleShape(radius, halfLength * 2);
                 
-                // Set head and feet collision groups
-                this.headBody.collisionFilterGroup = 4; // Character group
-                this.headBody.collisionFilterMask = -1; // Collide with everything
-                this.feetBody.collisionFilterGroup = 4; // Character group
-                this.feetBody.collisionFilterMask = -1; // Collide with everything
-
-                // NOTE: Special case - we need to manually add these bodies to the world
-                // since they're not directly managed by the GameObjectManager
-                this.worldContext.addBody(this.headBody);
-                this.worldContext.addBody(this.feetBody);
-
-                // Create constraints with some flexibility for more stability
-                const headConstraint = new CANNON.PointToPointConstraint(
+                // Calculate inertia for dynamic body
+                const mass = 7;
+                const localInertia = new Ammo.btVector3(0, 0, 0);
+                capsuleShape.calculateLocalInertia(mass, localInertia);
+                
+                // Create the rigid body construction info
+                const rbInfo = new Ammo.btRigidBodyConstructionInfo(
+                    mass,
+                    motionState,
+                    capsuleShape,
+                    localInertia
+                );
+                
+                // Create the body and apply damping
+                this.collisionMesh = new Ammo.btRigidBody(rbInfo);
+                this.collisionMesh.setDamping(0.85, 0.99); // linear and angular damping
+                
+                // Lock rotation to only allow Y-axis rotation
+                this.collisionMesh.setAngularFactor(new Ammo.btVector3(0, 1, 0));
+                
+                // Prevent sleeping for continuous physics updates
+                this.collisionMesh.setActivationState(4); // DISABLE_DEACTIVATION
+                
+                // Create head and feet shapes
+                this.headShape = new Ammo.btSphereShape(radius * BaseCharacter.HEAD_SCALE_FACTOR);
+                this.feetShape = new Ammo.btSphereShape(radius * BaseCharacter.FEET_SCALE_FACTOR);
+                
+                // Create transforms for head and feet
+                const headTransform = new Ammo.btTransform();
+                headTransform.setIdentity();
+                headTransform.setOrigin(new Ammo.btVector3(
+                    this.position.x, 
+                    this.position.y + halfLength, 
+                    this.position.z
+                ));
+                
+                const feetTransform = new Ammo.btTransform();
+                feetTransform.setIdentity();
+                feetTransform.setOrigin(new Ammo.btVector3(
+                    this.position.x, 
+                    this.position.y - halfLength, 
+                    this.position.z
+                ));
+                
+                // Create motion states
+                this.headMotionState = new Ammo.btDefaultMotionState(headTransform);
+                this.feetMotionState = new Ammo.btDefaultMotionState(feetTransform);
+                
+                // Calculate inertia for head and feet
+                const headInertia = new Ammo.btVector3(0, 0, 0);
+                const feetInertia = new Ammo.btVector3(0, 0, 0);
+                this.headShape.calculateLocalInertia(0.1, headInertia);
+                this.feetShape.calculateLocalInertia(0.1, feetInertia);
+                
+                // Create head and feet bodies
+                const headRBInfo = new Ammo.btRigidBodyConstructionInfo(
+                    0.1,
+                    this.headMotionState,
+                    this.headShape,
+                    headInertia
+                );
+                
+                const feetRBInfo = new Ammo.btRigidBodyConstructionInfo(
+                    0.1,
+                    this.feetMotionState,
+                    this.feetShape,
+                    feetInertia
+                );
+                
+                this.headBody = new Ammo.btRigidBody(headRBInfo);
+                this.feetBody = new Ammo.btRigidBody(feetRBInfo);
+                
+                // Apply properties to head and feet
+                this.headBody.setDamping(0.9, 0.9);
+                this.feetBody.setDamping(0.9, 0.9);
+                this.headBody.setActivationState(4); // DISABLE_DEACTIVATION
+                this.feetBody.setActivationState(4); // DISABLE_DEACTIVATION
+                
+                // Apply material properties
+                this.physicsManager.applyMaterialToBody(this.collisionMesh, MaterialType.CHARACTER);
+                this.physicsManager.applyMaterialToBody(this.headBody, MaterialType.CHARACTER);
+                this.physicsManager.applyMaterialToBody(this.feetBody, MaterialType.CHARACTER);
+                
+                // Add head and feet bodies to the world
+                this.worldContext.addRigidBody(this.headBody);
+                this.worldContext.addRigidBody(this.feetBody);
+                
+                // Create constraints (joints) between main body and head/feet
+                
+                // Head constraint
+                const pivotInMainA = new Ammo.btVector3(0, halfLength, 0);
+                const pivotInHeadB = new Ammo.btVector3(0, 0, 0);
+                const headConstraint = new Ammo.btPoint2PointConstraint(
                     this.collisionMesh,
-                    new CANNON.Vec3(0, halfLength, 0),
                     this.headBody,
-                    new CANNON.Vec3(0, 0, 0)
+                    pivotInMainA,
+                    pivotInHeadB
                 );
-
-                const feetConstraint = new CANNON.PointToPointConstraint(
+                
+                // Feet constraint
+                const pivotInMainC = new Ammo.btVector3(0, -halfLength, 0);
+                const pivotInFeetD = new Ammo.btVector3(0, 0, 0);
+                const feetConstraint = new Ammo.btPoint2PointConstraint(
                     this.collisionMesh,
-                    new CANNON.Vec3(0, -halfLength, 0),
                     this.feetBody,
-                    new CANNON.Vec3(0, 0, 0)
+                    pivotInMainC,
+                    pivotInFeetD
                 );
-
-                // NOTE: Special case - constraints need to be added directly
-                // Future improvement: Add constraint management to GameObjectManager
-                this.worldContext.addConstraint(headConstraint);
-                this.worldContext.addConstraint(feetConstraint);
-
-                // Add event listeners with error handling
-                this.headBody.addEventListener('collide', (event: any) => this.handleHeadCollision(event));
-                this.feetBody.addEventListener('collide', (event: any) => this.handleFeetCollision(event));
+                
+                // Add constraints to the world
+                this.worldContext.addConstraint(headConstraint, true);
+                this.worldContext.addConstraint(feetConstraint, true);
+                
+                // Clean up
+                Ammo.destroy(rbInfo);
+                Ammo.destroy(headRBInfo);
+                Ammo.destroy(feetRBInfo);
+                Ammo.destroy(headTransform);
+                Ammo.destroy(feetTransform);
+                Ammo.destroy(localInertia);
+                Ammo.destroy(headInertia);
+                Ammo.destroy(feetInertia);
+                Ammo.destroy(pivotInMainA);
+                Ammo.destroy(pivotInHeadB);
+                Ammo.destroy(pivotInMainC);
+                Ammo.destroy(pivotInFeetD);
+                
+                // Setup collision detection callbacks - Ammo.js doesn't support direct event listeners
+                // We'll need to handle collisions in the update method
                 
                 console.log("Character physics initialized successfully");
             } catch (error) {
@@ -175,90 +240,90 @@ export abstract class BaseCharacter extends GameObject {
         }
     }
 
-    private handleHeadCollision(event: any) {
-        try {
-            // Check to avoid self-collision with own parts
-            if (event.body !== this.collisionMesh && event.body !== this.feetBody) {
-                if (this.collisionDebugEnabled) {
-                    console.log('Head collision detected with external object:', event.body);
-                }
+    // Since Ammo.js doesn't support collision callbacks directly like CANNON, 
+    // we'll use a different approach to detect collisions
+    
+    private checkCollisions() {
+        // A simple check for ground collisions based on velocity changes
+        if (this.collisionMesh) {
+            const velocity = this.collisionMesh.getLinearVelocity();
+            const currentY = velocity.y();
+            
+            // If velocity suddenly changed from negative to near-zero, likely hit ground
+            if (this.previousYVelocity < -2 && currentY > -0.5) {
+                this.lastFeetCollisionTime = performance.now();
+                this.stabilizeOnGround();
             }
-        } catch (error) {
-            console.error('Error in head collision handler:', error);
+            
+            // Store for next frame
+            this.previousYVelocity = currentY;
         }
     }
 
-    private handleFeetCollision(event: any) {
-        try {
-            // Check to avoid self-collision with own parts
-            if (event.body !== this.collisionMesh && event.body !== this.headBody) {
-                
-                // Record the time of this collision
-                this.lastFeetCollisionTime = performance.now();
-                
-                // Stabilize character on ground impact
-                this.stabilizeOnGround();
-            }
-        } catch (error) {
-            console.error('Error in feet collision handler:', error);
-        }
-    }
-    
-    /**
-     * Stabilizes the character when landing on the ground
-     * This helps prevent physics instabilities on impact
-     */
     private stabilizeOnGround(): void {
         if (!this.collisionMesh) return;
         
         try {
+            const Ammo = WorldContext.getAmmo();
             // Apply slight damping to vertical velocity on landing
-            const currentVelocity = this.collisionMesh.velocity;
+            const velocity = this.collisionMesh.getLinearVelocity();
             
-            // If falling with significant speed, dampen the landing
-            if (currentVelocity.y < -5) {
-                // Cap the landing velocity to prevent extreme values
-                const cappedYVelocity = Math.max(currentVelocity.y, -15);
-                
-                // Apply damped velocity
-                this.collisionMesh.velocity.set(
-                    currentVelocity.x * 0.9,  // Slight horizontal damping
-                    cappedYVelocity * 0.6,    // Stronger vertical damping
-                    currentVelocity.z * 0.9   // Slight horizontal damping
-                );
-                
-                // Ensure character is upright after landing
-                this.enforceUpright();
-
-            }
+            // Apply damped velocity
+            const newVelocity = new Ammo.btVector3(
+                velocity.x() * 0.9,  // Slight horizontal damping
+                velocity.y() * 0.6,  // Stronger vertical damping
+                velocity.z() * 0.9   // Slight horizontal damping
+            );
+            
+            this.collisionMesh.setLinearVelocity(newVelocity);
+            
+            // Ensure character is upright after landing
+            this.enforceUpright();
+            
+            // Clean up
+            Ammo.destroy(newVelocity);
         } catch (error) {
             console.error('Error stabilizing character on ground:', error);
         }
     }
 
-    /**
-     * Forces the character to remain upright by resetting rotation
-     */
     private enforceUpright(): void {
         if (!this.collisionMesh) return;
         
         try {
-            // Create a quaternion that only preserves Y-axis rotation
-            const currentRotation = this.collisionMesh.quaternion;
+            const Ammo = WorldContext.getAmmo();
+            // Get the current rotation as a quaternion
+            const currentRotation = this.collisionMesh.getWorldTransform().getRotation();
             
-            // Extract the Y-axis rotation (yaw) only
-            const eulerRotation = new CANNON.Vec3();
-            currentRotation.toEuler(eulerRotation);
+            // Extract Euler angles from quaternion
+            // Note: In Ammo.js we need to use a temporary btTransform to do this cleanly
+            const tempTransform = new Ammo.btTransform();
+            tempTransform.setIdentity();
+            tempTransform.setRotation(currentRotation);
             
-            // Create new quaternion with only Y rotation
-            const uprightQuaternion = new CANNON.Quaternion();
-            uprightQuaternion.setFromEuler(0, eulerRotation.y, 0);
+            // Create a new transform that only preserves Y rotation
+            const uprightTransform = new Ammo.btTransform();
+            uprightTransform.setIdentity();
             
-            // Apply the upright orientation
-            this.collisionMesh.quaternion.copy(uprightQuaternion);
+            // Create a quaternion for Y rotation only
+            const yRotation = new Ammo.btQuaternion();
+            yRotation.setEulerZYX(0, tempTransform.getRotation().y(), 0);
             
-            // Reset angular velocity to stop any ongoing rotation
-            this.collisionMesh.angularVelocity.set(0, 0, 0);
+            // Set the upright rotation
+            uprightTransform.setRotation(yRotation);
+            
+            // Apply the rotation to the rigid body
+            this.collisionMesh.getWorldTransform().setRotation(uprightTransform.getRotation());
+            
+            // Reset angular velocity
+            const zeroAngVel = new Ammo.btVector3(0, 0, 0);
+            this.collisionMesh.setAngularVelocity(zeroAngVel);
+            
+            // Clean up
+            Ammo.destroy(tempTransform);
+            Ammo.destroy(uprightTransform);
+            Ammo.destroy(yRotation);
+            Ammo.destroy(zeroAngVel);
         } catch (error) {
             console.error('Error enforcing upright position:', error);
         }
@@ -268,60 +333,51 @@ export abstract class BaseCharacter extends GameObject {
         if (!this.collisionMesh) return;
         
         try {
+            const Ammo = WorldContext.getAmmo();
             // Check if there's any input
             if (inputVector.lengthSq() > 0) {
                 // When there's input, apply velocity based on input
                 inputVector.normalize();
                 
-                // Store current position before moving (for collision resolution)
-                const previousPosition = new CANNON.Vec3().copy(this.collisionMesh.position);
+                // Get current velocity
+                const velocity = this.collisionMesh.getLinearVelocity();
+                const currentYVelocity = velocity.y();
                 
-                // Apply velocity for movement
-                this.collisionMesh.velocity.x = inputVector.x * this.moveSpeed;
-                this.collisionMesh.velocity.z = inputVector.z * this.moveSpeed;
-                
-                // Keep vertical velocity the same (for jumping/falling)
-                const currentYVelocity = this.collisionMesh.velocity.y;
-                
-                // Set a maximum velocity limit to prevent tunneling through walls
-                const maxSpeed = 5; // Maximum speed in any direction
-                const currentSpeed = Math.sqrt(
-                    this.collisionMesh.velocity.x * this.collisionMesh.velocity.x + 
-                    this.collisionMesh.velocity.z * this.collisionMesh.velocity.z
+                // Apply new velocity
+                const newVelocity = new Ammo.btVector3(
+                    inputVector.x * this.moveSpeed,
+                    currentYVelocity,
+                    inputVector.z * this.moveSpeed
                 );
                 
+                // Set a maximum velocity limit to prevent tunneling
+                const currentSpeed = Math.sqrt(
+                    newVelocity.x() * newVelocity.x() + newVelocity.z() * newVelocity.z()
+                );
+                
+                const maxSpeed = 5;
                 if (currentSpeed > maxSpeed) {
                     const scaleFactor = maxSpeed / currentSpeed;
-                    this.collisionMesh.velocity.x *= scaleFactor;
-                    this.collisionMesh.velocity.z *= scaleFactor;
+                    newVelocity.setX(newVelocity.x() * scaleFactor);
+                    newVelocity.setZ(newVelocity.z() * scaleFactor);
                 }
                 
+                this.collisionMesh.setLinearVelocity(newVelocity);
+                Ammo.destroy(newVelocity);
+                
             } else {
-                // When there's no input, immediately stop horizontal movement
-                this.collisionMesh.velocity.x = 0;
-                this.collisionMesh.velocity.z = 0;
+                // When there's no input, stop horizontal movement
+                const velocity = this.collisionMesh.getLinearVelocity();
+                const newVelocity = new Ammo.btVector3(0, velocity.y(), 0);
+                this.collisionMesh.setLinearVelocity(newVelocity);
+                Ammo.destroy(newVelocity);
             }
             
-            // Sync connected bodies
-            if (this.headBody && this.feetBody) {
-                // Update head and feet positions to match main body
-                const halfLength = BaseCharacter.HALF_LENGTH;
-                
-                this.headBody.position.set(
-                    this.collisionMesh.position.x,
-                    this.collisionMesh.position.y + halfLength,
-                    this.collisionMesh.position.z
-                );
-                
-                this.feetBody.position.set(
-                    this.collisionMesh.position.x,
-                    this.collisionMesh.position.y - halfLength,
-                    this.collisionMesh.position.z
-                );
-            }
-            
-            // Ensure character stays upright during movement
+            // Ensure character stays upright
             this.enforceUpright();
+            
+            // Check for collisions
+            this.checkCollisions();
         } catch (error) {
             console.error('Error updating character position:', error);
         }
@@ -330,58 +386,78 @@ export abstract class BaseCharacter extends GameObject {
     public jump() {
         if (!this.collisionMesh) return;
         
-        // Apply a jump impulse instead of directly setting velocity
-        // This works better with physics and allows for the jump height to be properly adjusted
-        const jumpForce = this.jumpHeight * BaseCharacter.JUMP_FORCE_MULTIPLIER;
-        
-        // Apply the impulse in the world's up direction
-        this.collisionMesh.applyImpulse(
-            new CANNON.Vec3(0, jumpForce, 0),
-            new CANNON.Vec3(0, 0, 0)
-        );
-        
-        // Set the state to jumping
-        this.setState(new CharacterJumpingState(this));
+        try {
+            const Ammo = WorldContext.getAmmo();
+            // Calculate jump force
+            const jumpForce = this.jumpHeight * BaseCharacter.JUMP_FORCE_MULTIPLIER;
+            
+            // Create force vector
+            const jumpVector = new Ammo.btVector3(0, jumpForce, 0);
+            
+            // Apply the impulse
+            this.collisionMesh.applyCentralImpulse(jumpVector);
+            
+            // Clean up
+            Ammo.destroy(jumpVector);
+            
+            // Set the state to jumping
+            this.setState(new CharacterJumpingState(this));
+        } catch (error) {
+            console.error('Error during jump:', error);
+        }
     }
 
     public setVelocity(options: { x?: number; y?: number; z?: number } = {}): void {
         if (this.collisionMesh) {
-            // Get the current velocity
-            const currentVelocity = this.collisionMesh.velocity;
-    
-            // Determine the new velocity components, using the current values as default
-            const newVelocityX = options.x !== undefined ? options.x : currentVelocity.x;
-            const newVelocityY = options.y !== undefined ? options.y : currentVelocity.y;
-            const newVelocityZ = options.z !== undefined ? options.z : currentVelocity.z;
-    
-            // Set the new velocity
-            this.collisionMesh.velocity.set(newVelocityX, newVelocityY, newVelocityZ);
+            try {
+                const Ammo = WorldContext.getAmmo();
+                // Get the current velocity
+                const velocity = this.collisionMesh.getLinearVelocity();
+        
+                // Determine the new velocity components, using the current values as default
+                const newVelocityX = options.x !== undefined ? options.x : velocity.x();
+                const newVelocityY = options.y !== undefined ? options.y : velocity.y();
+                const newVelocityZ = options.z !== undefined ? options.z : velocity.z();
+        
+                // Set the new velocity
+                const newVelocity = new Ammo.btVector3(newVelocityX, newVelocityY, newVelocityZ);
+                this.collisionMesh.setLinearVelocity(newVelocity);
+                
+                // Clean up
+                Ammo.destroy(newVelocity);
+            } catch (error) {
+                console.error('Error setting velocity:', error);
+            }
         }
     }    
 
     public setAcceleration(options: { x?: number; y?: number; z?: number } = {}): void {
         if (this.collisionMesh) {
-            // Calculate mass to convert acceleration to force
-            const mass = this.collisionMesh.mass;
-    
-            // Get the current acceleration (force / mass)
-            const currentAcceleration = new CANNON.Vec3(
-                this.collisionMesh.force.x / mass,
-                this.collisionMesh.force.y / mass,
-                this.collisionMesh.force.z / mass
-            );
-    
-            // Determine the new acceleration components, using the current values as default
-            const newAccelerationX = options.x !== undefined ? options.x : currentAcceleration.x;
-            const newAccelerationY = options.y !== undefined ? options.y : currentAcceleration.y;
-            const newAccelerationZ = options.z !== undefined ? options.z : currentAcceleration.z;
-    
-            // Set the new force based on the desired acceleration
-            this.collisionMesh.force.set(
-                newAccelerationX * mass,
-                newAccelerationY * mass,
-                newAccelerationZ * mass
-            );
+            try {
+                const Ammo = WorldContext.getAmmo();
+                // Calculate mass to convert acceleration to force
+                const mass = this.collisionMesh.getMass();
+        
+                // Get the current force directly (no getter for force in Ammo)
+                // Instead, we'll just create a new force vector
+                
+                // Convert acceleration to force (F = ma)
+                const forceX = (options.x !== undefined ? options.x : 0) * mass;
+                const forceY = (options.y !== undefined ? options.y : 0) * mass;
+                const forceZ = (options.z !== undefined ? options.z : 0) * mass;
+                
+                // Clear existing forces
+                this.collisionMesh.clearForces();
+                
+                // Apply the new force if any component is non-zero
+                if (forceX !== 0 || forceY !== 0 || forceZ !== 0) {
+                    const force = new Ammo.btVector3(forceX, forceY, forceZ);
+                    this.collisionMesh.applyCentralForce(force);
+                    Ammo.destroy(force);
+                }
+            } catch (error) {
+                console.error('Error setting acceleration:', error);
+            }
         }
     }
 
@@ -391,7 +467,8 @@ export abstract class BaseCharacter extends GameObject {
         const threshold = 0.1; // Define the margin of error
     
         // Get the current Y velocity
-        const currentYVelocity = this.collisionMesh.velocity.y;
+        const velocity = this.collisionMesh.getLinearVelocity();
+        const currentYVelocity = velocity.y();
     
         // Check if the character is at the point of inflection within the threshold
         const atInflection = this.previousYVelocity > threshold && currentYVelocity <= threshold;
@@ -413,24 +490,13 @@ export abstract class BaseCharacter extends GameObject {
         // Custom animation logic for the player character, if any
         StateManager.decideState(this);
     
-        // Sync the visual mesh with the physics body
-        if (this.collisionMesh) {
-            this.visualMesh.position.set(
-                this.collisionMesh.position.x,
-                this.collisionMesh.position.y,
-                this.collisionMesh.position.z
-            );
-
-            this.visualMesh.quaternion.set(
-                this.collisionMesh.quaternion.x,
-                this.collisionMesh.quaternion.y,
-                this.collisionMesh.quaternion.z,
-                this.collisionMesh.quaternion.w
-            );
-            
-            // Ensure character remains upright during animation
-            this.enforceUpright();
-        }
+        // Update position of head and feet bodies from constraints
+        // Ammo.js does this automatically through the constraints
+        
+        // Check for collisions (since we don't have direct event listeners)
+        this.checkCollisions();
+        
+        // Additional custom animations could go here
     }
 
     public getCurrentState(): CharacterState {
@@ -504,5 +570,47 @@ export abstract class BaseCharacter extends GameObject {
      */
     public getJumpForceMultiplier(): number {
         return BaseCharacter.JUMP_FORCE_MULTIPLIER;
+    }
+
+    // Method to get collision body data in a format compatible with previous Cannon-ES code
+    public getCollisionBody(): { position: THREE.Vector3, velocity: THREE.Vector3 } {
+        const position = new THREE.Vector3(this.position.x, this.position.y, this.position.z);
+        const velocity = new THREE.Vector3();
+        
+        if (this.collisionMesh) {
+            try {
+                const Ammo = WorldContext.getAmmo();
+                
+                // Use a local transform if the main one isn't initialized yet
+                if (!this.mainBodyTransform) {
+                    this.mainBodyTransform = new Ammo.btTransform();
+                    this.mainBodyTransform.setIdentity();
+                }
+                
+                // Get position from Ammo
+                const transform = this.mainBodyTransform;
+                
+                // Safely get the transform
+                if (this.collisionMesh.getMotionState()) {
+                    this.collisionMesh.getMotionState().getWorldTransform(transform);
+                    const ammoPos = transform.getOrigin();
+                    position.set(ammoPos.x(), ammoPos.y(), ammoPos.z());
+                    
+                    // Get velocity from Ammo
+                    const ammoVel = this.collisionMesh.getLinearVelocity();
+                    velocity.set(ammoVel.x(), ammoVel.y(), ammoVel.z());
+                } else {
+                    console.warn("Physics body doesn't have a valid motion state yet");
+                }
+            } catch (error) {
+                console.error('Error getting collision body data:', error);
+            }
+        }
+        
+        // Return an object with the same structure as was expected from Cannon-ES
+        return {
+            position: position,
+            velocity: velocity
+        };
     }
 }

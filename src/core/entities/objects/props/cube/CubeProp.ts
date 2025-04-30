@@ -1,13 +1,17 @@
 import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
 import GameObject, { GameObjectOptions } from '../../GameObject';
-import { MaterialType } from '../../../../materials/PhysicsMaterialsManager';
+import { MaterialType } from '../../../../physics/PhysicsMaterialsManager';
+import { AmmoUtils } from '../../../../physics/AmmoUtils';
+
+// Declare Ammo global
+declare const Ammo: any;
 
 export class CubeProp extends GameObject {
     
     constructor(initialPosition: THREE.Vector3) {
         super({ 
-            position: initialPosition
+            position: initialPosition,
+            materialType: MaterialType.DYNAMIC
         });
     }
 
@@ -18,24 +22,28 @@ export class CubeProp extends GameObject {
     }
 
     protected createCollisionMesh() {
-        const halfExtents = new CANNON.Vec3(1, 1, 1);
-        const shape = new CANNON.Box(halfExtents);
+        // Create an Ammo box shape (half-extents)
+        const halfExtents = new Ammo.btVector3(1, 1, 1);
+        const shape = new Ammo.btBoxShape(halfExtents);
+        
+        // Create the rigid body with dynamic mass
         this.collisionMesh = this.createPhysicsBody({
             mass: 1,
-            position: new CANNON.Vec3(this.position.x, this.position.y, this.position.z),
-            shape: shape
+            shape: shape,
+            position: this.position,
+            restitution: 0.4,
+            friction: 0.5
         });
-        this.collisionMesh.type = CANNON.Body.DYNAMIC; // Make the body dynamic
+        
+        // Activate the body
+        this.activate(true);
+        
+        // Clean up the half extents object
+        Ammo.destroy(halfExtents);
     }
 
     animate(deltaTime: number): void {
-        // Animate rotation
-        // this.visualMesh.rotation.y += deltaTime * 0.5;  // Spin at a rate of 0.5 radians per second
-        // this.visualMesh.rotation.x += deltaTime * 0.5;
-
-        // Update the body's quaternion to match the mesh's rotation
-        if (this.collisionMesh) {
-            this.collisionMesh.quaternion.setFromEuler(this.visualMesh.rotation.x, this.visualMesh.rotation.y, this.visualMesh.rotation.z, 'XYZ');
-        }
+        // No need to manually update rotation - physics engine handles this
+        // The syncMeshWithBody method in GameObject will update the visual mesh
     }
 }
