@@ -390,29 +390,18 @@ export abstract class BaseCharacter extends GameObject {
             
             // Check if there's any input
             if (inputVector.lengthSq() > 0) {
-                // When there's input, apply velocity based on input
-                inputVector.normalize();
-                
                 // Get current velocity
                 const velocity = this.collisionMesh.getLinearVelocity();
                 const currentYVelocity = velocity.y();
                 
-                // Calculate new velocity
-                const moveForce = this.moveSpeed * 10; // Apply stronger force
-                const moveDirection = new Ammo.btVector3(
-                    inputVector.x * moveForce,
-                    0, // Don't affect vertical movement
-                    inputVector.z * moveForce
-                );
+                // Calculate new velocity based on input
+                const moveSpeed = this.moveSpeed || 5; // Fallback speed if moveSpeed isn't set
                 
-                // Apply central force for more responsive movement
-                this.collisionMesh.applyCentralForce(moveDirection);
-                
-                // Apply horizontal velocity directly for immediate response
+                // Apply velocity directly for physics objects that don't support forces
                 const newVelocity = new Ammo.btVector3(
-                    inputVector.x * this.moveSpeed,
+                    inputVector.x * moveSpeed,
                     currentYVelocity,
-                    inputVector.z * this.moveSpeed
+                    inputVector.z * moveSpeed
                 );
                 
                 // Set a maximum velocity limit to prevent tunneling
@@ -427,15 +416,33 @@ export abstract class BaseCharacter extends GameObject {
                     newVelocity.setZ(newVelocity.z() * scaleFactor);
                 }
                 
+                // Set the velocity directly
                 this.collisionMesh.setLinearVelocity(newVelocity);
                 
+                // Try to apply force if the method exists
+                try {
+                    if (typeof this.collisionMesh.applyCentralForce === 'function') {
+                        const moveForce = moveSpeed * 10;
+                        const moveDirection = new Ammo.btVector3(
+                            inputVector.x * moveForce,
+                            0,
+                            inputVector.z * moveForce
+                        );
+                        
+                        this.collisionMesh.applyCentralForce(moveDirection);
+                        Ammo.destroy(moveDirection);
+                    }
+                } catch (forceError) {
+                    // If applying force fails, we already set the velocity directly above
+                    console.log("Note: Force-based movement not available, using velocity-based movement");
+                }
+                
                 // Clean up
-                Ammo.destroy(moveDirection);
                 Ammo.destroy(newVelocity);
                 
                 // Debug message
                 if (this.collisionDebugEnabled) {
-                    console.log("Applied movement force:", inputVector.x, inputVector.z);
+                    console.log("Applied movement:", inputVector.x, inputVector.z);
                 }
             } else {
                 // When there's no input, add horizontal damping
@@ -456,6 +463,13 @@ export abstract class BaseCharacter extends GameObject {
             this.checkGroundContact();
         } catch (error) {
             console.error('Error updating character position:', error);
+            
+            // Fallback simple movement if physics fails
+            if (inputVector.lengthSq() > 0 && this.visualMesh) {
+                const fallbackSpeed = 0.1;
+                this.visualMesh.position.x += inputVector.x * fallbackSpeed;
+                this.visualMesh.position.z += inputVector.z * fallbackSpeed;
+            }
         }
     }
 

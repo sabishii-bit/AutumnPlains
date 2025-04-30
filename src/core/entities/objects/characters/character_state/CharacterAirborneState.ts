@@ -24,7 +24,12 @@ export class CharacterAirborneState extends CharacterState {
     }
 
     public execute(character: BaseCharacter): void {
-        
+        // Check if the character has landed
+        if (character.isGrounded() || character.hasLandedRecently()) {
+            // If we've landed, transition to landing state
+            const landingState = new CharacterLandingState(character);
+            landingState.enter(character);
+        }
     }
 
     public exit(character: BaseCharacter): void {

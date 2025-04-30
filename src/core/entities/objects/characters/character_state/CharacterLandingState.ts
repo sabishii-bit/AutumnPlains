@@ -7,23 +7,44 @@ import * as THREE from 'three';
 
 export class CharacterLandingState extends CharacterState {
     private static readonly stateName: string = "Landing";
+    private landingTimer: number = 0;
+    private landingDuration: number = 150; // milliseconds to stay in landing state
 
     constructor(character: BaseCharacter) {
         super();
+        this.landingTimer = performance.now();
     }
 
     // Determines if the character should enter the Idle state
     public shouldEnterState(character: BaseCharacter): boolean {
-        const landed = character.hasLandedRecently();
-        return landed;
+        return character.isGrounded() || character.hasLandedRecently(100); // Increased time threshold
     }
 
     public enter(character: BaseCharacter): void {
         character.setState(this);
+        this.landingTimer = performance.now();
+        
+        // Stop vertical movement immediately on landing
+        character.setVelocity({ y: 0 });
     }
 
     public execute(character: BaseCharacter): void {
+        // Stop vertical acceleration
         character.setAcceleration({y: 0});
+        
+        // Snap to ground if needed
+        this.snapToGround(character);
+        
+        // Check if landing animation/state should be complete
+        if (performance.now() - this.landingTimer > this.landingDuration) {
+            // Transition to idle state when landing is complete
+            const nextStateClass = character.getCollisionBody().velocity.lengthSq() > 0.1 
+                ? CharacterWalkingState 
+                : CharacterIdleState;
+            
+            const nextState = new nextStateClass(character);
+            nextState.enter(character);
+        }
     }
 
     public exit(character: BaseCharacter): void {
