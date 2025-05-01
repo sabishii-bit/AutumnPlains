@@ -9,6 +9,7 @@ import CommandPlayerJump from './keyboard_actions/CommandPlayerJump';
 import BaseKeyboardCommand from './keyboard_actions/BaseKeyboardCommand';
 import CommandToggleWireframe from './keyboard_actions/CommandToggleWireframe';
 import CommandFireTestProjectile from './keyboard_actions/CommandFireTestProjectile';
+import CommandToggleChat from './keyboard_actions/CommandToggleChat';
 import { ImportedModelLoaderService } from '../services/model_loader/ImportedModelLoaderService';
 
 export class KeyboardControls extends PlayerControls {
@@ -29,6 +30,7 @@ export class KeyboardControls extends PlayerControls {
         this.commands.push(new CommandPlayerJump(this.player, this.keyStates));
         this.commands.push(new CommandToggleWireframe(this.keyStates));
         this.commands.push(new CommandFireTestProjectile(this.keyStates));
+        this.commands.push(new CommandToggleChat(this.keyStates));
 
         // Listen for pointer lock changes
         document.addEventListener('pointerlockchange', this.onPointerLockChange.bind(this), false);
