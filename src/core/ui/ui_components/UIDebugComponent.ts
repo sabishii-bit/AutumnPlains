@@ -1,6 +1,7 @@
 import { PlayerCharacter } from "../../entities/objects/characters/PlayerCharacter";
 import * as THREE from 'three';
 import { PlayerCamera } from "../../camera/PlayerCamera";
+import { NetClient } from "../../services/netcode/NetClient";
 
 export class UIDebugComponent {
     private player: PlayerCharacter;
@@ -10,12 +11,15 @@ export class UIDebugComponent {
     private fpsElement: HTMLElement;
     private cameraRotationElement: HTMLElement;
     private stateElement: HTMLElement;
+    private networkStatusElement: HTMLElement;
     private frameTimes: number[] = [];
     private readonly maxSamples = 60;  // Number of frames to average for FPS
+    private netClient: NetClient;
 
     constructor() {
         this.player = PlayerCharacter.getInstance();
         this.camera = PlayerCamera.getInstance().getCamera();
+        this.netClient = NetClient.getInstance();
         
         // Create HTML elements for displaying the information
         this.positionElement = document.createElement('div');
@@ -23,6 +27,7 @@ export class UIDebugComponent {
         this.fpsElement = document.createElement('div');
         this.cameraRotationElement = document.createElement('div');
         this.stateElement = document.createElement('div');
+        this.networkStatusElement = document.createElement('div');
         
         // Style and append elements to the document
         this.setupElements();
@@ -48,6 +53,7 @@ export class UIDebugComponent {
         this.fpsElement.style.cssText = styleText;
         this.cameraRotationElement.style.cssText = styleText;
         this.stateElement.style.cssText = styleText;
+        this.networkStatusElement.style.cssText = styleText;
         
         let top = 0;
         this.positionElement.style.top = `${top}px`;
@@ -55,12 +61,14 @@ export class UIDebugComponent {
         this.cameraRotationElement.style.top = `${top + 40}px`;
         this.stateElement.style.top = `${top + 60}px`;
         this.fpsElement.style.top = `${top + 80}px`;
+        this.networkStatusElement.style.top = `${top + 100}px`;
 
         document.body.appendChild(this.positionElement);
         document.body.appendChild(this.velocityElement);
         document.body.appendChild(this.fpsElement);
         document.body.appendChild(this.stateElement);
         document.body.appendChild(this.cameraRotationElement);
+        document.body.appendChild(this.networkStatusElement);
     }
 
     public update(deltaTime: number) {
@@ -111,5 +119,11 @@ export class UIDebugComponent {
             console.warn("Error getting player state:", error);
             this.stateElement.textContent = "State: Waiting...";
         }
+        
+        // Update network status
+        const isConnected = this.netClient.isConnected();
+        const statusText = isConnected ? "Connected" : "Offline";
+        const statusColor = isConnected ? "#00ff00" : "#ff0000";
+        this.networkStatusElement.innerHTML = `Server: ${statusText} <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background-color:${statusColor};"></span>`;
     }
 }
