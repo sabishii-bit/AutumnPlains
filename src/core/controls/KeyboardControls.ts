@@ -60,7 +60,8 @@ export class KeyboardControls extends PlayerControls {
         const moveDirection = new THREE.Vector3(this.player.direction.x, 0, this.player.direction.z);
     
         if (moveDirection.lengthSq() > 0) {
-            moveDirection.normalize().multiplyScalar(this.player.moveSpeed * deltaTime);
+            // Remove deltaTime multiplication to match mobile controls behavior
+            moveDirection.normalize().multiplyScalar(this.player.moveSpeed);
     
             // Apply the camera's rotation to the movement direction
             moveDirection.applyQuaternion(this.camera.quaternion);
@@ -68,8 +69,15 @@ export class KeyboardControls extends PlayerControls {
             // Project movement direction onto the horizontal plane
             moveDirection.y = 0; // Ignore any vertical movement
             moveDirection.normalize(); // Re-normalize the direction vector
+            
+            // Re-apply moveSpeed after normalization
+            moveDirection.multiplyScalar(this.player.moveSpeed);
     
             this.player.updatePosition(deltaTime, moveDirection);
+        } else {
+            // Still call updatePosition with zero vector even when not moving
+            // This ensures consistent physics behavior
+            this.player.updatePosition(deltaTime, new THREE.Vector3(0, 0, 0));
         }
 
         // Update wireframes for imported models if they're visible
