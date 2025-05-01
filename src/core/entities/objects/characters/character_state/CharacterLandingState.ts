@@ -70,31 +70,51 @@ export class CharacterLandingState extends CharacterState {
     private snapToGround(character: BaseCharacter): void {
         const scene = SceneContext.getInstance();
         const raycaster = new THREE.Raycaster();
-        const rayOrigin = new THREE.Vector3(
-            character.getCollisionBody().position.x,
-            character.getCollisionBody().position.y,
-            character.getCollisionBody().position.z
-        );
-    
-        // Cast the ray downwards
-        raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
-        const intersections = raycaster.intersectObjects(scene.children, true);
-    
-        if (intersections.length > 0) {
-            const closestIntersection = intersections[0];
-            const groundY = closestIntersection.point.y;
-    
-            // Log details about the intersection
-            console.log('Ground detected beneath player:');
-            console.log('Object Name:', closestIntersection.object.name || 'Unnamed Object');
-            console.log('Intersection Point:', closestIntersection.point);
-            console.log('Distance from player:', closestIntersection.distance);
-    
-            // Adjust the character's y-position to align with the ground level
-            character.getCollisionBody().position.y = groundY + character.getFeetHeight();
-            character.getCollisionBody().velocity.y = 0; // Ensure there's no upward velocity
-        } else {
-            console.log('No ground detected beneath the player.');
+        const characterPos = character.getCollisionBody().position;
+        
+        // Create multiple raycast points to better detect landing on objects
+        const rayOrigins = [
+            new THREE.Vector3(characterPos.x, characterPos.y, characterPos.z),           // Center
+            new THREE.Vector3(characterPos.x + 0.2, characterPos.y, characterPos.z),     // Right
+            new THREE.Vector3(characterPos.x - 0.2, characterPos.y, characterPos.z),     // Left
+            new THREE.Vector3(characterPos.x, characterPos.y, characterPos.z + 0.2),     // Front
+            new THREE.Vector3(characterPos.x, characterPos.y, characterPos.z - 0.2)      // Back
+        ];
+        
+        // Direction to cast the ray (downward)
+        const downDirection = new THREE.Vector3(0, -1, 0);
+        
+        // Set maximum distance to check (from character position)
+        const maxDistance = 1.5;
+        
+        // Try each raycast origin until we find a valid ground point
+        for (const rayOrigin of rayOrigins) {
+            // Cast the ray downwards
+            raycaster.set(rayOrigin, downDirection);
+            const intersections = raycaster.intersectObjects(scene.children, true);
+            
+            // Find the first valid intersection
+            if (intersections.length > 0) {
+                const closestIntersection = intersections[0];
+                const groundY = closestIntersection.point.y;
+                
+                // Log details about the intersection
+                console.log('Ground/object detected beneath player:');
+                console.log('Object Name:', closestIntersection.object.name || 'Unnamed Object');
+                console.log('Intersection Point:', closestIntersection.point);
+                console.log('Distance from player:', closestIntersection.distance);
+                
+                // Only snap if the distance is reasonable (prevent teleporting to faraway objects)
+                if (closestIntersection.distance <= maxDistance) {
+                    // Adjust the character's y-position to align with the ground level
+                    character.getCollisionBody().position.y = groundY + character.getFeetHeight();
+                    character.getCollisionBody().velocity.y = 0; // Ensure there's no upward velocity
+                    return; // Exit after finding valid ground
+                }
+            }
         }
+        
+        // If we get here, no valid ground was found with any raycast
+        console.log('No ground detected beneath the player with any raycast.');
     }
 }

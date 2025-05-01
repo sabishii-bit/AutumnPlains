@@ -215,6 +215,17 @@ export abstract class BaseCharacter extends GameObject {
                 }
             }
             
+            // Check velocity - if we're moving upward significantly, temporarily ignore ground contact
+            // This helps prevent false ground detection right after jumping
+            const velocity = this.collisionMesh.getLinearVelocity();
+            const yVelocity = velocity.y();
+            
+            // If we're clearly jumping upward, skip the ground check entirely
+            if (yVelocity > 3.0) {
+                this.isOnGround = false; // Explicitly set to false when jumping upward
+                return;
+            }
+            
             // Ensure transform is initialized
             if (!this.mainBodyTransform) {
                 this.mainBodyTransform = new Ammo.btTransform();
@@ -258,60 +269,165 @@ export abstract class BaseCharacter extends GameObject {
                         return;
                     }
                     
-                    // Set up raycast from bottom of capsule
-                    this.rayStart.setValue(
-                        x,
-                        y - (BaseCharacter.HALF_LENGTH * 0.95), // Position closer to the actual bottom
-                        z
-                    );
+                    // Set up multiple raycasts from different points of the character's bottom
+                    // This helps detect landing on smaller objects
+                    const checkPoints = [
+                        { x: 0, z: 0 },      // Center point
+                        { x: 0.1, z: 0 },    // Slight offset +X
+                        { x: -0.1, z: 0 },   // Slight offset -X
+                        { x: 0, z: 0.1 },    // Slight offset +Z
+                        { x: 0, z: -0.1 }    // Slight offset -Z
+                    ];
                     
-                    this.rayEnd.setValue(
-                        x,
-                        y - (BaseCharacter.HALF_LENGTH + this.groundRaycastDistance),
-                        z
-                    );
+                    let hitDetected = false;
+                    let hitObjectName = "unknown";
                     
-                    // Reset the raycast callback
-                    this.raycastResults.set_m_closestHitFraction(1);
-                    this.raycastResults.set_m_collisionObject(null);
-                    this.raycastResults.m_rayFromWorld = this.rayStart;
-                    this.raycastResults.m_rayToWorld = this.rayEnd;
+                    // Skip certain raycast points if we're jumping, to prevent detecting objects we just jumped from
+                    // Only use the center point when jumping to reduce false positives
+                    const pointsToCheck = yVelocity > 0 ? [checkPoints[0]] : checkPoints;
                     
-                    // Perform the raycast - worldContext is the dynamics world directly in this implementation
-                    this.worldContext.rayTest(this.rayStart, this.rayEnd, this.raycastResults);
+                    // Try each point until we find a hit
+                    for (const point of pointsToCheck) {
+                        if (hitDetected) break;
+                        
+                        // Set up raycast from the bottom of capsule with offset
+                        this.rayStart.setValue(
+                            x + point.x,
+                            y - (BaseCharacter.HALF_LENGTH * 0.95), // Position closer to the actual bottom
+                            z + point.z
+                        );
+                        
+                        this.rayEnd.setValue(
+                            x + point.x,
+                            y - (BaseCharacter.HALF_LENGTH + this.groundRaycastDistance),
+                            z + point.z
+                        );
+                        
+                        // Reset the raycast callback
+                        this.raycastResults.set_m_closestHitFraction(1);
+                        this.raycastResults.set_m_collisionObject(null);
+                        this.raycastResults.m_rayFromWorld = this.rayStart;
+                        this.raycastResults.m_rayToWorld = this.rayEnd;
+                        
+                        // Perform the raycast
+                        this.worldContext.rayTest(this.rayStart, this.rayEnd, this.raycastResults);
+                        
+                        // Check if we hit something
+                        if (this.raycastResults.hasHit()) {
+                            hitDetected = true;
+                            
+                            // Try to get the hit object information
+                            try {
+                                const hitObject = this.raycastResults.get_m_collisionObject();
+                                if (hitObject) {
+                                    // Get the name from the hit object if available
+                                    if (hitObject.name) {
+                                        hitObjectName = hitObject.name;
+                                    } else if (hitObject.getUserPointer) {
+                                        const userData = hitObject.getUserPointer();
+                                        if (userData && userData.name) {
+                                            hitObjectName = userData.name;
+                                        }
+                                    }
+                                }
+                            } catch (e) {
+                                // Ignore errors when trying to get object name
+                            }
+                            
+                            break;
+                        }
+                    }
                     
-                    // Check if we hit something
+                    // Update ground state
                     const wasGrounded = this.isOnGround;
-                    this.isOnGround = this.raycastResults.hasHit();
                     
-                    // If we just landed, handle the landing
-                    if (!wasGrounded && this.isOnGround) {
-                        this.lastCollisionTime = now;
-                        this.stabilizeOnGround();
+                    // Only update if we've found a hit or we're currently grounded
+                    // This handles edge cases where we're jumping from a surface
+                    if (hitDetected || wasGrounded) {
+                        this.isOnGround = hitDetected;
+                        
+                        // If we just landed, handle the landing
+                        if (!wasGrounded && this.isOnGround) {
+                            this.lastCollisionTime = now;
+                            this.stabilizeOnGround();
+                            console.log(`Character landed on object: ${hitObjectName}`);
+                        }
                     }
                 }
             }
             
-            // Also check using velocity changes as a backup method
-            if (this.collisionMesh) {
-                const velocity = this.collisionMesh.getLinearVelocity();
-                if (velocity) {
-                    const currentY = velocity.y();
-                    
-                    // If velocity suddenly changed from negative to near-zero, likely hit ground
-                    if (this.previousYVelocity < -1 && currentY > -0.3) {
-                        this.lastCollisionTime = performance.now();
-                        this.stabilizeOnGround();
-                        this.isOnGround = true;
-                    }
-                    
-                    // Store for next frame
-                    this.previousYVelocity = currentY;
+            // Also check using velocity changes as a backup method, but only if we're not jumping
+            if (this.collisionMesh && yVelocity <= 0) {
+                // If velocity suddenly changed from negative to near-zero, likely hit ground
+                if (this.previousYVelocity < -1 && yVelocity > -0.3) {
+                    this.lastCollisionTime = performance.now();
+                    this.stabilizeOnGround();
+                    this.isOnGround = true;
+                    console.log("Character landed (detected via velocity change)");
                 }
+                
+                // Store for next frame
+                this.previousYVelocity = yVelocity;
+            }
+            
+            // Check for contact points as an additional detection method (only when not jumping)
+            if (yVelocity <= 0.5) {
+                this.checkContactPoints();
             }
             
         } catch (error) {
             console.error('Error checking ground contact:', error);
+        }
+    }
+    
+    // New method to check contact points for ground detection
+    private checkContactPoints(): void {
+        if (!this.collisionMesh) return;
+        
+        try {
+            const Ammo = WorldContext.getAmmo();
+            const physicsWorld = this.worldContext;
+            
+            // Create a contact test to check collisions
+            const cb = new Ammo.ConcreteContactResultCallback();
+            let hasContact = false;
+            
+            // Set up callback functions
+            cb.addSingleResult = function(
+                cp: any, 
+                colObj0: any, 
+                partId0: any, 
+                index0: any, 
+                colObj1: any, 
+                partId1: any, 
+                index1: any
+            ) {
+                const contactPoint = Ammo.wrapPointer(cp, Ammo.btManifoldPoint);
+                const distance = contactPoint.getDistance();
+                
+                // If distance is very small, we have a contact
+                if (distance <= 0.05) {
+                    hasContact = true;
+                }
+                return 0;
+            };
+            
+            // Perform the contact test
+            physicsWorld.contactTest(this.collisionMesh, cb);
+            
+            // Update ground state if contact is detected and we're not already grounded
+            if (hasContact && !this.isOnGround) {
+                this.isOnGround = true;
+                this.lastCollisionTime = performance.now();
+                this.stabilizeOnGround();
+                console.log("Character landed (detected via contact test)");
+            }
+            
+            // Clean up
+            Ammo.destroy(cb);
+        } catch (error) {
+            // Silently handle - this method is optional and a fallback
+            console.log("Contact point check not supported", error);
         }
     }
 
@@ -509,10 +625,18 @@ export abstract class BaseCharacter extends GameObject {
                 console.log("Note: Impulse-based jumping not available, using velocity-based jumping");
             }
             
-            // Set the state to jumping
-            this.setState(new CharacterJumpingState(this));
+            // Force ground detection to be false when jumping
             this.isOnGround = false;
             
+            // Reset collision time to avoid detecting landing immediately
+            this.lastCollisionTime = 0;
+            
+            // Set the state to jumping
+            this.setState(new CharacterJumpingState(this));
+            
+            if (this.collisionDebugEnabled) {
+                console.log(`Jump initiated with force: ${jumpForce} (gravity: ${gravity.y})`);
+            }
         } catch (error) {
             console.error('Error during jump:', error);
         }

@@ -5,7 +5,7 @@ import StateManager from './character_state/StateManager';
 
 export class PlayerCharacter extends BaseCharacter {
     public static instance: PlayerCharacter | null = null;
-    public jumpHeight: number = 4.0;
+    public jumpHeight: number = 6.0;
     public moveSpeed: number = 30.0;
     public canJump: boolean = true;
     public direction: THREE.Vector3 = new THREE.Vector3();
