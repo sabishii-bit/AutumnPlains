@@ -28,11 +28,8 @@ export class WorldContext {
             WorldContext.collisionConfiguration
         );
         
-        // Set stronger gravity (similar value to the previous -30.82 in Cannon-es)
-        const gravity = new WorldContext.ammo.btVector3(0, -30.82, 0);
-        WorldContext.instance.setGravity(gravity);
-        
-        console.log("Physics world created with gravity:", -30.82);
+        // Set gravity - default value
+        WorldContext.setWorldGravity(0, -30.82, 0);
     }
 
     // Static method to get the singleton instance
@@ -78,5 +75,36 @@ export class WorldContext {
             return null;
         }
         return WorldContext.ammo;
+    }
+    
+    // Set the gravity of the physics world
+    public static setWorldGravity(x: number, y: number, z: number): void {
+        if (!WorldContext.instance || !WorldContext.ammo) {
+            console.error("Physics world not initialized. Cannot set gravity.");
+            return;
+        }
+        
+        const gravity = new WorldContext.ammo.btVector3(x, y, z);
+        WorldContext.instance.setGravity(gravity);
+        console.log(`Gravity set to: (${x}, ${y}, ${z})`);
+        
+        // Clean up the btVector3 to prevent memory leaks
+        WorldContext.ammo.destroy(gravity);
+    }
+    
+    // Get the current gravity vector as an object
+    public static getGravity(): {x: number, y: number, z: number} {
+        if (!WorldContext.instance) {
+            return {x: 0, y: 0, z: 0};
+        }
+        
+        const gravity = WorldContext.instance.getGravity();
+        const gravityObj = {
+            x: gravity.x(),
+            y: gravity.y(),
+            z: gravity.z()
+        };
+        
+        return gravityObj;
     }
 }

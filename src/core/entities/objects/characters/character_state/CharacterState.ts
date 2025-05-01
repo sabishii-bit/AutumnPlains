@@ -2,7 +2,7 @@ import { BaseCharacter } from "../BaseCharacter";
 
 export abstract class CharacterState {
     private static subclasses: (new (character: BaseCharacter) => CharacterState)[] = [];
-    protected static epsilon: number = 0.1;  // Special constant that approximates the end of a jump
+    public static readonly epsilon: number = 0.05;  // Special constant that approximates the end of a jump
 
     constructor() {
         const subclass = this.constructor as (new (character: BaseCharacter) => CharacterState);

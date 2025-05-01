@@ -18,8 +18,8 @@ export abstract class BaseCharacter extends GameObject {
     private static readonly FEET_SCALE_FACTOR = 0.5; // Scale factor for the feet
     private static readonly VISUAL_MESH_COLOR = 0xff0000;
     private static readonly VISUAL_MESH_VISIBLE = false;
-    private static readonly DEFAULT_JUMP_HEIGHT = 6;
-    private static readonly JUMP_FORCE_MULTIPLIER = 5;
+    private static readonly DEFAULT_JUMP_HEIGHT = 1;
+    private static readonly JUMP_FORCE_MULTIPLIER = 1;
     
     public jumpHeight: number;
     public moveSpeed!: number;
@@ -32,7 +32,7 @@ export abstract class BaseCharacter extends GameObject {
     private mainBodyTransform!: any; // Ammo.btTransform for reading position
     
     // Raycasting for ground detection
-    private groundRaycastDistance: number = 0.25; // Distance to raycast below the character
+    private groundRaycastDistance: number = 0.15; // Distance to raycast below the character
     private isOnGround: boolean = false;
     private raycastStartTime: number = 0;
     private raycastResults: any = null;
@@ -156,7 +156,7 @@ export abstract class BaseCharacter extends GameObject {
                 
                 // Create the body and apply damping
                 this.collisionMesh = new Ammo.btRigidBody(rbInfo);
-                this.collisionMesh.setDamping(0.5, 0.5); // linear and angular damping
+                this.collisionMesh.setDamping(0.1, 0.5); // Reduce linear damping to allow gravity to work better
                 
                 // Lock rotation to only allow Y-axis rotation
                 this.collisionMesh.setAngularFactor(new Ammo.btVector3(0, 1, 0));
@@ -173,6 +173,9 @@ export abstract class BaseCharacter extends GameObject {
                 // Ensure body is active
                 this.collisionMesh.activate(true);
                 
+                // Make sure body responds to gravity (ensure flag is properly set)
+                this.collisionMesh.setFlags(0);
+                
                 // Make sure raycast objects are initialized
                 this.initRaycastObjects();
                 
@@ -184,8 +187,8 @@ export abstract class BaseCharacter extends GameObject {
                 console.log("Character physics initialized successfully at position", this.position);
                 
                 // Debug: Print gravity
-                const gravity = this.worldContext.getGravity();
-                console.log("Physics world gravity:", gravity.y());
+                const gravity = WorldContext.getGravity();
+                console.log("Physics world gravity:", gravity.y);
             } catch (error) {
                 console.error("Error creating character collision mesh:", error);
             }
@@ -219,7 +222,7 @@ export abstract class BaseCharacter extends GameObject {
             }
             
             // Only perform raycast check periodically for performance
-            if (now - this.raycastStartTime > 50) { // Check every 50ms
+            if (now - this.raycastStartTime > 25) { // Check every 25ms (increased frequency for better detection)
                 this.raycastStartTime = now;
                 
                 // Get current position
@@ -258,7 +261,7 @@ export abstract class BaseCharacter extends GameObject {
                     // Set up raycast from bottom of capsule
                     this.rayStart.setValue(
                         x,
-                        y - (BaseCharacter.HALF_LENGTH * 0.9), // Just below character's feet
+                        y - (BaseCharacter.HALF_LENGTH * 0.95), // Position closer to the actual bottom
                         z
                     );
                     
@@ -278,9 +281,11 @@ export abstract class BaseCharacter extends GameObject {
                     this.worldContext.rayTest(this.rayStart, this.rayEnd, this.raycastResults);
                     
                     // Check if we hit something
+                    const wasGrounded = this.isOnGround;
                     this.isOnGround = this.raycastResults.hasHit();
                     
-                    if (this.isOnGround) {
+                    // If we just landed, handle the landing
+                    if (!wasGrounded && this.isOnGround) {
                         this.lastCollisionTime = now;
                         this.stabilizeOnGround();
                     }
@@ -294,7 +299,7 @@ export abstract class BaseCharacter extends GameObject {
                     const currentY = velocity.y();
                     
                     // If velocity suddenly changed from negative to near-zero, likely hit ground
-                    if (this.previousYVelocity < -2 && currentY > -0.5) {
+                    if (this.previousYVelocity < -1 && currentY > -0.3) {
                         this.lastCollisionTime = performance.now();
                         this.stabilizeOnGround();
                         this.isOnGround = true;
@@ -394,35 +399,31 @@ export abstract class BaseCharacter extends GameObject {
                 const velocity = this.collisionMesh.getLinearVelocity();
                 const currentYVelocity = velocity.y();
                 
-                // Calculate new velocity based on input
-                const moveSpeed = this.moveSpeed || 5; // Fallback speed if moveSpeed isn't set
+                // Get the actual move speed (normalized by a factor to make it match expected units)
+                // A higher divisor makes it less sensitive to very high speeds
+                const rawMoveSpeed = this.moveSpeed || 5; // Use default if not set
+                const effectiveSpeed = rawMoveSpeed / 6; // Scale down to reasonable value for Ammo.js
                 
                 // Apply velocity directly for physics objects that don't support forces
                 const newVelocity = new Ammo.btVector3(
-                    inputVector.x * moveSpeed,
+                    inputVector.x * effectiveSpeed,
                     currentYVelocity,
-                    inputVector.z * moveSpeed
+                    inputVector.z * effectiveSpeed
                 );
                 
-                // Set a maximum velocity limit to prevent tunneling
-                const currentSpeed = Math.sqrt(
-                    newVelocity.x() * newVelocity.x() + newVelocity.z() * newVelocity.z()
-                );
-                
-                const maxSpeed = 5;
-                if (currentSpeed > maxSpeed) {
-                    const scaleFactor = maxSpeed / currentSpeed;
-                    newVelocity.setX(newVelocity.x() * scaleFactor);
-                    newVelocity.setZ(newVelocity.z() * scaleFactor);
+                // DEBUG: Log the speed values occasionally
+                if (Math.random() < 0.01) { // 1% chance to log each frame
+                    console.log(`Move speed: raw=${rawMoveSpeed}, effective=${effectiveSpeed}, input magnitude=${inputVector.length()}`);
+                    console.log(`Velocity magnitude: ${Math.sqrt(newVelocity.x()*newVelocity.x() + newVelocity.z()*newVelocity.z())}`);
                 }
                 
                 // Set the velocity directly
                 this.collisionMesh.setLinearVelocity(newVelocity);
                 
-                // Try to apply force if the method exists
+                // Try to apply force if the method exists - this helps with acceleration
                 try {
                     if (typeof this.collisionMesh.applyCentralForce === 'function') {
-                        const moveForce = moveSpeed * 10;
+                        const moveForce = effectiveSpeed * 10; // Force multiplier for better acceleration
                         const moveDirection = new Ammo.btVector3(
                             inputVector.x * moveForce,
                             0,
@@ -440,10 +441,6 @@ export abstract class BaseCharacter extends GameObject {
                 // Clean up
                 Ammo.destroy(newVelocity);
                 
-                // Debug message
-                if (this.collisionDebugEnabled) {
-                    console.log("Applied movement:", inputVector.x, inputVector.z);
-                }
             } else {
                 // When there's no input, add horizontal damping
                 const velocity = this.collisionMesh.getLinearVelocity();
@@ -466,7 +463,7 @@ export abstract class BaseCharacter extends GameObject {
             
             // Fallback simple movement if physics fails
             if (inputVector.lengthSq() > 0 && this.visualMesh) {
-                const fallbackSpeed = 0.1;
+                const fallbackSpeed = this.moveSpeed / 100; // Scale for reasonable fallback movement
                 this.visualMesh.position.x += inputVector.x * fallbackSpeed;
                 this.visualMesh.position.z += inputVector.z * fallbackSpeed;
             }
@@ -474,25 +471,48 @@ export abstract class BaseCharacter extends GameObject {
     }
 
     public jump() {
-        if (!this.collisionMesh || !this.isOnGround) return;
+        if (!this.collisionMesh) return;
         
         try {
             const Ammo = WorldContext.getAmmo();
-            // Calculate jump force
-            const jumpForce = this.jumpHeight * BaseCharacter.JUMP_FORCE_MULTIPLIER;
             
-            // Create force vector
-            const jumpVector = new Ammo.btVector3(0, jumpForce, 0);
+            // Get the current gravity to scale jump force
+            const gravity = WorldContext.getGravity();
+            const gravityStrength = Math.abs(gravity.y);
             
-            // Apply the impulse
-            this.collisionMesh.applyCentralImpulse(jumpVector);
+            // Calculate jump force - scale with gravity strength for consistent jump height
+            const gravityFactor = gravityStrength / 10; // Normalize gravity effect
+            const scaledJumpForce = this.jumpHeight * BaseCharacter.JUMP_FORCE_MULTIPLIER * gravityFactor;
+            const jumpForce = Math.max(scaledJumpForce, 1); // Minimum value to ensure some jumping
             
-            // Clean up
-            Ammo.destroy(jumpVector);
+            // Apply jump using both velocity setting and impulse (if available)
+            const velocity = this.collisionMesh.getLinearVelocity();
+            
+            // Set velocity directly (reliable method)
+            const newVelocity = new Ammo.btVector3(
+                velocity.x(),
+                jumpForce,
+                velocity.z()
+            );
+            this.collisionMesh.setLinearVelocity(newVelocity);
+            Ammo.destroy(newVelocity);
+            
+            // Try to apply impulse if the method exists
+            try {
+                if (typeof this.collisionMesh.applyCentralImpulse === 'function') {
+                    // Create force vector for extra impulse power
+                    const jumpVector = new Ammo.btVector3(0, jumpForce * 0.5, 0);
+                    this.collisionMesh.applyCentralImpulse(jumpVector);
+                    Ammo.destroy(jumpVector);
+                }
+            } catch (impulseError) {
+                console.log("Note: Impulse-based jumping not available, using velocity-based jumping");
+            }
             
             // Set the state to jumping
             this.setState(new CharacterJumpingState(this));
             this.isOnGround = false;
+            
         } catch (error) {
             console.error('Error during jump:', error);
         }
@@ -574,7 +594,79 @@ export abstract class BaseCharacter extends GameObject {
         return currentTime - this.lastCollisionTime <= threshold;
     }
     
-    public isGrounded(): boolean {
+    /**
+     * Check if the character is currently on the ground
+     * @param extendedDistance Optional parameter to extend the raycast distance for lookahead checks
+     * @returns True if the character is on the ground
+     */
+    public isGrounded(extendedDistance: number = 0): boolean {
+        // First check the cached ground status
+        if (this.isOnGround) {
+            return true;
+        }
+        
+        // If we've requested an extended check, perform an immediate raycast
+        if (extendedDistance > 0 && this.collisionMesh) {
+            try {
+                const Ammo = WorldContext.getAmmo();
+                
+                // Ensure we have raycast objects
+                if (!this.raycastResults || !this.rayStart || !this.rayEnd) {
+                    this.initRaycastObjects();
+                    if (!this.raycastResults) return false;
+                }
+                
+                // Ensure transform is initialized
+                if (!this.mainBodyTransform) {
+                    this.mainBodyTransform = new Ammo.btTransform();
+                    this.mainBodyTransform.setIdentity();
+                }
+                
+                // Get current position
+                if (this.collisionMesh.getMotionState()) {
+                    const motionState = this.collisionMesh.getMotionState();
+                    if (!motionState) return false;
+                    
+                    // Get the world transform into our transform object
+                    motionState.getWorldTransform(this.mainBodyTransform);
+                    if (!this.mainBodyTransform) return false;
+                    
+                    // Get the origin from the transform
+                    const origin = this.mainBodyTransform.getOrigin();
+                    if (!origin) return false;
+                    
+                    // Set up raycast from bottom of capsule with extended distance
+                    this.rayStart.setValue(
+                        origin.x(),
+                        origin.y() - (BaseCharacter.HALF_LENGTH * 0.95),
+                        origin.z()
+                    );
+                    
+                    this.rayEnd.setValue(
+                        origin.x(),
+                        origin.y() - (BaseCharacter.HALF_LENGTH + this.groundRaycastDistance + extendedDistance),
+                        origin.z()
+                    );
+                    
+                    // Reset the raycast callback
+                    this.raycastResults.set_m_closestHitFraction(1);
+                    this.raycastResults.set_m_collisionObject(null);
+                    this.raycastResults.m_rayFromWorld = this.rayStart;
+                    this.raycastResults.m_rayToWorld = this.rayEnd;
+                    
+                    // Perform the raycast
+                    this.worldContext.rayTest(this.rayStart, this.rayEnd, this.raycastResults);
+                    
+                    // Return hit result for extended check
+                    return this.raycastResults.hasHit();
+                }
+            } catch (error) {
+                console.error('Error during extended ground check:', error);
+                return false;
+            }
+        }
+        
+        // Return the cached ground status if no extended check was requested
         return this.isOnGround;
     }
 
@@ -740,5 +832,36 @@ export abstract class BaseCharacter extends GameObject {
         
         // Let the GameObjectManager handle removal from the scene and physics world
         GameObjectManager.getInstance().deleteObject(this.objectId);
+    }
+
+    // Test gravity by applying a vertical impulse and checking fall behavior
+    public testGravity(): void {
+        if (!this.collisionMesh) return;
+        
+        try {
+            const Ammo = WorldContext.getAmmo();
+            
+            // Reset velocity first
+            const zeroVel = new Ammo.btVector3(0, 0, 0);
+            this.collisionMesh.setLinearVelocity(zeroVel);
+            Ammo.destroy(zeroVel);
+            
+            // Get current world gravity
+            const gravity = WorldContext.getGravity();
+            console.log("Testing character with world gravity:", gravity);
+            
+            // Apply a small upward impulse to test falling
+            const testVel = new Ammo.btVector3(0, 2, 0);
+            this.collisionMesh.setLinearVelocity(testVel);
+            Ammo.destroy(testVel);
+            
+            // Set airborne state
+            this.setState(new CharacterAirborneState(this));
+            this.isOnGround = false;
+            
+            console.log("Gravity test initiated - character should now fall with gravity:", gravity.y);
+        } catch (error) {
+            console.error("Error testing gravity:", error);
+        }
     }
 }

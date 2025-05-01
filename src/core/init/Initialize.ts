@@ -49,6 +49,10 @@ export default class Initialize {
             // Initialize physics world after Ammo is ready
             this.world = WorldContext.getInstance();
             
+            // Set custom gravity (y value controls strength)
+            WorldContext.setWorldGravity(0, -20, 0);
+            console.log("Current gravity:", WorldContext.getGravity());
+            
             // Initialize physics materials (must be after Ammo is initialized)
             this.physicsMaterialsManager = PhysicsMaterialsManager.getInstance();
             
@@ -94,6 +98,71 @@ export default class Initialize {
             // Toggle physics debug visualization on 'P' key
             if (event.key === 'p' || event.key === 'P') {
                 this.physicsSystem.toggleDebug();
+            }
+            
+            // Gravity testing controls
+            // G+1: Light gravity
+            if (event.key === '1' && event.altKey) {
+                WorldContext.setWorldGravity(0, -5, 0);
+                console.log("Gravity set to LIGHT:", WorldContext.getGravity());
+                // Test on player if available
+                if (this.player) {
+                    this.player.testGravity();
+                }
+            }
+            // G+2: Medium gravity
+            else if (event.key === '2' && event.altKey) {
+                WorldContext.setWorldGravity(0, -15, 0);
+                console.log("Gravity set to MEDIUM:", WorldContext.getGravity());
+                if (this.player) {
+                    this.player.testGravity();
+                }
+            }
+            // G+3: Heavy gravity
+            else if (event.key === '3' && event.altKey) {
+                WorldContext.setWorldGravity(0, -30, 0);
+                console.log("Gravity set to HEAVY:", WorldContext.getGravity());
+                if (this.player) {
+                    this.player.testGravity();
+                }
+            }
+            // G+0: Zero gravity
+            else if (event.key === '0' && event.altKey) {
+                WorldContext.setWorldGravity(0, 0, 0);
+                console.log("Gravity set to ZERO:", WorldContext.getGravity());
+                if (this.player) {
+                    this.player.testGravity();
+                }
+            }
+            
+            // Movement speed testing controls (with Shift key)
+            // Shift+1: Slow movement
+            if (event.key === '1' && event.shiftKey && this.player) {
+                this.player.setMoveSpeed(15);
+                console.log("Movement speed set to SLOW");
+            }
+            // Shift+2: Medium movement
+            else if (event.key === '2' && event.shiftKey && this.player) {
+                this.player.setMoveSpeed(30);
+                console.log("Movement speed set to MEDIUM");
+            }
+            // Shift+3: Fast movement
+            else if (event.key === '3' && event.shiftKey && this.player) {
+                this.player.setMoveSpeed(60);
+                console.log("Movement speed set to FAST");
+            }
+            // Shift+4: Very fast movement
+            else if (event.key === '4' && event.shiftKey && this.player) {
+                this.player.setMoveSpeed(120);
+                console.log("Movement speed set to VERY FAST");
+            }
+            // Shift+Arrow Up: Increase movement speed
+            else if (event.key === 'ArrowUp' && event.shiftKey && this.player) {
+                this.player.adjustMoveSpeed(10);
+            }
+            // Shift+Arrow Down: Decrease movement speed
+            else if (event.key === 'ArrowDown' && event.shiftKey && this.player) {
+                this.player.adjustMoveSpeed(-10);
             }
         });
     }
