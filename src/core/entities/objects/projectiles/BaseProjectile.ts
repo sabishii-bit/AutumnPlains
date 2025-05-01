@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import GameObject, { GameObjectOptions } from "../GameObject";
 import { PlayerCamera } from "../../../camera/PlayerCamera";
-import * as CANNON from 'cannon-es';
 import { GameObjectManager } from "../../../entities/GameObjectManager";
 import { PlayerCharacter } from "../characters/PlayerCharacter";
+import { AmmoUtils } from "../../../physics/AmmoUtils";
+import { WorldContext } from "../../../global/world/WorldContext";
 
 export default abstract class BaseProjectile extends GameObject {
     protected origin: THREE.Vector3;
@@ -141,102 +142,144 @@ export default abstract class BaseProjectile extends GameObject {
     }
 
     /**
-     * Check for collisions with other game objects
+     * Check for collisions with other game objects using Ammo.js
      * @returns True if the ray intersects with a valid object
      */
     protected checkCollisions(): boolean {
-        // Get player character to exclude from collisions
-        const playerCharacter = PlayerCharacter.getInstance();
-        const playerBody = playerCharacter.getCollisionBody();
-        
-        // Create ray for CANNON
-        const rayFrom = new CANNON.Vec3(this.origin.x, this.origin.y, this.origin.z);
-        const rayTo = new CANNON.Vec3(
-            this.origin.x + this.direction.x * this.maxRaycastDistance,
-            this.origin.y + this.direction.y * this.maxRaycastDistance,
-            this.origin.z + this.direction.z * this.maxRaycastDistance
-        );
-        
-        // Create raycast options - only collide with bodies that aren't projectiles or player
-        const raycastOptions = {
-            skipBackfaces: false, // Changed from true to false to allow hitting both sides of planes
-            collisionFilterMask: ~(4), // Collide with everything EXCEPT group 4 (character group)
-            from: rayFrom,
-            to: rayTo,
-        };
-        
-        // Perform the raycast
-        const result = new CANNON.RaycastResult();
-        this.worldContext.raycastClosest(rayFrom, rayTo, raycastOptions, result);
-        
-        // Check if we hit anything
-        if (result.hasHit) {
-            // Store hit normal if available
-            if (result.hitNormalWorld) {
-                this.hitNormal = new THREE.Vector3(
-                    result.hitNormalWorld.x,
-                    result.hitNormalWorld.y,
-                    result.hitNormalWorld.z
-                );
-            } else {
-                this.hitNormal = null;
-            }
+        try {
+            const Ammo = WorldContext.getAmmo();
             
-            // Find which GameObject this body belongs to
-            const hitBody = result.body;
-            const allObjects = GameObjectManager.getAllGameObjects();
+            // Get player character to exclude from collisions
+            const playerCharacter = PlayerCharacter.getInstance();
             
-            // Find the object that owns this body
-            this.hitObject = allObjects.find((obj: GameObject) => {
-                return obj.getCollisionBody() === hitBody && !(obj instanceof BaseProjectile);
-            }) || null;
-            
-            // Calculate hit position in THREE.js coordinates
-            this.hitPosition = new THREE.Vector3(
-                result.hitPointWorld.x,
-                result.hitPointWorld.y,
-                result.hitPointWorld.z
+            // Create ray for Ammo.js
+            const rayFrom = new Ammo.btVector3(this.origin.x, this.origin.y, this.origin.z);
+            const rayTo = new Ammo.btVector3(
+                this.origin.x + this.direction.x * this.maxRaycastDistance,
+                this.origin.y + this.direction.y * this.maxRaycastDistance,
+                this.origin.z + this.direction.z * this.maxRaycastDistance
             );
             
-            // Log more details about the hit for debugging
-            console.log(`[BaseProjectile] Ray hit details:`, {
-                hitBody: hitBody ? `ID: ${hitBody.id}, Mass: ${hitBody.mass}, Type: ${hitBody.shapes[0] ? hitBody.shapes[0].type : 'unknown'}` : 'unknown',
-                hitPosition: this.hitPosition,
-                hitNormal: this.hitNormal,
-                hitDistance: result.distance,
-                rayFrom: new THREE.Vector3(rayFrom.x, rayFrom.y, rayFrom.z),
-                rayTo: new THREE.Vector3(rayTo.x, rayTo.y, rayTo.z),
-                collisionGroup: hitBody ? hitBody.collisionFilterGroup : 'unknown',
-                collisionMask: hitBody ? hitBody.collisionFilterMask : 'unknown'
-            });
+            // Create the raycast callback
+            const rayCallback = new Ammo.ClosestRayResultCallback(rayFrom, rayTo);
             
-            // Attempt to identify special objects like ground plane
-            if (hitBody && hitBody.shapes[0] && hitBody.shapes[0].type === CANNON.Shape.types.PLANE) {
-                console.log(`[BaseProjectile] Hit appears to be a ground plane`);
+            // Set collision filter to exclude character group (assuming group 4 is character group)
+            // Note: Ammo.js filtering works differently than CANNON.js
+            // We might need to adjust these values based on your collision group setup
+            rayCallback.set_m_collisionFilterGroup(0xFFFF); // All groups
+            rayCallback.set_m_collisionFilterMask(0xFFFF & ~(4)); // All groups except 4 (character)
+            
+            // Perform the raycast
+            this.worldContext.rayTest(rayFrom, rayTo, rayCallback);
+            
+            // Check if we hit anything
+            const hasHit = rayCallback.hasHit();
+            
+            if (hasHit) {
+                // Get hit information
+                const hitPointWorld = rayCallback.get_m_hitPointWorld();
+                const hitNormalWorld = rayCallback.get_m_hitNormalWorld();
+                const hitObject = rayCallback.get_m_collisionObject();
                 
-                // If we hit a plane with id 1, it's likely the ground
-                if (hitBody.id === 1) {
-                    // Try to find the ground object manually
-                    const allObjects = GameObjectManager.getAllGameObjects();
-                    const groundObjects = allObjects.filter(obj => 
-                        obj.constructor.name.includes('Ground') || 
-                        obj.constructor.name.includes('Environment'));
+                // Store hit position
+                this.hitPosition = new THREE.Vector3(
+                    hitPointWorld.x(),
+                    hitPointWorld.y(),
+                    hitPointWorld.z()
+                );
+                
+                // Store hit normal
+                this.hitNormal = new THREE.Vector3(
+                    hitNormalWorld.x(),
+                    hitNormalWorld.y(),
+                    hitNormalWorld.z()
+                );
+                
+                // Find the GameObject this collision body belongs to
+                const allObjects = GameObjectManager.getAllGameObjects();
+                this.hitObject = allObjects.find((obj: GameObject) => {
+                    // Check if the collision body belongs to this GameObject
+                    // We need to handle this differently in Ammo.js
+                    if (!obj.getCollisionBody()) return false;
+                    
+                    // In Ammo.js, we can't directly compare objects
+                    // We can try to match by checking pointer equality or using userData
+                    try {
+                        // If userData is available with an ID, we can use that
+                        const objBody = obj.getCollisionBody();
                         
-                    if (groundObjects.length > 0) {
-                        this.hitObject = groundObjects[0];
-                        console.log(`[BaseProjectile] Identified hit as ground: ${this.hitObject.constructor.name}`);
+                        // Skip if this is another projectile
+                        if (obj instanceof BaseProjectile) return false;
+                        
+                        // Direct comparison - might work in some cases
+                        if (objBody === hitObject) return true;
+                        
+                        // Try to compare using btBroadphaseProxy pointer
+                        const objProxy = objBody.getBroadphaseHandle();
+                        const hitProxy = hitObject.getBroadphaseHandle();
+                        if (objProxy && hitProxy && objProxy.equals(hitProxy)) return true;
+                        
+                        // Try using userIndex if available
+                        if (typeof objBody.getUserIndex === 'function' && 
+                            typeof hitObject.getUserIndex === 'function') {
+                            return objBody.getUserIndex() === hitObject.getUserIndex();
+                        }
+                        
+                        return false;
+                    } catch (error) {
+                        return false;
+                    }
+                }) || null;
+                
+                // Log hit details for debugging
+                console.log(`[BaseProjectile] Ray hit details:`, {
+                    hitPosition: this.hitPosition,
+                    hitNormal: this.hitNormal,
+                    hitObject: this.hitObject ? `${this.hitObject.constructor.name} (ID: ${this.hitObject.getId()})` : 'unknown'
+                });
+                
+                // Handle special case for ground/plane objects
+                if (!this.hitObject) {
+                    // Try to identify based on hit normal and position
+                    if (Math.abs(this.hitNormal.y) > 0.9 && Math.abs(this.hitPosition.y) < 0.2) {
+                        // Likely a ground plane - try to find it
+                        const groundObjects = allObjects.filter(obj => 
+                            obj.constructor.name.includes('Ground') || 
+                            obj.constructor.name.includes('Environment'));
+                            
+                        if (groundObjects.length > 0) {
+                            this.hitObject = groundObjects[0];
+                            console.log(`[BaseProjectile] Identified hit as ground: ${this.hitObject.constructor.name}`);
+                        }
                     }
                 }
+                
+                // Clean up Ammo.js objects
+                Ammo.destroy(rayCallback);
+                Ammo.destroy(rayFrom);
+                Ammo.destroy(rayTo);
+                
+                return true;
+            } else {
+                // No hit - reset hit information
+                this.hitObject = null;
+                this.hitPosition = null;
+                this.hitNormal = null;
+                
+                // Clean up Ammo.js objects
+                Ammo.destroy(rayCallback);
+                Ammo.destroy(rayFrom);
+                Ammo.destroy(rayTo);
+                
+                return false;
             }
-            
-            return true;
+        } catch (error) {
+            console.error("[BaseProjectile] Error during collision check:", error);
+            this.hitObject = null;
+            this.hitPosition = null;
+            this.hitNormal = null;
+            return false;
         }
-        
-        // No hit
-        this.hitObject = null;
-        this.hitPosition = null;
-        this.hitNormal = null;
-        return false;
     }
     
     /**

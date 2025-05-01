@@ -3,6 +3,7 @@ import BaseProjectile from './BaseProjectile';
 import { TestProjectile } from './TestProjectile';
 import { GameObjectOptions } from '../GameObject';
 import { GameObjectManager } from '../../../entities/GameObjectManager';
+import { WorldContext } from '../../../global/world/WorldContext';
 
 /**
  * Factory class responsible for creating and properly initializing different types of projectiles
@@ -31,6 +32,12 @@ export class ProjectileFactory {
      * @returns Fully initialized TestProjectile
      */
     public createTestProjectile(options: GameObjectOptions = {}): TestProjectile {
+        // Ensure Ammo.js is initialized before creating projectiles
+        if (!WorldContext.getAmmo()) {
+            console.error("Ammo.js must be initialized before creating projectiles");
+            throw new Error("Ammo.js not initialized");
+        }
+        
         // Ensure options are properly set for initialization
         const projectileOptions: GameObjectOptions = {
             ...options,
@@ -62,6 +69,12 @@ export class ProjectileFactory {
         type: new (options: GameObjectOptions) => T,
         options: GameObjectOptions = {}
     ): T {
+        // Ensure Ammo.js is initialized
+        if (!WorldContext.getAmmo()) {
+            console.error(`Ammo.js must be initialized before creating projectiles of type ${type.name}`);
+            throw new Error("Ammo.js not initialized");
+        }
+        
         // Ensure options are properly set
         const projectileOptions: GameObjectOptions = {
             ...options,

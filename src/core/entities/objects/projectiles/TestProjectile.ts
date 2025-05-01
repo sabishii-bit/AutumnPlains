@@ -115,10 +115,15 @@ export class TestProjectile extends BaseProjectile {
                     console.log(`  Hit Face: ${face}`);
                 }
                 
-                // Try to get the material if available
-                const body = this.hitObject.getCollisionBody();
-                if (body && body.material) {
-                    console.log(`  Physics Material: ${body.material.name || 'unnamed'}`);
+                // Try to get material information - adapted for Ammo.js
+                try {
+                    const body = this.hitObject.getCollisionBody();
+                    if (body) {
+                        // Note: Ammo.js doesn't have direct equivalent to CANNON.js materials
+                        console.log(`  Physics Body: Active=${body.isActive ? 'Yes' : 'No'}, Type=${body.getCollisionShape ? body.getCollisionShape().getShapeType() : 'Unknown'}`);
+                    }
+                } catch (error) {
+                    console.log("  Could not retrieve physics material details");
                 }
             } else {
                 // We have a hit but couldn't find the corresponding GameObject
