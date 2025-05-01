@@ -1,5 +1,6 @@
 import { NetClient } from '../../services/netcode/NetClient';
 import BaseKeyboardCommand from '../../controls/keyboard_actions/BaseKeyboardCommand';
+import { DeviceDetectionService } from '../../services/device/DeviceDetectionService';
 
 export class UIChatComponent {
     private static readonly CHAT_WIDTH = 300;
@@ -24,6 +25,8 @@ export class UIChatComponent {
     private visible: boolean = true;
     private active: boolean = false;
     private netClient: NetClient;
+    private deviceDetectionService: DeviceDetectionService;
+    private isMobileDevice: boolean = false;
 
     /**
      * Get the singleton instance of UIChatComponent
@@ -40,6 +43,8 @@ export class UIChatComponent {
      */
     private constructor() {
         this.netClient = NetClient.getInstance();
+        this.deviceDetectionService = new DeviceDetectionService();
+        this.isMobileDevice = this.deviceDetectionService.isMobile();
         
         // Create the chat container element
         this.chatContainer = document.createElement('div');
@@ -55,9 +60,21 @@ export class UIChatComponent {
         
         // Start in inactive state
         this.setActive(false);
+        
+        // Hide chat on mobile devices
+        if (this.isMobileDevice) {
+            this.setVisibility(false);
+            console.log('Chat component hidden on mobile device');
+        }
     }
 
     private setupElements() {
+        // Skip creating UI elements for mobile
+        if (this.isMobileDevice) {
+            console.log('Skipping chat UI setup for mobile device');
+            return;
+        }
+        
         // Style for the chat container
         this.chatContainer.style.cssText = `
             position: absolute;
@@ -186,6 +203,11 @@ export class UIChatComponent {
     }
 
     private setupEventListeners() {
+        // Skip setting up event listeners for mobile
+        if (this.isMobileDevice) {
+            return;
+        }
+        
         // Event listener for the send button
         this.sendButton.addEventListener('click', () => {
             this.sendMessage();
@@ -307,6 +329,11 @@ export class UIChatComponent {
      * @param active If provided, forces the active state to this value
      */
     public toggleChat(active?: boolean): void {
+        // Don't toggle on mobile devices
+        if (this.isMobileDevice) {
+            return;
+        }
+        
         const newState = active !== undefined ? active : !this.active;
         // Only toggle if state is actually changing
         if (newState !== this.active) {
@@ -321,6 +348,12 @@ export class UIChatComponent {
      * @param active Whether the chat should be active
      */
     public setActive(active: boolean): void {
+        // Don't activate on mobile devices
+        if (this.isMobileDevice) {
+            this.active = false;
+            return;
+        }
+        
         this.active = active;
         
         // Update visual state
@@ -383,7 +416,7 @@ export class UIChatComponent {
      * @param text The message text
      */
     public addMessage(sender: string, text: string) {
-        // Add the message to the array
+        // Still store messages even on mobile, but don't update the display
         this.messages.unshift({
             sender,
             text,
@@ -395,8 +428,10 @@ export class UIChatComponent {
             this.messages.pop();
         }
         
-        // Update the display
-        this.updateMessageDisplay();
+        // Only update the display if not on mobile
+        if (!this.isMobileDevice) {
+            this.updateMessageDisplay();
+        }
     }
 
     /**
@@ -432,8 +467,19 @@ export class UIChatComponent {
      * @param visible Whether the chat should be visible
      */
     public setVisibility(visible: boolean) {
+        // On mobile, always keep it invisible
+        if (this.isMobileDevice) {
+            this.visible = false;
+            if (this.chatContainer) {
+                this.chatContainer.style.display = 'none';
+            }
+            return;
+        }
+        
         this.visible = visible;
-        this.chatContainer.style.display = visible ? 'flex' : 'none';
+        if (this.chatContainer) {
+            this.chatContainer.style.display = visible ? 'flex' : 'none';
+        }
     }
 
     /**
@@ -472,5 +518,12 @@ export class UIChatComponent {
      */
     public update(deltaTime: number) {
         // Update logic can go here if needed
+    }
+
+    /**
+     * Check if the component is running on a mobile device
+     */
+    public isOnMobileDevice(): boolean {
+        return this.isMobileDevice;
     }
 } 
