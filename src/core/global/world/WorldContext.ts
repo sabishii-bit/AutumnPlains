@@ -40,15 +40,56 @@ export class WorldContext {
         return WorldContext.instance;
     }
 
+    // Helper method to load Ammo.js via script tag (for production fallback)
+    private static loadAmmoScript(): Promise<any> {
+        return new Promise((resolve, reject) => {
+            // Check if Ammo is already available on window
+            if (typeof window !== 'undefined' && (window as any).Ammo) {
+                resolve((window as any).Ammo);
+                return;
+            }
+            
+            const script = document.createElement('script');
+            script.src = '/ammo/ammo.js'; // Make sure to copy ammo.js to public/ammo/ directory
+            script.async = true;
+            
+            script.onload = () => {
+                if (typeof (window as any).Ammo === 'function') {
+                    resolve((window as any).Ammo);
+                } else {
+                    reject(new Error('Ammo loaded but not available on window'));
+                }
+            };
+            
+            script.onerror = () => {
+                reject(new Error('Failed to load Ammo.js script'));
+            };
+            
+            document.head.appendChild(script);
+        });
+    }
+
     // Initialize Ammo.js - this must be called before using WorldContext
     public static async initAmmo(): Promise<void> {
         if (!WorldContext.ammoInitialized) {
             try {
-                // Dynamically import Ammo.js
-                const AmmoModule = await import('ammojs3');
-                // Initialize Ammo
-                WorldContext.ammo = await AmmoModule.default();
+                let ammoInstance;
+                
+                try {
+                    // Try the normal import method first
+                    const AmmoModule = await import('ammojs3');
+                    ammoInstance = await AmmoModule.default.bind(window)();
+                } catch (importError) {
+                    console.warn('Failed to import ammojs3 normally, trying fallback loading:', importError);
+                    
+                    // Fallback to script loading method
+                    const AmmoInitializer = await WorldContext.loadAmmoScript();
+                    ammoInstance = await AmmoInitializer();
+                }
+                
+                WorldContext.ammo = ammoInstance;
                 WorldContext.ammoInitialized = true;
+                console.log('Ammo.js initialized successfully');
             } catch (error) {
                 console.error("Failed to initialize Ammo.js:", error);
                 throw error;
@@ -108,3 +149,4 @@ export class WorldContext {
         return gravityObj;
     }
 }
+

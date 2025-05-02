@@ -5,7 +5,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 export default defineConfig({
   plugins: [
     nodePolyfills({
-      include: ['path', 'fs'],
+      exclude: ['fs', 'path'],
       globals: {
         Buffer: true,
         global: true,
@@ -16,7 +16,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
-      'ammojs': resolve(__dirname, 'node_modules/ammojs3/dist/ammo.js')
+      'ammojs3': resolve(__dirname, 'node_modules/ammojs3/dist/ammo.js')
     },
   },
   assetsInclude: [
@@ -30,17 +30,31 @@ export default defineConfig({
   ],
   build: {
     outDir: 'dist',
-    minify: 'terser',  // Enable terser for minification
+    minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true,  // Remove all console statements
-        // Optionally, you can specify which console methods to keep:
-        // pure_funcs: ['console.warn', 'console.error'],
+        drop_console: true,
       },
     },
     rollupOptions: {
       external: ['fs', 'path'],
+      output: {
+        manualChunks: {
+          ammo: ['ammojs3']
+        }
+      }
+    },
+    commonjsOptions: {
+      transformMixedEsModules: true,
+      include: [/ammojs3/, /node_modules/]
     },
   },
   publicDir: 'public',
+  optimizeDeps: {
+    esbuildOptions: {
+      define: {
+        global: 'globalThis'
+      }
+    }
+  }
 });
