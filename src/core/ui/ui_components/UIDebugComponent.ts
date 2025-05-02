@@ -1,7 +1,7 @@
 import { PlayerCharacter } from "../../entities/objects/characters/PlayerCharacter";
 import * as THREE from 'three';
 import { PlayerCamera } from "../../camera/PlayerCamera";
-import { NetClient } from "../../services/netcode/NetClient";
+import { NetClient, ConnectionState } from "../../services/netcode/NetClient";
 
 export class UIDebugComponent {
     private player: PlayerCharacter;
@@ -12,6 +12,7 @@ export class UIDebugComponent {
     private cameraRotationElement: HTMLElement;
     private stateElement: HTMLElement;
     private networkStatusElement: HTMLElement;
+    private networkDetailsElement: HTMLElement;
     private frameTimes: number[] = [];
     private readonly maxSamples = 60;  // Number of frames to average for FPS
     private netClient: NetClient;
@@ -28,6 +29,7 @@ export class UIDebugComponent {
         this.cameraRotationElement = document.createElement('div');
         this.stateElement = document.createElement('div');
         this.networkStatusElement = document.createElement('div');
+        this.networkDetailsElement = document.createElement('div');
         
         // Style and append elements to the document
         this.setupElements();
@@ -54,6 +56,7 @@ export class UIDebugComponent {
         this.cameraRotationElement.style.cssText = styleText;
         this.stateElement.style.cssText = styleText;
         this.networkStatusElement.style.cssText = styleText;
+        this.networkDetailsElement.style.cssText = styleText;
         
         let top = 0;
         this.positionElement.style.top = `${top}px`;
@@ -62,6 +65,7 @@ export class UIDebugComponent {
         this.stateElement.style.top = `${top + 60}px`;
         this.fpsElement.style.top = `${top + 80}px`;
         this.networkStatusElement.style.top = `${top + 100}px`;
+        this.networkDetailsElement.style.top = `${top + 120}px`;
 
         document.body.appendChild(this.positionElement);
         document.body.appendChild(this.velocityElement);
@@ -69,6 +73,7 @@ export class UIDebugComponent {
         document.body.appendChild(this.stateElement);
         document.body.appendChild(this.cameraRotationElement);
         document.body.appendChild(this.networkStatusElement);
+        document.body.appendChild(this.networkDetailsElement);
     }
 
     public update(deltaTime: number) {
@@ -120,10 +125,53 @@ export class UIDebugComponent {
             this.stateElement.textContent = "State: Waiting...";
         }
         
-        // Update network status
+        // Update network status with detailed information
+        this.updateNetworkStatus();
+    }
+    
+    /**
+     * Update the network status display with detailed connection information
+     */
+    private updateNetworkStatus(): void {
+        const connectionState = this.netClient.getConnectionState();
         const isConnected = this.netClient.isConnected();
-        const statusText = isConnected ? "Connected" : "Offline";
-        const statusColor = isConnected ? "#00ff00" : "#ff0000";
-        this.networkStatusElement.innerHTML = `Server: ${statusText} <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background-color:${statusColor};"></span>`;
+        
+        // Set status color based on connection state
+        let statusColor = "#ff0000"; // Default red for disconnected
+        
+        switch(connectionState) {
+            case ConnectionState.CONNECTED:
+                statusColor = "#00ff00"; // Green
+                break;
+            case ConnectionState.CONNECTING:
+            case ConnectionState.RECONNECTING:
+                statusColor = "#ffaa00"; // Orange
+                break;
+            case ConnectionState.CONNECTION_ERROR:
+                statusColor = "#ff0000"; // Red
+                break;
+            case ConnectionState.DISCONNECTED:
+            case ConnectionState.DISCONNECTED_BY_CLIENT:
+            case ConnectionState.DISCONNECTED_BY_SERVER:
+                statusColor = "#ff0000"; // Red
+                break;
+        }
+        
+        // Display basic connection status with colored indicator
+        this.networkStatusElement.innerHTML = `Server: ${connectionState} <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background-color:${statusColor};"></span>`;
+        
+        // Display additional connection details
+        let detailsText = "";
+        
+        // Only show details for certain states
+        if (connectionState === ConnectionState.RECONNECTING) {
+            const attempts = this.netClient.getReconnectAttempts();
+            detailsText = `Reconnect Attempts: ${attempts}`;
+        } else if (connectionState.includes('Disconnected') && connectionState !== ConnectionState.DISCONNECTED) {
+            const reason = this.netClient.getDisconnectReason();
+            detailsText = `Reason: ${reason}`;
+        }
+        
+        this.networkDetailsElement.textContent = detailsText;
     }
 }

@@ -1,7 +1,27 @@
 import { io, Socket } from 'socket.io-client';
 
 /**
+ * Connection state enum for tracking detailed network status
+ */
+export enum ConnectionState {
+    DISCONNECTED = 'Disconnected',
+    CONNECTING = 'Connecting...',
+    CONNECTED = 'Connected',
+    RECONNECTING = 'Reconnecting...',
+    CONNECTION_ERROR = 'Connection Error',
+    DISCONNECTED_BY_SERVER = 'Disconnected by Server',
+    DISCONNECTED_BY_CLIENT = 'Disconnected by Client'
+}
+
+/**
  * NetClient - Basic network client for game communication
+ * 
+ * Example usage:
+ * ```
+ * const client = NetClient.getInstance();
+ * client.connect('http://localhost:3000');
+ * client.send('player_update', { position: { x: 10, y: 0, z: 5 } });
+ * ```
  */
 export class NetClient {
     private static instance: NetClient;
@@ -12,6 +32,8 @@ export class NetClient {
     private reconnectAttempts: number = 0;
     private reconnectDelay: number = 2000; // ms
     private shouldAutoReconnect: boolean = true;
+    private connectionState: ConnectionState = ConnectionState.DISCONNECTED;
+    private disconnectReason: string = '';
     
     /**
      * Private constructor - use getInstance() instead
@@ -38,6 +60,7 @@ export class NetClient {
             try {
                 this.serverUrl = url;
                 console.log(`Connecting to server: ${url}`);
+                this.connectionState = ConnectionState.CONNECTING;
                 
                 // Connect to the server
                 this.socket = io(url);
@@ -47,6 +70,7 @@ export class NetClient {
                     this.connected = true;
                     this.reconnecting = false;
                     this.reconnectAttempts = 0;
+                    this.connectionState = ConnectionState.CONNECTED;
                     console.log('Connected to server successfully');
                     resolve();
                 });
@@ -54,6 +78,7 @@ export class NetClient {
                 // Reject if connection error
                 this.socket.on('connect_error', (error: Error) => {
                     console.error('Connection error:', error);
+                    this.connectionState = ConnectionState.CONNECTION_ERROR;
                     if (!this.reconnecting) {
                         reject(error);
                     }
@@ -62,19 +87,25 @@ export class NetClient {
                 // Handle disconnection
                 this.socket.on('disconnect', (reason: string) => {
                     this.connected = false;
+                    this.disconnectReason = reason;
                     console.log(`Disconnected from server: ${reason}`);
                     
                     // Don't attempt to reconnect if we initiated the disconnect
                     // or if auto reconnect is disabled
                     if (reason === 'io client disconnect' || !this.shouldAutoReconnect) {
+                        this.connectionState = reason === 'io client disconnect' 
+                            ? ConnectionState.DISCONNECTED_BY_CLIENT 
+                            : ConnectionState.DISCONNECTED_BY_SERVER;
                         console.log('Client initiated disconnect - not attempting to reconnect');
                         return;
                     }
                     
                     // Attempt to reconnect
+                    this.connectionState = ConnectionState.RECONNECTING;
                     this.attemptReconnect();
                 });
             } catch (error) {
+                this.connectionState = ConnectionState.CONNECTION_ERROR;
                 reject(error);
             }
         });
@@ -92,6 +123,7 @@ export class NetClient {
         
         this.reconnecting = true;
         this.reconnectAttempts++;
+        this.connectionState = ConnectionState.RECONNECTING;
         
         console.log(`Attempting to reconnect (attempt #${this.reconnectAttempts})...`);
         
@@ -135,6 +167,7 @@ export class NetClient {
         }
         
         this.reconnectAttempts = 0; // Reset the counter for manual reconnect
+        this.connectionState = ConnectionState.RECONNECTING;
         this.attemptReconnect();
     }
     
@@ -143,6 +176,7 @@ export class NetClient {
      */
     public disconnect(): void {
         if (this.socket) {
+            this.connectionState = ConnectionState.DISCONNECTED_BY_CLIENT;
             this.socket.disconnect();
             this.connected = false;
         }
@@ -154,6 +188,30 @@ export class NetClient {
      */
     public isConnected(): boolean {
         return this.connected;
+    }
+    
+    /**
+     * Get the current connection state
+     * @returns The current connection state
+     */
+    public getConnectionState(): ConnectionState {
+        return this.connectionState;
+    }
+    
+    /**
+     * Get the reason for the last disconnection
+     * @returns The reason for the last disconnection
+     */
+    public getDisconnectReason(): string {
+        return this.disconnectReason;
+    }
+    
+    /**
+     * Get the number of reconnection attempts
+     * @returns The number of reconnection attempts
+     */
+    public getReconnectAttempts(): number {
+        return this.reconnectAttempts;
     }
     
     /**
