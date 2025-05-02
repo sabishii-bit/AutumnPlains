@@ -14,7 +14,7 @@
     "@types/three": "^0.176.0",
     "@types/uuid": "^10.0.0",
     "typescript": "5.8.3",
-    "vite": "6.3.3",
+    "vite": "6.3.4",
     "vite-plugin-remove-console": "^2.2.0"
   },
   "dependencies": {
