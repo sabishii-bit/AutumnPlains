@@ -1,13 +1,22 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
+  plugins: [
+    nodePolyfills({
+      include: ['path', 'fs'],
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true,
+      }
+    })
+  ],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
-      // Add empty module shims for Node.js modules used by ammojs3
-      fs: resolve(__dirname, './src/empty-module.js'),
-      path: resolve(__dirname, './src/empty-module.js'),
+      'ammojs': resolve(__dirname, 'node_modules/ammojs3/dist/ammo.js')
     },
   },
   assetsInclude: [
@@ -29,16 +38,9 @@ export default defineConfig({
         // pure_funcs: ['console.warn', 'console.error'],
       },
     },
-    chunkSizeWarningLimit: 800,
     rollupOptions: {
-      output: {
-        manualChunks: {
-          three: ['three'],
-          physics: ['ammojs3', 'cannon-es'],
-          vendor: ['socket.io-client', 'nipplejs', 'uuid'],
-        }
-      }
-    }
+      external: ['fs', 'path'],
+    },
   },
   publicDir: 'public',
 });
