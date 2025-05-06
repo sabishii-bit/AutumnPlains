@@ -19,11 +19,11 @@ services:
     
   # Optional: Add watchtower for automatic container updates
   watchtower:
-    image: containrrr/watchtower
+    image: container/watchtower
     container_name: watchtower
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     command: --interval 86400 # Check for updates once per day
     environment:
-      - TZ=America/New_York # Set your timezone 
+      - TZ=America/Los_Angeles

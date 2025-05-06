@@ -1,5 +1,3 @@
-import { io, Socket } from 'socket.io-client';
-
 /**
  * Connection state enum for tracking detailed network status
  */
@@ -19,13 +17,13 @@ export enum ConnectionState {
  * Example usage:
  * ```
  * const client = NetClient.getInstance();
- * client.connect('http://localhost:3000');
+ * client.connect('ws://localhost:4733');
  * client.send('player_update', { position: { x: 10, y: 0, z: 5 } });
  * ```
  */
 export class NetClient {
     private static instance: NetClient;
-    private socket: Socket | null = null;
+    private socket: WebSocket | null = null;
     private connected: boolean = false;
     private serverUrl: string = '';
     private reconnecting: boolean = false;
@@ -63,39 +61,37 @@ export class NetClient {
                 this.connectionState = ConnectionState.CONNECTING;
                 
                 // Connect to the server
-                this.socket = io(url);
+                this.socket = new WebSocket(url);
                 
                 // Resolve when connected
-                this.socket.on('connect', () => {
+                this.socket.onopen = () => {
                     this.connected = true;
                     this.reconnecting = false;
                     this.reconnectAttempts = 0;
                     this.connectionState = ConnectionState.CONNECTED;
                     console.log('Connected to server successfully');
                     resolve();
-                });
+                };
                 
                 // Reject if connection error
-                this.socket.on('connect_error', (error: Error) => {
-                    console.error('Connection error:', error);
+                this.socket.onerror = (event) => {
+                    console.error('Connection error:', event);
                     this.connectionState = ConnectionState.CONNECTION_ERROR;
                     if (!this.reconnecting) {
-                        reject(error);
+                        reject(new Error('WebSocket connection error'));
                     }
-                });
+                };
                 
                 // Handle disconnection
-                this.socket.on('disconnect', (reason: string) => {
+                this.socket.onclose = (event) => {
                     this.connected = false;
-                    this.disconnectReason = reason;
-                    console.log(`Disconnected from server: ${reason}`);
+                    this.disconnectReason = event.reason || `Code: ${event.code}`;
+                    console.log(`Disconnected from server: ${this.disconnectReason}`);
                     
                     // Don't attempt to reconnect if we initiated the disconnect
                     // or if auto reconnect is disabled
-                    if (reason === 'io client disconnect' || !this.shouldAutoReconnect) {
-                        this.connectionState = reason === 'io client disconnect' 
-                            ? ConnectionState.DISCONNECTED_BY_CLIENT 
-                            : ConnectionState.DISCONNECTED_BY_SERVER;
+                    if (event.wasClean && !this.shouldAutoReconnect) {
+                        this.connectionState = ConnectionState.DISCONNECTED_BY_CLIENT;
                         console.log('Client initiated disconnect - not attempting to reconnect');
                         return;
                     }
@@ -103,7 +99,18 @@ export class NetClient {
                     // Attempt to reconnect
                     this.connectionState = ConnectionState.RECONNECTING;
                     this.attemptReconnect();
-                });
+                };
+                
+                // Handle incoming messages
+                this.socket.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        // Handle different message events here
+                        console.log('Received message:', message);
+                    } catch (error) {
+                        console.error('Error parsing message:', error);
+                    }
+                };
             } catch (error) {
                 this.connectionState = ConnectionState.CONNECTION_ERROR;
                 reject(error);
@@ -140,6 +147,7 @@ export class NetClient {
             // Close existing socket if it exists
             if (this.socket) {
                 this.socket.close();
+                this.socket = null;
             }
             
             // Attempt to connect again
@@ -177,7 +185,8 @@ export class NetClient {
     public disconnect(): void {
         if (this.socket) {
             this.connectionState = ConnectionState.DISCONNECTED_BY_CLIENT;
-            this.socket.disconnect();
+            this.socket.close();
+            this.socket = null;
             this.connected = false;
         }
     }
@@ -225,7 +234,12 @@ export class NetClient {
             return;
         }
         
-        this.socket.emit(event, data);
+        const message = JSON.stringify({
+            event,
+            data
+        });
+        
+        this.socket.send(message);
     }
     
     /**

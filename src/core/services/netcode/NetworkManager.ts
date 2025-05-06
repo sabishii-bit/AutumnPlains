@@ -17,8 +17,8 @@ export class NetworkManager {
     
     // Server connection configuration
     private serverConfig = {
-        [ServerEnvironment.DEVELOPMENT]: 'http://localhost:4733',
-        [ServerEnvironment.PRODUCTION]: 'http://yourgame.ddns.net:4733' // Your dynamic DNS address
+        [ServerEnvironment.DEVELOPMENT]: 'ws://localhost:4733',
+        [ServerEnvironment.PRODUCTION]: 'wss://yourgame.ddns.net:4733' // Your dynamic DNS address with secure WebSocket
     };
     
     /**

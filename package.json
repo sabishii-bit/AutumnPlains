@@ -19,11 +19,9 @@
     "vite-plugin-remove-console": "^2.2.0"
   },
   "dependencies": {
-    "@types/socket.io-client": "^3.0.0",
     "ammojs3": "^0.0.11",
     "cannon-es": "^0.20.0",
     "nipplejs": "^0.10.2",
-    "socket.io-client": "^4.8.1",
     "three": "^0.176.0",
     "uuid": "^11.1.0"
   }
