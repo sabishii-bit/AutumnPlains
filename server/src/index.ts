@@ -6,11 +6,10 @@ const PORT = process.env.PORT || 4733;
 const app = express();
 const server = http.createServer(app);
 
-// Initialize the game server with the port
-const gameServer = new GameServer(Number(PORT));
-
-// Start listening for HTTP requests (WebSocket server is initialized in GameServer)
+// Start listening before binding WS to allow clean handoff
 server.listen(PORT, () => {
   console.log(`HTTP server running on http://localhost:${PORT}`);
-  console.log(`WebSocket server running on ws://localhost:${PORT}`);
-}); 
+});
+
+// Attach WebSocket server to the HTTP server
+const gameServer = new GameServer(server);
