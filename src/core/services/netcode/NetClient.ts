@@ -67,6 +67,8 @@ export class NetClient {
     private focusHandler: (() => void) | null = null;
     private blurHandler: (() => void) | null = null;
     private isMobileDevice: boolean = false;
+    private persistentReconnectInterval: NodeJS.Timeout | null = null;
+    private readonly mobilePersistentReconnectDelay = 10000; // 10 seconds
     
     /**
      * Private constructor - use getInstance() instead
@@ -77,6 +79,11 @@ export class NetClient {
         this.setupVisibilityHandling();
         this.setupActivityMonitoring();
         this.setupMobileEventHandlers();
+        
+        // For mobile devices, set up persistent reconnection
+        if (this.isMobileDevice) {
+            this.setupPersistentReconnection();
+        }
     }
     
     /**
@@ -268,13 +275,20 @@ export class NetClient {
             this.errorHistory.pop();
         }
         
-        this.cleanupConnection();
+        // On mobile, don't clean up completely - we want to retry later
+        if (this.isMobileDevice) {
+            // Clean up the socket but don't stop the persistent reconnection
+            this.cleanupSocketOnly();
+        } else {
+            // On desktop, perform normal cleanup
+            this.cleanupConnection();
+        }
     }
     
     /**
-     * Clean up existing connection
+     * Clean up socket connection only, preserving reconnection mechanisms
      */
-    private cleanupConnection(): void {
+    private cleanupSocketOnly(): void {
         if (this.socket) {
             this.socket.onopen = null;
             this.socket.onclose = null;
@@ -288,6 +302,13 @@ export class NetClient {
             clearTimeout(this.reconnectTimeout);
             this.reconnectTimeout = null;
         }
+    }
+    
+    /**
+     * Clean up connection and all intervals
+     */
+    private cleanupConnection(): void {
+        this.cleanupSocketOnly();
 
         // Clear activity check interval
         if (this.activityCheckInterval) {
@@ -298,6 +319,12 @@ export class NetClient {
         if (this.mobileReconnectTimeout) {
             clearTimeout(this.mobileReconnectTimeout);
             this.mobileReconnectTimeout = null;
+        }
+        
+        // Clear persistent reconnect interval
+        if (this.persistentReconnectInterval) {
+            clearInterval(this.persistentReconnectInterval);
+            this.persistentReconnectInterval = null;
         }
     }
     
@@ -763,13 +790,16 @@ export class NetClient {
             clearTimeout(this.mobileReconnectTimeout);
         }
         
+        // Reset reconnect attempts to allow a fresh start
+        this.reconnectAttempts = 0;
+        
         // Small delay to allow device to properly reconnect to network
         this.mobileReconnectTimeout = setTimeout(() => {
             console.log('Checking connection after mobile resume...');
             
+            // Check if we need to reconnect (not connected or in error state)
             if (!this.connected && this.shouldAutoReconnect) {
                 console.log('Mobile device resumed but not connected, reconnecting...');
-                this.reconnectAttempts = 0; // Reset attempts for fresh start
                 this.attemptReconnect();
             } else if (this.connected) {
                 // Verify if connection is still alive after mobile resume
@@ -864,5 +894,35 @@ export class NetClient {
             });
             this.attemptReconnect();
         }
+    }
+
+    /**
+     * Set up persistent reconnection for mobile devices
+     * This ensures that we keep trying to reconnect even after errors
+     */
+    private setupPersistentReconnection(): void {
+        // Clear any existing interval
+        if (this.persistentReconnectInterval) {
+            clearInterval(this.persistentReconnectInterval);
+        }
+        
+        // Create interval that periodically checks if we need to reconnect
+        this.persistentReconnectInterval = setInterval(() => {
+            // Only try to reconnect if we're not already connected and we should auto-reconnect
+            if (!this.connected && this.shouldAutoReconnect) {
+                const errorState = this.connectionState === ConnectionState.CONNECTION_ERROR;
+                const disconnectedState = this.connectionState === ConnectionState.DISCONNECTED ||
+                                         this.connectionState === ConnectionState.DISCONNECTED_BY_SERVER;
+                
+                // If we're in an error state or disconnected state, try reconnecting
+                if (errorState || disconnectedState) {
+                    console.log('Mobile persistent reconnection check triggered');
+                    // Reset reconnect attempts to allow fresh start
+                    this.reconnectAttempts = 0;
+                    this.connectionState = ConnectionState.RECONNECTING;
+                    this.attemptReconnect();
+                }
+            }
+        }, this.mobilePersistentReconnectDelay);
     }
 }
