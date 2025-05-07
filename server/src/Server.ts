@@ -139,6 +139,20 @@ export class GameServer {
             console.log(`Received message from ${clientId} (IP: ${ws.ip}):`, parsedMessage);
           }
           
+          // Handle ping messages (used for connection verification)
+          if (parsedMessage.event === 'ping') {
+            // Send a pong response
+            ws.send(JSON.stringify({
+              event: 'pong',
+              data: {
+                received: parsedMessage.data,
+                serverTime: Date.now()
+              }
+            }));
+            // Don't log ping/pong messages to avoid cluttering logs
+            return;
+          }
+          
           // Handle client_info messages with public IP
           if (parsedMessage.event === 'client_info' && parsedMessage.data && parsedMessage.data.publicIp) {
             const publicIp = parsedMessage.data.publicIp;

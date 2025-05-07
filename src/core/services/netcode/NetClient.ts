@@ -1,3 +1,5 @@
+import { DeviceDetectionService } from '../device/DeviceDetectionService';
+
 /**
  * Connection state enum for tracking detailed network status
  */
@@ -57,13 +59,24 @@ export class NetClient {
     private isLocalConnection: boolean = false;
     private publicIp: string = '';
     private connectionTimestamp: number = 0;
+    private deviceDetectionService: DeviceDetectionService;
+    private mobileReconnectTimeout: NodeJS.Timeout | null = null;
+    private pageShowHandler: (() => void) | null = null;
+    private onlineHandler: (() => void) | null = null;
+    private offlineHandler: (() => void) | null = null;
+    private focusHandler: (() => void) | null = null;
+    private blurHandler: (() => void) | null = null;
+    private isMobileDevice: boolean = false;
     
     /**
      * Private constructor - use getInstance() instead
      */
     private constructor() {
+        this.deviceDetectionService = DeviceDetectionService.getInstance();
+        this.isMobileDevice = this.deviceDetectionService.isMobile();
         this.setupVisibilityHandling();
         this.setupActivityMonitoring();
+        this.setupMobileEventHandlers();
     }
     
     /**
@@ -281,6 +294,11 @@ export class NetClient {
             clearInterval(this.activityCheckInterval);
             this.activityCheckInterval = null;
         }
+
+        if (this.mobileReconnectTimeout) {
+            clearTimeout(this.mobileReconnectTimeout);
+            this.mobileReconnectTimeout = null;
+        }
     }
     
     /**
@@ -385,6 +403,7 @@ export class NetClient {
     public disconnect(): void {
         this.connectionState = ConnectionState.DISCONNECTED_BY_CLIENT;
         this.cleanupConnection();
+        this.cleanupEventHandlers();
         this.connected = false;
         
         // Release wake lock
@@ -524,13 +543,20 @@ export class NetClient {
     }
 
     private handleVisibilityChange(): void {
-        if (!this.connected && this.shouldAutoReconnect) {
-            console.log('Tab became visible, attempting to reconnect...');
-            this.reconnectAttempts = 0; // Reset attempts for fresh start
-            this.attemptReconnect();
-        } else if (this.connected) {
-            // Verify connection is still alive
-            this.verifyConnection();
+        if (document.visibilityState === 'visible') {
+            // For mobile devices, use the more specialized handler
+            if (this.isMobileDevice) {
+                this.handleMobileResume();
+            } else {
+                // Original desktop behavior
+                if (!this.connected && this.shouldAutoReconnect) {
+                    console.log('Tab became visible, attempting to reconnect...');
+                    this.reconnectAttempts = 0;
+                    this.attemptReconnect();
+                } else if (this.connected) {
+                    this.verifyConnection();
+                }
+            }
         }
     }
 
@@ -542,14 +568,38 @@ export class NetClient {
     }
 
     private verifyConnection(): void {
-        if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-            console.log('Connection appears to be dead, attempting to reconnect...');
-            this.handleConnectionFailure({
-                type: 'network',
-                message: 'Connection lost during inactivity',
-                timestamp: Date.now()
-            });
-            this.attemptReconnect();
+        // Check WebSocket readyState
+        const socketClosed = !this.socket || 
+                             this.socket.readyState === WebSocket.CLOSED || 
+                             this.socket.readyState === WebSocket.CLOSING;
+        
+        // For mobile, perform more aggressive checking
+        if (this.isMobileDevice) {
+            // If socket doesn't exist or is closed/closing, reconnect
+            if (socketClosed) {
+                console.log('Connection appears to be dead, attempting to reconnect...');
+                this.handleConnectionFailure({
+                    type: 'network',
+                    message: 'Connection lost (mobile device detected)',
+                    timestamp: Date.now()
+                });
+                this.attemptReconnect();
+                return;
+            }
+            
+            // Even for OPEN sockets, ping the server to verify connection
+            this.pingServer();
+        } else {
+            // Non-mobile behavior
+            if (socketClosed) {
+                console.log('Connection appears to be dead, attempting to reconnect...');
+                this.handleConnectionFailure({
+                    type: 'network',
+                    message: 'Connection lost during inactivity',
+                    timestamp: Date.now()
+                });
+                this.attemptReconnect();
+            }
         }
     }
 
@@ -661,5 +711,158 @@ export class NetClient {
      */
     public getConnectionTimestamp(): number {
         return this.connectionTimestamp;
+    }
+
+    /**
+     * Set up mobile-specific event handlers for connection management
+     */
+    private setupMobileEventHandlers(): void {
+        if (!this.isMobileDevice) return;
+        
+        // Handle page show/hide events (more reliable on mobile)
+        this.pageShowHandler = () => {
+            console.log('Page became visible (pageshow event), checking connection...');
+            this.handleMobileResume();
+        };
+        window.addEventListener('pageshow', this.pageShowHandler);
+        
+        // Handle online/offline events
+        this.onlineHandler = () => {
+            console.log('Device went online, checking connection...');
+            this.handleNetworkStatusChange(true);
+        };
+        window.addEventListener('online', this.onlineHandler);
+        
+        this.offlineHandler = () => {
+            console.log('Device went offline');
+            this.handleNetworkStatusChange(false);
+        };
+        window.addEventListener('offline', this.offlineHandler);
+        
+        // Handle focus/blur for mobile app switching
+        this.focusHandler = () => {
+            console.log('Window regained focus, checking connection...');
+            this.handleMobileResume();
+        };
+        window.addEventListener('focus', this.focusHandler);
+        
+        this.blurHandler = () => {
+            console.log('Window lost focus');
+            // Don't need to do anything here, just logging
+        };
+        window.addEventListener('blur', this.blurHandler);
+        
+        console.log('Mobile device detected, specialized handlers added');
+    }
+    
+    /**
+     * Handle mobile device resuming from sleep/background
+     */
+    private handleMobileResume(): void {
+        if (this.mobileReconnectTimeout) {
+            clearTimeout(this.mobileReconnectTimeout);
+        }
+        
+        // Small delay to allow device to properly reconnect to network
+        this.mobileReconnectTimeout = setTimeout(() => {
+            console.log('Checking connection after mobile resume...');
+            
+            if (!this.connected && this.shouldAutoReconnect) {
+                console.log('Mobile device resumed but not connected, reconnecting...');
+                this.reconnectAttempts = 0; // Reset attempts for fresh start
+                this.attemptReconnect();
+            } else if (this.connected) {
+                // Verify if connection is still alive after mobile resume
+                this.verifyConnection();
+                
+                // Send a ping to make sure connection is still active
+                try {
+                    this.send('ping', { timestamp: Date.now() });
+                } catch (e) {
+                    console.log('Failed to send ping after resume, reconnecting...');
+                    this.handleConnectionFailure({
+                        type: 'network',
+                        message: 'Connection lost during mobile background/sleep',
+                        timestamp: Date.now()
+                    });
+                    this.attemptReconnect();
+                }
+            }
+        }, 1000);
+    }
+    
+    /**
+     * Handle network status changes (online/offline)
+     */
+    private handleNetworkStatusChange(online: boolean): void {
+        if (online && !this.connected && this.shouldAutoReconnect) {
+            console.log('Network reconnected, attempting connection...');
+            this.reconnectAttempts = 0;
+            this.attemptReconnect();
+        } else if (!online && this.connected) {
+            console.log('Network disconnected, updating state...');
+            this.handleConnectionFailure({
+                type: 'network',
+                message: 'Device went offline',
+                timestamp: Date.now()
+            });
+        }
+    }
+    
+    /**
+     * Clean up event handlers
+     */
+    private cleanupEventHandlers(): void {
+        // Remove visibility change handler
+        if (this.visibilityChangeHandler) {
+            document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+            this.visibilityChangeHandler = null;
+        }
+        
+        // Remove mobile-specific handlers
+        if (this.pageShowHandler) {
+            window.removeEventListener('pageshow', this.pageShowHandler);
+            this.pageShowHandler = null;
+        }
+        
+        if (this.onlineHandler) {
+            window.removeEventListener('online', this.onlineHandler);
+            this.onlineHandler = null;
+        }
+        
+        if (this.offlineHandler) {
+            window.removeEventListener('offline', this.offlineHandler);
+            this.offlineHandler = null;
+        }
+        
+        if (this.focusHandler) {
+            window.removeEventListener('focus', this.focusHandler);
+            this.focusHandler = null;
+        }
+        
+        if (this.blurHandler) {
+            window.removeEventListener('blur', this.blurHandler);
+            this.blurHandler = null;
+        }
+    }
+    
+    /**
+     * Send a ping to the server to verify connection
+     */
+    private pingServer(): void {
+        try {
+            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                this.send('ping', { timestamp: Date.now() });
+                console.log('Ping sent to verify connection');
+            }
+        } catch (e) {
+            console.error('Failed to send ping, connection appears dead', e);
+            this.handleConnectionFailure({
+                type: 'network',
+                message: 'Failed to ping server',
+                timestamp: Date.now()
+            });
+            this.attemptReconnect();
+        }
     }
 }
