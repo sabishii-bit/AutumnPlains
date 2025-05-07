@@ -69,6 +69,8 @@ export class NetClient {
     private isMobileDevice: boolean = false;
     private persistentReconnectInterval: NodeJS.Timeout | null = null;
     private readonly mobilePersistentReconnectDelay = 10000; // 10 seconds
+    private lastActiveTime: number = Date.now();
+    private resumeHandler: (() => void) | null = null;
     
     /**
      * Private constructor - use getInstance() instead
@@ -749,6 +751,7 @@ export class NetClient {
         // Handle page show/hide events (more reliable on mobile)
         this.pageShowHandler = () => {
             console.log('Page became visible (pageshow event), checking connection...');
+            this.lastActiveTime = Date.now();
             this.handleMobileResume();
         };
         window.addEventListener('pageshow', this.pageShowHandler);
@@ -756,6 +759,7 @@ export class NetClient {
         // Handle online/offline events
         this.onlineHandler = () => {
             console.log('Device went online, checking connection...');
+            this.lastActiveTime = Date.now();
             this.handleNetworkStatusChange(true);
         };
         window.addEventListener('online', this.onlineHandler);
@@ -769,56 +773,179 @@ export class NetClient {
         // Handle focus/blur for mobile app switching
         this.focusHandler = () => {
             console.log('Window regained focus, checking connection...');
-            this.handleMobileResume();
+            this.lastActiveTime = Date.now();
+            
+            // Calculate time since last active
+            const timeSinceActive = Date.now() - this.lastActiveTime;
+            
+            // If we've been away for more than 2 seconds, treat as app switch
+            if (timeSinceActive > 2000) {
+                console.log(`App was in background for ${timeSinceActive/1000} seconds`);
+                this.handleMobileAppReturn();
+            } else {
+                this.handleMobileResume();
+            }
         };
         window.addEventListener('focus', this.focusHandler);
         
         this.blurHandler = () => {
             console.log('Window lost focus');
-            // Don't need to do anything here, just logging
+            // Update last active time when moving to background
+            this.lastActiveTime = Date.now();
         };
         window.addEventListener('blur', this.blurHandler);
+        
+        // Handle device resume event (some mobile browsers)
+        this.resumeHandler = () => {
+            console.log('Device resume event detected');
+            this.handleDeviceWake();
+        };
+        document.addEventListener('resume', this.resumeHandler);
+        
+        // Setup visibility change with device wake detection
+        this.setupDeviceWakeDetection();
         
         console.log('Mobile device detected, specialized handlers added');
     }
     
     /**
-     * Handle mobile device resuming from sleep/background
+     * Setup additional detection for device wake from sleep
      */
-    private handleMobileResume(): void {
-        if (this.mobileReconnectTimeout) {
-            clearTimeout(this.mobileReconnectTimeout);
+    private setupDeviceWakeDetection(): void {
+        // Enhanced visibility change handler specifically for sleep/wake detection
+        const originalHandler = this.visibilityChangeHandler;
+        
+        this.visibilityChangeHandler = () => {
+            if (document.visibilityState === 'visible') {
+                // Calculate time since last active
+                const timeSinceActive = Date.now() - this.lastActiveTime;
+                console.log(`Visibility changed to visible after ${timeSinceActive/1000} seconds`);
+                
+                // If we've been invisible for more than 5 seconds, likely a device wake
+                if (timeSinceActive > 5000) {
+                    console.log('Detected device wake from sleep');
+                    this.handleDeviceWake();
+                } else {
+                    // For shorter durations, could be tab switching or brief interruptions
+                    if (originalHandler) originalHandler();
+                }
+                
+                // Update last active time
+                this.lastActiveTime = Date.now();
+            } else {
+                // Update last active time when becoming invisible
+                this.lastActiveTime = Date.now();
+                console.log('Visibility changed to hidden');
+            }
+        };
+    }
+    
+    /**
+     * Handle when device wakes from sleep (power button)
+     */
+    private handleDeviceWake(): void {
+        console.log('Handling device wake from sleep');
+        
+        // Force a network check
+        // Some devices need time to reconnect to network after wake
+        setTimeout(() => {
+            if (navigator.onLine) {
+                console.log('Network available after wake');
+                
+                // Always reconnect after device wake, regardless of current state
+                this.reconnectAttempts = 0;
+                
+                // If we're not connected, attempt reconnection
+                if (!this.connected) {
+                    console.log('Not connected after device wake, forcing reconnection');
+                    this.connectionState = ConnectionState.RECONNECTING;
+                    this.attemptReconnect();
+                } else {
+                    // Even if connected, verify the connection is still good
+                    this.verifyConnectionAggressively();
+                }
+            } else {
+                console.log('No network after wake, waiting for online event');
+            }
+        }, 2000); // Wait 2 seconds for network to stabilize
+    }
+    
+    /**
+     * Handle when user returns to app after using another app
+     */
+    private handleMobileAppReturn(): void {
+        console.log('Handling return from app switch');
+        
+        // Shorter delay for app switching vs. device wake
+        setTimeout(() => {
+            // Reset reconnection attempts to get a fresh start
+            this.reconnectAttempts = 0;
+            
+            // Check connection state
+            if (!this.connected) {
+                console.log('Not connected after app switch, forcing reconnection');
+                this.connectionState = ConnectionState.RECONNECTING;
+                this.attemptReconnect();
+            } else {
+                // Even if connected, verify connection is still alive
+                this.verifyConnectionAggressively();
+            }
+        }, 500); // Shorter delay for app switching
+    }
+    
+    /**
+     * Verify connection with more aggressive checks
+     */
+    private verifyConnectionAggressively(): void {
+        console.log('Aggressively verifying connection status');
+        
+        // First check socket state
+        const socketClosed = !this.socket || 
+                            this.socket.readyState !== WebSocket.OPEN;
+        
+        if (socketClosed) {
+            console.log('Socket is closed or not in OPEN state, reconnecting');
+            this.handleConnectionFailure({
+                type: 'network',
+                message: 'Connection lost after device wake/app switch',
+                timestamp: Date.now()
+            });
+            this.attemptReconnect();
+            return;
         }
         
-        // Reset reconnect attempts to allow a fresh start
-        this.reconnectAttempts = 0;
-        
-        // Small delay to allow device to properly reconnect to network
-        this.mobileReconnectTimeout = setTimeout(() => {
-            console.log('Checking connection after mobile resume...');
+        // Even if socket appears open, verify with ping
+        try {
+            // Send a ping with higher timeout urgency
+            this.send('ping', { 
+                timestamp: Date.now(),
+                urgent: true,
+                source: 'wake_verification' 
+            });
+            console.log('Verification ping sent');
             
-            // Check if we need to reconnect (not connected or in error state)
-            if (!this.connected && this.shouldAutoReconnect) {
-                console.log('Mobile device resumed but not connected, reconnecting...');
+            // Set a short timeout to verify if we get a pong
+            const urgentVerificationTimeout = setTimeout(() => {
+                console.log('No pong received after urgent ping, forcing reconnect');
+                this.handleConnectionFailure({
+                    type: 'network',
+                    message: 'Connection verification failed after wake/app switch',
+                    timestamp: Date.now()
+                });
                 this.attemptReconnect();
-            } else if (this.connected) {
-                // Verify if connection is still alive after mobile resume
-                this.verifyConnection();
-                
-                // Send a ping to make sure connection is still active
-                try {
-                    this.send('ping', { timestamp: Date.now() });
-                } catch (e) {
-                    console.log('Failed to send ping after resume, reconnecting...');
-                    this.handleConnectionFailure({
-                        type: 'network',
-                        message: 'Connection lost during mobile background/sleep',
-                        timestamp: Date.now()
-                    });
-                    this.attemptReconnect();
-                }
-            }
-        }, 1000);
+            }, 3000); // Wait 3 seconds for response
+            
+            // Store the timeout to clear it if we get a pong
+            (this.socket as any)._urgentVerificationTimeout = urgentVerificationTimeout;
+        } catch (e) {
+            console.error('Failed to send verification ping', e);
+            this.handleConnectionFailure({
+                type: 'network',
+                message: 'Failed to verify connection after wake/app switch',
+                timestamp: Date.now()
+            });
+            this.attemptReconnect();
+        }
     }
     
     /**
@@ -843,13 +970,12 @@ export class NetClient {
      * Clean up event handlers
      */
     private cleanupEventHandlers(): void {
-        // Remove visibility change handler
+        // Remove existing handlers
         if (this.visibilityChangeHandler) {
             document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
             this.visibilityChangeHandler = null;
         }
         
-        // Remove mobile-specific handlers
         if (this.pageShowHandler) {
             window.removeEventListener('pageshow', this.pageShowHandler);
             this.pageShowHandler = null;
@@ -873,6 +999,12 @@ export class NetClient {
         if (this.blurHandler) {
             window.removeEventListener('blur', this.blurHandler);
             this.blurHandler = null;
+        }
+        
+        // Remove device resume handler
+        if (this.resumeHandler) {
+            document.removeEventListener('resume', this.resumeHandler);
+            this.resumeHandler = null;
         }
     }
     
@@ -924,5 +1056,28 @@ export class NetClient {
                 }
             }
         }, this.mobilePersistentReconnectDelay);
+    }
+
+    /**
+     * Handle mobile device resuming from sleep/background
+     */
+    private handleMobileResume(): void {
+        if (this.mobileReconnectTimeout) {
+            clearTimeout(this.mobileReconnectTimeout);
+        }
+        
+        // Small delay to allow device to properly reconnect to network
+        this.mobileReconnectTimeout = setTimeout(() => {
+            console.log('Checking connection after mobile resume...');
+            
+            // Check if we need to reconnect
+            if (!this.connected && this.shouldAutoReconnect) {
+                console.log('Mobile device resumed but not connected, reconnecting...');
+                this.attemptReconnect();
+            } else if (this.connected) {
+                // Verify connection is still alive
+                this.verifyConnection();
+            }
+        }, 1000);
     }
 }
