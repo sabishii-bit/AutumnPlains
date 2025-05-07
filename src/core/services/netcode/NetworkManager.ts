@@ -120,4 +120,47 @@ export class NetworkManager {
     public getServerUrl(environment: ServerEnvironment): string {
         return this.serverConfig[environment];
     }
+
+    /**
+     * Get the client's assigned ID from the server
+     * @returns The client ID or empty string if not connected
+     */
+    public getClientId(): string {
+        return this.netClient.getClientId();
+    }
+
+    /**
+     * Get the client's IP address as seen by the server
+     * @returns The client IP or empty string if not connected
+     */
+    public getClientIp(): string {
+        return this.netClient.getClientIp();
+    }
+
+    /**
+     * Get the timestamp when the connection was established
+     * @returns The connection timestamp or 0 if not connected
+     */
+    public getConnectionTimestamp(): number {
+        return this.netClient.getConnectionTimestamp();
+    }
+
+    /**
+     * Get formatted connection information
+     * @returns Object containing connection details
+     */
+    public getConnectionInfo(): { 
+        id: string; 
+        ip: string; 
+        connectedAt: string;
+        environment: ServerEnvironment;
+    } {
+        const timestamp = this.getConnectionTimestamp();
+        return {
+            id: this.getClientId(),
+            ip: this.getClientIp(),
+            connectedAt: timestamp ? new Date(timestamp).toLocaleString() : 'Not connected',
+            environment: this.getServerEnvironment()
+        };
+    }
 } 

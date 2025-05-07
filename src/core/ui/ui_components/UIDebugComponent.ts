@@ -13,7 +13,6 @@ export class UIDebugComponent {
     private stateElement: HTMLElement;
     private networkStatusElement: HTMLElement;
     private networkDetailsElement: HTMLElement;
-    private networkErrorElement: HTMLElement;
     private frameTimes: number[] = [];
     private readonly maxSamples = 60;  // Number of frames to average for FPS
     private netClient: NetClient;
@@ -31,7 +30,6 @@ export class UIDebugComponent {
         this.stateElement = document.createElement('div');
         this.networkStatusElement = document.createElement('div');
         this.networkDetailsElement = document.createElement('div');
-        this.networkErrorElement = document.createElement('div');
         
         // Style and append elements to the document
         this.setupElements();
@@ -59,7 +57,6 @@ export class UIDebugComponent {
         this.stateElement.style.cssText = styleText;
         this.networkStatusElement.style.cssText = styleText;
         this.networkDetailsElement.style.cssText = styleText;
-        this.networkErrorElement.style.cssText = styleText;
         
         let top = 0;
         this.positionElement.style.top = `${top}px`;
@@ -68,8 +65,7 @@ export class UIDebugComponent {
         this.stateElement.style.top = `${top + 60}px`;
         this.fpsElement.style.top = `${top + 80}px`;
         this.networkStatusElement.style.top = `${top + 100}px`;
-        this.networkDetailsElement.style.top = `${top + 120}px`;
-        this.networkErrorElement.style.top = `${top + 140}px`;
+        this.networkDetailsElement.style.top = `${top + 120}px`; // One line below network status
 
         document.body.appendChild(this.positionElement);
         document.body.appendChild(this.velocityElement);
@@ -78,7 +74,6 @@ export class UIDebugComponent {
         document.body.appendChild(this.cameraRotationElement);
         document.body.appendChild(this.networkStatusElement);
         document.body.appendChild(this.networkDetailsElement);
-        document.body.appendChild(this.networkErrorElement);
     }
 
     public update(deltaTime: number) {
@@ -165,39 +160,21 @@ export class UIDebugComponent {
         // Display basic connection status with colored indicator
         this.networkStatusElement.innerHTML = `Server: ${connectionState} <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background-color:${statusColor};"></span>`;
         
-        // Display additional connection details
-        let detailsText = "";
-        
-        // Only show details for certain states
-        if (connectionState === ConnectionState.RECONNECTING) {
-            const attempts = this.netClient.getReconnectAttempts();
-            detailsText = `Reconnect Attempts: ${attempts}`;
-        } else if (connectionState.includes('Disconnected') && connectionState !== ConnectionState.DISCONNECTED) {
-            const reason = this.netClient.getDisconnectReason();
-            detailsText = `Reason: ${reason}`;
-        }
-        
-        this.networkDetailsElement.textContent = detailsText;
-        
         // Display error information if available
         const lastError = this.netClient.getLastError();
         if (lastError) {
-            const errorHistory = this.netClient.getErrorHistory();
-            let errorText = this.netClient.getFormattedErrorMessage();
-            
-            // Add error history if available
-            if (errorHistory.length > 1) {
-                errorText += '\nRecent errors:';
-                errorHistory.slice(1).forEach(error => {
-                    const time = new Date(error.timestamp).toLocaleTimeString();
-                    errorText += `\n[${time}] ${error.type.toUpperCase()}: ${error.message}${error.code ? ` (Code: ${error.code})` : ''}`;
-                });
-            }
-            
-            this.networkErrorElement.textContent = errorText;
-            this.networkErrorElement.style.display = 'block';
+            const errorText = this.netClient.getFormattedErrorMessage();
+            this.networkDetailsElement.textContent = errorText;
+            this.networkDetailsElement.style.display = 'block';
         } else {
-            this.networkErrorElement.style.display = 'none';
+            // Show reconnection attempts if reconnecting
+            if (connectionState === ConnectionState.RECONNECTING) {
+                const attempts = this.netClient.getReconnectAttempts();
+                this.networkDetailsElement.textContent = `Attempt ${attempts}`;
+                this.networkDetailsElement.style.display = 'block';
+            } else {
+                this.networkDetailsElement.style.display = 'none';
+            }
         }
     }
 }

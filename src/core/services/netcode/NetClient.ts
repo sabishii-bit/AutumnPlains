@@ -47,11 +47,24 @@ export class NetClient {
     private lastError: ConnectionError | null = null;
     private errorHistory: ConnectionError[] = [];
     private readonly maxErrorHistory = 5;
+    private visibilityChangeHandler: (() => void) | null = null;
+    private wakeLock: WakeLockSentinel | null = null;
+    private lastActivityTimestamp: number = Date.now();
+    private readonly activityTimeout = 30000; // 30 seconds
+    private activityCheckInterval: NodeJS.Timeout | null = null;
+    private clientId: string = '';
+    private clientIp: string = '';
+    private isLocalConnection: boolean = false;
+    private publicIp: string = '';
+    private connectionTimestamp: number = 0;
     
     /**
      * Private constructor - use getInstance() instead
      */
-    private constructor() {}
+    private constructor() {
+        this.setupVisibilityHandling();
+        this.setupActivityMonitoring();
+    }
     
     /**
      * Get the singleton instance of NetClient
@@ -101,6 +114,7 @@ export class NetClient {
                     this.reconnectAttempts = 0;
                     this.connectionState = ConnectionState.CONNECTED;
                     this.lastError = null; // Clear any previous errors
+                    this.lastActivityTimestamp = Date.now(); // Reset activity timestamp
                     console.log('Connected to server successfully');
                     resolve();
                 };
@@ -214,20 +228,7 @@ export class NetClient {
                 };
                 
                 // Handle incoming messages
-                this.socket.onmessage = (event) => {
-                    try {
-                        const message = JSON.parse(event.data);
-                        // Handle different message events here
-                        console.log('Received message:', message);
-                    } catch (error) {
-                        console.error('Error parsing message:', error);
-                        this.handleConnectionFailure({
-                            type: 'network',
-                            message: 'Failed to parse server message',
-                            timestamp: Date.now()
-                        });
-                    }
-                };
+                this.socket.onmessage = this.handleSocketMessage.bind(this);
             } catch (error) {
                 this.handleConnectionFailure({
                     type: 'unknown',
@@ -273,6 +274,12 @@ export class NetClient {
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
             this.reconnectTimeout = null;
+        }
+
+        // Clear activity check interval
+        if (this.activityCheckInterval) {
+            clearInterval(this.activityCheckInterval);
+            this.activityCheckInterval = null;
         }
     }
     
@@ -379,6 +386,22 @@ export class NetClient {
         this.connectionState = ConnectionState.DISCONNECTED_BY_CLIENT;
         this.cleanupConnection();
         this.connected = false;
+        
+        // Release wake lock
+        if (this.wakeLock) {
+            this.wakeLock.release()
+                .then(() => {
+                    console.log('Wake lock released');
+                    this.wakeLock = null;
+                })
+                .catch(err => console.warn('Error releasing wake lock:', err));
+        }
+
+        // Remove visibility change handler
+        if (this.visibilityChangeHandler) {
+            document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+            this.visibilityChangeHandler = null;
+        }
     }
     
     /**
@@ -454,5 +477,189 @@ export class NetClient {
      */
     public setMaxReconnectAttempts(attempts: number): void {
         this.maxReconnectAttempts = attempts;
+    }
+
+    private setupVisibilityHandling(): void {
+        // Handle tab visibility changes
+        this.visibilityChangeHandler = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('Tab became visible, checking connection...');
+                this.handleVisibilityChange();
+            }
+        };
+        document.addEventListener('visibilitychange', this.visibilityChangeHandler);
+
+        // Request wake lock to prevent device sleep
+        this.requestWakeLock();
+    }
+
+    private async requestWakeLock(): Promise<void> {
+        try {
+            if ('wakeLock' in navigator) {
+                this.wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake lock acquired');
+            }
+        } catch (err) {
+            console.warn('Wake lock request failed:', err);
+        }
+    }
+
+    private setupActivityMonitoring(): void {
+        // Monitor user activity
+        const activityEvents = ['mousedown', 'keydown', 'touchstart', 'mousemove'];
+        activityEvents.forEach(event => {
+            document.addEventListener(event, () => {
+                this.lastActivityTimestamp = Date.now();
+            });
+        });
+
+        // Check for inactivity
+        this.activityCheckInterval = setInterval(() => {
+            const now = Date.now();
+            if (now - this.lastActivityTimestamp > this.activityTimeout) {
+                console.log('User inactive, checking connection...');
+                this.handleInactivity();
+            }
+        }, 5000); // Check every 5 seconds
+    }
+
+    private handleVisibilityChange(): void {
+        if (!this.connected && this.shouldAutoReconnect) {
+            console.log('Tab became visible, attempting to reconnect...');
+            this.reconnectAttempts = 0; // Reset attempts for fresh start
+            this.attemptReconnect();
+        } else if (this.connected) {
+            // Verify connection is still alive
+            this.verifyConnection();
+        }
+    }
+
+    private handleInactivity(): void {
+        if (this.connected) {
+            // If we've been inactive, verify the connection
+            this.verifyConnection();
+        }
+    }
+
+    private verifyConnection(): void {
+        if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+            console.log('Connection appears to be dead, attempting to reconnect...');
+            this.handleConnectionFailure({
+                type: 'network',
+                message: 'Connection lost during inactivity',
+                timestamp: Date.now()
+            });
+            this.attemptReconnect();
+        }
+    }
+
+    /**
+     * Socket message handler
+     */
+    private handleSocketMessage(event: MessageEvent): void {
+        try {
+            const message = JSON.parse(event.data);
+            
+            // Handle connection confirmation
+            if (message.event === 'connected') {
+                this.clientId = message.data.id;
+                this.clientIp = message.data.ip;
+                this.isLocalConnection = message.data.isLocal;
+                this.connectionTimestamp = message.data.timestamp;
+                console.log(`Server confirmed connection - Client ID: ${this.clientId}, IP: ${this.clientIp}`);
+                
+                // If local connection, try to get public IP
+                if (this.isLocalConnection) {
+                    this.getPublicIp().then(ip => {
+                        if (ip) {
+                            this.publicIp = ip;
+                            console.log(`Detected public IP: ${this.publicIp}`);
+                            // Send public IP to server
+                            this.send('client_info', { publicIp: this.publicIp });
+                        }
+                    });
+                }
+            }
+            
+            console.log('Received message:', message);
+        } catch (error) {
+            console.error('Error parsing message:', error);
+            this.handleConnectionFailure({
+                type: 'network',
+                message: 'Failed to parse server message',
+                timestamp: Date.now()
+            });
+        }
+    }
+
+    /**
+     * Get public IP address using a third-party service
+     */
+    private async getPublicIp(): Promise<string> {
+        try {
+            // Try multiple IP services for reliability
+            const services = [
+                'https://api.ipify.org?format=json',
+                'https://api.ip.sb/jsonip',
+                'https://api.myip.com'
+            ];
+            
+            // Try each service until we get a response
+            for (const service of services) {
+                try {
+                    const response = await fetch(service);
+                    if (response.ok) {
+                        const data = await response.json();
+                        // Different services use different field names
+                        return data.ip || data.ipAddress || '';
+                    }
+                } catch (e) {
+                    console.warn(`Failed to get IP from ${service}:`, e);
+                    // Continue to next service
+                }
+            }
+            
+            console.warn('Could not determine public IP from any service');
+            return '';
+        } catch (error) {
+            console.error('Error getting public IP:', error);
+            return '';
+        }
+    }
+
+    /**
+     * Get the client's assigned ID from the server
+     */
+    public getClientId(): string {
+        return this.clientId;
+    }
+
+    /**
+     * Get the client's IP address as seen by the server
+     */
+    public getClientIp(): string {
+        // Return public IP if available, otherwise return the IP from the server
+        return this.publicIp || this.clientIp;
+    }
+
+    /**
+     * Check if this is a local connection
+     */
+    public isLocalIp(): boolean {
+        return this.isLocalConnection;
+    }
+
+    /**
+     * Get the client's public IP if detected
+     */
+    public getPublicClientIp(): string {
+        return this.publicIp;
+    }
+
+    /**
+     * Get the timestamp when the connection was established
+     */
+    public getConnectionTimestamp(): number {
+        return this.connectionTimestamp;
     }
 }
