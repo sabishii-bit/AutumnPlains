@@ -13,6 +13,7 @@ export class UIDebugComponent {
     private stateElement: HTMLElement;
     private networkStatusElement: HTMLElement;
     private networkDetailsElement: HTMLElement;
+    private networkErrorElement: HTMLElement;
     private frameTimes: number[] = [];
     private readonly maxSamples = 60;  // Number of frames to average for FPS
     private netClient: NetClient;
@@ -30,6 +31,7 @@ export class UIDebugComponent {
         this.stateElement = document.createElement('div');
         this.networkStatusElement = document.createElement('div');
         this.networkDetailsElement = document.createElement('div');
+        this.networkErrorElement = document.createElement('div');
         
         // Style and append elements to the document
         this.setupElements();
@@ -57,6 +59,7 @@ export class UIDebugComponent {
         this.stateElement.style.cssText = styleText;
         this.networkStatusElement.style.cssText = styleText;
         this.networkDetailsElement.style.cssText = styleText;
+        this.networkErrorElement.style.cssText = styleText;
         
         let top = 0;
         this.positionElement.style.top = `${top}px`;
@@ -66,6 +69,7 @@ export class UIDebugComponent {
         this.fpsElement.style.top = `${top + 80}px`;
         this.networkStatusElement.style.top = `${top + 100}px`;
         this.networkDetailsElement.style.top = `${top + 120}px`;
+        this.networkErrorElement.style.top = `${top + 140}px`;
 
         document.body.appendChild(this.positionElement);
         document.body.appendChild(this.velocityElement);
@@ -74,6 +78,7 @@ export class UIDebugComponent {
         document.body.appendChild(this.cameraRotationElement);
         document.body.appendChild(this.networkStatusElement);
         document.body.appendChild(this.networkDetailsElement);
+        document.body.appendChild(this.networkErrorElement);
     }
 
     public update(deltaTime: number) {
@@ -173,5 +178,26 @@ export class UIDebugComponent {
         }
         
         this.networkDetailsElement.textContent = detailsText;
+        
+        // Display error information if available
+        const lastError = this.netClient.getLastError();
+        if (lastError) {
+            const errorHistory = this.netClient.getErrorHistory();
+            let errorText = this.netClient.getFormattedErrorMessage();
+            
+            // Add error history if available
+            if (errorHistory.length > 1) {
+                errorText += '\nRecent errors:';
+                errorHistory.slice(1).forEach(error => {
+                    const time = new Date(error.timestamp).toLocaleTimeString();
+                    errorText += `\n[${time}] ${error.type.toUpperCase()}: ${error.message}${error.code ? ` (Code: ${error.code})` : ''}`;
+                });
+            }
+            
+            this.networkErrorElement.textContent = errorText;
+            this.networkErrorElement.style.display = 'block';
+        } else {
+            this.networkErrorElement.style.display = 'none';
+        }
     }
 }
