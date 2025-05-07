@@ -1,14 +1,20 @@
-version: '3.8'
+version: '3'
 
 services:
   autumnplains-server:
+    container_name: autumnplains-server
     build:
       context: .
       dockerfile: Dockerfile
-    image: autumnplains-server
-    container_name: autumnplains-server
     restart: unless-stopped
     ports:
       - "4733:4733"
+    networks:
+      - autumn_network
     environment:
+      - NODE_ENV=production
       - PORT=4733
+
+networks:
+  autumn_network:
+    driver: bridge
