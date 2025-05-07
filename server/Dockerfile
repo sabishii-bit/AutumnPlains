@@ -1,22 +1,20 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Create app directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json
-COPY package*.json ./
-
 # Install dependencies
+COPY package*.json ./
 RUN npm install
 
-# Copy source code
+# Copy source files
 COPY . .
 
-# Build TypeScript code
+# Compile TypeScript
 RUN npm run build
 
-# Expose the port the app runs on
+# Expose WebSocket/HTTP port
 EXPOSE 4733
 
-# Run the server
-CMD ["npm", "start"] 
+# Run the compiled server
+CMD ["npm", "start"]
