@@ -48,6 +48,11 @@ export class UIDebugComponent {
                 1px 1px 0 #000;
             z-index: 1000;
             pointer-events: none;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            touch-action: none;
         `;
         
         document.body.appendChild(this.debugContainer);
