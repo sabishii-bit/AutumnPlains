@@ -1,12 +1,15 @@
 import { GameClient, GameMessage } from '../types/GameClient';
 import { ConnectionManager } from './ConnectionManager';
 import { NetworkUtils } from '../utils/NetworkUtils';
+import { Logger } from '../utils/Logger';
 
 export class MessageManager {
   private connectionManager: ConnectionManager;
+  private logger: Logger;
 
   constructor(connectionManager: ConnectionManager) {
     this.connectionManager = connectionManager;
+    this.logger = Logger.getInstance();
   }
 
   public setupMessageListeners(client: GameClient): void {
@@ -15,7 +18,7 @@ export class MessageManager {
         const parsedMessage = JSON.parse(message.toString()) as GameMessage;
         this.processMessage(client, parsedMessage);
       } catch (error) {
-        console.error('Error parsing message:', error);
+        this.logger.error('Error parsing message:', error);
       }
     });
   }
@@ -26,9 +29,9 @@ export class MessageManager {
 
     // Log received message with appropriate details
     if (isInternal) {
-      console.log(`Received message from ${clientId} (Internal):`, message);
+      this.logger.debug(`Received message from ${clientId} (Internal):`, message);
     } else {
-      console.log(`Received message from ${clientId} (IP: ${client.ip}):`, message);
+      this.logger.debug(`Received message from ${clientId} (IP: ${client.ip}):`, message);
     }
 
     // Handle different message types
@@ -40,7 +43,7 @@ export class MessageManager {
         this.handleClientInfo(client, message);
         break;
       default:
-        console.log(`Unhandled message event: ${message.event}`);
+        this.logger.warn(`Unhandled message event: ${message.event}`);
     }
   }
 
@@ -62,7 +65,7 @@ export class MessageManager {
       client.publicIp = publicIp;
       
       // Update logs with public IP for better tracking
-      console.log(`Client ${client.id} identified as public IP: ${publicIp}`);
+      this.logger.info(`Client ${client.id} identified as public IP: ${publicIp}`);
       
       // Send acknowledgment
       client.send(JSON.stringify({

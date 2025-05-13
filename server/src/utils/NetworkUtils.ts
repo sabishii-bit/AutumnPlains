@@ -1,6 +1,8 @@
 import type { IncomingMessage } from 'http';
+import { Logger } from './Logger';
 
 export class NetworkUtils {
+  private static readonly logger = Logger.getInstance();
   private static readonly dockerNetworkPrefixes = [
     '172.',
     '10.',
@@ -16,7 +18,7 @@ export class NetworkUtils {
    */
   public static getClientIp(req: IncomingMessage): string {
     // Debug headers to help diagnose connection issues
-    console.log("Connection headers:", JSON.stringify(req.headers, null, 2));
+    this.logger.debug("Connection headers:", JSON.stringify(req.headers, null, 2));
     
     // Try to get IP from various headers in order of preference
     const headers = [
@@ -37,7 +39,7 @@ export class NetworkUtils {
         const ip = Array.isArray(value) ? value[0] : value;
         // Split on comma and get first IP (in case of multiple)
         const firstIp = ip.split(',')[0].trim();
-        console.log(`Found IP in ${header}:`, firstIp);
+        this.logger.debug(`Found IP in ${header}:`, firstIp);
         return firstIp;
       }
     }

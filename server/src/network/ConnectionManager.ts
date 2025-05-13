@@ -4,15 +4,18 @@ import type { IncomingMessage } from 'http';
 import { GameClient, ClientInfo } from '../types/GameClient';
 import { NetworkUtils } from '../utils/NetworkUtils';
 import { MessageManager } from './MessageManager';
+import { Logger } from '../utils/Logger';
 
 export class ConnectionManager {
   private wss: WebSocketServer;
   private clients: Map<string, GameClient>;
   private messageManager: MessageManager | null = null;
+  private logger: Logger;
 
   constructor(httpServer: HTTPServer) {
     this.wss = new WebSocketServer({ server: httpServer });
     this.clients = new Map<string, GameClient>();
+    this.logger = Logger.getInstance();
     this.setupConnectionListeners();
   }
 
@@ -38,9 +41,9 @@ export class ConnectionManager {
 
       // Log connection with IP only if not internal
       if (isInternal) {
-        console.log(`Client connected: ${clientId} (Internal Connection)`);
+        this.logger.info(`Client connected: ${clientId} (Internal Connection)`);
       } else {
-        console.log(`Client connected: ${clientId} (IP: ${ws.ip})`);
+        this.logger.info(`Client connected: ${clientId} (IP: ${ws.ip})`);
       }
 
       // Send connection confirmation
@@ -73,18 +76,18 @@ export class ConnectionManager {
   private setupClientEventListeners(ws: GameClient, clientId: string, isInternal: boolean): void {
     ws.on('close', () => {
       if (isInternal) {
-        console.log(`Client disconnected: ${clientId} (Internal Connection)`);
+        this.logger.info(`Client disconnected: ${clientId} (Internal Connection)`);
       } else {
-        console.log(`Client disconnected: ${clientId} (IP: ${ws.ip})`);
+        this.logger.info(`Client disconnected: ${clientId} (IP: ${ws.ip})`);
       }
       this.clients.delete(clientId);
     });
 
-    ws.on('error', (error) => {
+    ws.on('error', (error: any) => {
       if (isInternal) {
-        console.error(`Error with client ${clientId} (Internal):`, error);
+        this.logger.error(`Error with client ${clientId} (Internal):`, error);
       } else {
-        console.error(`Error with client ${clientId} (IP: ${ws.ip}):`, error);
+        this.logger.error(`Error with client ${clientId} (IP: ${ws.ip}):`, error);
       }
       this.clients.delete(clientId);
     });
