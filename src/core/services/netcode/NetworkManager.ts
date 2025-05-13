@@ -163,4 +163,28 @@ export class NetworkManager {
             environment: this.getServerEnvironment()
         };
     }
+    
+    /**
+     * Send a chat message to the server
+     * @param message The message text to send
+     * @returns boolean indicating if the message was sent
+     */
+    public sendChatMessage(message: string): boolean {
+        if (!this.netClient.isConnected()) {
+            console.warn('Cannot send chat message: not connected to server');
+            return false;
+        }
+        
+        if (!message || message.trim() === '') {
+            console.warn('Cannot send empty chat message');
+            return false;
+        }
+        
+        this.netClient.send('chat_message', {
+            message: message.trim(),
+            timestamp: Date.now()
+        });
+        
+        return true;
+    }
 } 

@@ -660,6 +660,21 @@ export class NetClient {
                 }
             }
             
+            // Handle chat messages
+            if (message.event === 'chat_message') {
+                console.log('Received chat message:', message.data);
+                
+                // Dispatch a custom event for chat components to listen to
+                const chatEvent = new CustomEvent('socket_chat_message', {
+                    detail: {
+                        sender: message.data.sender,
+                        message: message.data.message,
+                        timestamp: message.data.timestamp
+                    }
+                });
+                document.dispatchEvent(chatEvent);
+            }
+            
             console.log('Received message:', message);
         } catch (error) {
             console.error('Error parsing message:', error);

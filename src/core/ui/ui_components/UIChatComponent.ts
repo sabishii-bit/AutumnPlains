@@ -1,6 +1,7 @@
 import { NetClient } from '../../services/netcode/NetClient';
 import BaseKeyboardCommand from '../../controls/keyboard_actions/BaseKeyboardCommand';
 import { DeviceDetectionService } from '../../services/device/DeviceDetectionService';
+import { NetworkManager } from '../../services/netcode/NetworkManager';
 
 export class UIChatComponent {
     private static readonly CHAT_WIDTH = 300;
@@ -43,7 +44,7 @@ export class UIChatComponent {
      */
     private constructor() {
         this.netClient = NetClient.getInstance();
-        this.deviceDetectionService = new DeviceDetectionService();
+        this.deviceDetectionService = DeviceDetectionService.getInstance();
         this.isMobileDevice = this.deviceDetectionService.isMobile();
         
         // Create the chat container element
@@ -312,16 +313,13 @@ export class UIChatComponent {
             }
         });
 
-        // If we're using the network client, set up listeners for incoming messages
-        if (this.netClient) {
-            // Listen for chat messages from the server
-            document.addEventListener('socket_chat_message', (event: any) => {
-                if (event.detail) {
-                    const { sender, message } = event.detail;
-                    this.addMessage(sender, message);
-                }
-            });
-        }
+        // Listen for chat messages from the server
+        document.addEventListener('socket_chat_message', (event: any) => {
+            if (event.detail) {
+                const { sender, message, timestamp } = event.detail;
+                this.addMessage(sender, message, timestamp);
+            }
+        });
     }
 
     /**
@@ -394,19 +392,17 @@ export class UIChatComponent {
     private sendMessage() {
         const message = this.inputBox.value.trim();
         if (message) {
-            // Add the message to the local display
-            this.addMessage('You', message);
+            // Use NetworkManager to send the message to the server
+            const networkManager = NetworkManager.getInstance();
+            const sent = networkManager.sendChatMessage(message);
             
-            // If network client is connected, send the message to the server
-            if (this.netClient && this.netClient.isConnected()) {
-                this.netClient.send('chat_message', { 
-                    message,
-                    timestamp: Date.now()
-                });
+            if (sent) {
+                // Clear the input box only if message was sent
+                this.inputBox.value = '';
+            } else {
+                // If message couldn't be sent, show an error
+                this.addMessage('System', 'Failed to send message: not connected to server', Date.now());
             }
-            
-            // Clear the input box
-            this.inputBox.value = '';
         }
     }
 
@@ -414,13 +410,14 @@ export class UIChatComponent {
      * Add a message to the chat display
      * @param sender The name of the message sender
      * @param text The message text
+     * @param timestamp Optional timestamp for the message
      */
-    public addMessage(sender: string, text: string) {
+    public addMessage(sender: string, text: string, timestamp: number = Date.now()) {
         // Still store messages even on mobile, but don't update the display
         this.messages.unshift({
             sender,
             text,
-            timestamp: Date.now()
+            timestamp
         });
         
         // Limit the number of messages
@@ -452,14 +449,48 @@ export class UIChatComponent {
             const time = new Date(msg.timestamp);
             const timeStr = `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
             
+            // Determine color based on sender
+            let senderColor = '#88f'; // Default blue for normal users
+            
+            if (msg.sender === 'System') {
+                senderColor = '#f55'; // Red for system messages
+            } else if (msg.sender === 'You') {
+                senderColor = '#5f5'; // Green for the user's own messages
+            } else if (msg.sender.startsWith('Client')) {
+                // Generate a consistent color based on the client ID
+                // This ensures the same client always gets the same color
+                const clientId = msg.sender;
+                senderColor = this.getClientColor(clientId);
+            }
+            
             messageElement.innerHTML = `
                 <span style="color: #aaa;">[${timeStr}]</span> 
-                <span style="color: #88f; font-weight: bold;">${msg.sender}:</span> 
+                <span style="color: ${senderColor}; font-weight: bold;">${msg.sender}:</span> 
                 ${msg.text}
             `;
             
             this.messageDisplay.appendChild(messageElement);
         });
+    }
+
+    /**
+     * Generate a consistent color for a client based on their ID
+     * @param clientId The client identifier
+     * @returns A CSS color string
+     */
+    private getClientColor(clientId: string): string {
+        // Simple hash function to convert clientId to a number
+        let hash = 0;
+        for (let i = 0; i < clientId.length; i++) {
+            hash = clientId.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        
+        // Generate colors in the blue-purple-cyan range to differentiate from system/self
+        const h = Math.abs(hash) % 180 + 180; // Hue between 180-360 (cyan to blue to purple)
+        const s = 70 + (Math.abs(hash) % 30); // Saturation between 70-100%
+        const l = 45 + (Math.abs(hash) % 20); // Lightness between 45-65%
+        
+        return `hsl(${h}, ${s}%, ${l}%)`;
     }
 
     /**

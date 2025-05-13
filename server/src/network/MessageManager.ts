@@ -2,14 +2,17 @@ import { GameClient, GameMessage } from '../types/GameClient';
 import { ConnectionManager } from './ConnectionManager';
 import { NetworkUtils } from '../utils/NetworkUtils';
 import { Logger } from '../utils/Logger';
+import { ChatBroadcast } from '../system/ChatBroadcast';
 
 export class MessageManager {
   private connectionManager: ConnectionManager;
   private logger: Logger;
+  private chatBroadcast: ChatBroadcast;
 
-  constructor(connectionManager: ConnectionManager) {
+  constructor(connectionManager: ConnectionManager, chatBroadcast: ChatBroadcast) {
     this.connectionManager = connectionManager;
     this.logger = Logger.getInstance();
+    this.chatBroadcast = chatBroadcast;
   }
 
   public setupMessageListeners(client: GameClient): void {
@@ -41,6 +44,9 @@ export class MessageManager {
         break;
       case 'client_info':
         this.handleClientInfo(client, message);
+        break;
+      case 'chat_message':
+        this.chatBroadcast.handleChatMessage(client, message);
         break;
       default:
         this.logger.warn(`Unhandled message event: ${message.event}`);

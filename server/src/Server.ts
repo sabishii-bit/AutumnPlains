@@ -3,6 +3,7 @@ import { GameClient } from './types/GameClient';
 import { ConnectionManager } from './network/ConnectionManager';
 import { MessageManager } from './network/MessageManager';
 import { Logger, LogLevel } from './utils/Logger';
+import { ChatBroadcast } from './system/ChatBroadcast';
 
 /**
  * GameServer - Main server class using modular components
@@ -10,6 +11,7 @@ import { Logger, LogLevel } from './utils/Logger';
 export class GameServer {
   private connectionManager: ConnectionManager;
   private messageManager: MessageManager;
+  private chatBroadcast: ChatBroadcast;
   private logger: Logger;
 
   /**
@@ -35,13 +37,30 @@ export class GameServer {
     // Initialize connection manager
     this.connectionManager = new ConnectionManager(httpServer);
     
-    // Initialize message manager with connection manager reference
-    this.messageManager = new MessageManager(this.connectionManager);
+    // Initialize chat broadcast with connection manager reference
+    this.chatBroadcast = new ChatBroadcast(this.connectionManager);
     
-    // Link the connection manager with the message manager
+    // Initialize message manager with connection manager and chat broadcast references
+    this.messageManager = new MessageManager(this.connectionManager, this.chatBroadcast);
+    
+    // Connect the components
     this.connectionManager.setMessageManager(this.messageManager);
+    this.connectionManager.setChatBroadcast(this.chatBroadcast);
     
     this.logger.info('WebSocket server initialized on shared HTTP server');
+
+    // Send welcome message
+    this.sendWelcomeMessage();
+  }
+
+  /**
+   * Send a welcome message to all clients
+   */
+  private sendWelcomeMessage(): void {
+    // Short delay to let clients connect
+    setTimeout(() => {
+      this.chatBroadcast.sendSystemMessage('🌟 Welcome to Autumn Plains! You can chat with other connected players here.');
+    }, 1500); // Slightly longer delay to ensure it appears after connection messages
   }
 
   /**
@@ -59,10 +78,19 @@ export class GameServer {
   }
   
   /**
+   * Send a system message to all connected clients
+   * @param message The message to broadcast
+   */
+  public broadcastSystemMessage(message: string): void {
+    this.chatBroadcast.sendSystemMessage(message);
+  }
+  
+  /**
    * Clean shutdown - close logger and other resources
    */
   public shutdown(): void {
     this.logger.info('Server shutting down...');
+    this.broadcastSystemMessage('Server is shutting down...');
     this.logger.close();
   }
 }

@@ -5,11 +5,13 @@ import { GameClient, ClientInfo } from '../types/GameClient';
 import { NetworkUtils } from '../utils/NetworkUtils';
 import { MessageManager } from './MessageManager';
 import { Logger } from '../utils/Logger';
+import { ChatBroadcast } from '../system/ChatBroadcast';
 
 export class ConnectionManager {
   private wss: WebSocketServer;
   private clients: Map<string, GameClient>;
   private messageManager: MessageManager | null = null;
+  private chatBroadcast: ChatBroadcast | null = null;
   private logger: Logger;
 
   constructor(httpServer: HTTPServer) {
@@ -21,6 +23,10 @@ export class ConnectionManager {
 
   public setMessageManager(messageManager: MessageManager): void {
     this.messageManager = messageManager;
+  }
+
+  public setChatBroadcast(chatBroadcast: ChatBroadcast): void {
+    this.chatBroadcast = chatBroadcast;
   }
 
   private setupConnectionListeners(): void {
@@ -56,6 +62,17 @@ export class ConnectionManager {
       if (this.messageManager) {
         this.messageManager.setupMessageListeners(ws);
       }
+
+      // Broadcast a connection notification after a short delay
+      setTimeout(() => {
+        if (this.chatBroadcast) {
+          // Send the connection message to everyone except the connecting client
+          this.chatBroadcast.sendSystemMessageToAllExcept(
+            `Client ${clientId} has connected.`,
+            clientId
+          );
+        }
+      }, 500);
     });
   }
 
@@ -80,7 +97,18 @@ export class ConnectionManager {
       } else {
         this.logger.info(`Client disconnected: ${clientId} (IP: ${ws.ip})`);
       }
+      
+      // Remove client from the map
       this.clients.delete(clientId);
+      
+      // Broadcast a disconnect notification
+      if (this.chatBroadcast) {
+        // Send the disconnection message to everyone except the disconnecting client
+        this.chatBroadcast.sendSystemMessageToAllExcept(
+          `Client ${clientId} has disconnected.`,
+          clientId
+        );
+      }
     });
 
     ws.on('error', (error: any) => {
@@ -89,6 +117,8 @@ export class ConnectionManager {
       } else {
         this.logger.error(`Error with client ${clientId} (IP: ${ws.ip}):`, error);
       }
+      
+      // Remove client from the map
       this.clients.delete(clientId);
     });
   }
