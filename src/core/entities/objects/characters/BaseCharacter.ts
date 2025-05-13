@@ -350,7 +350,6 @@ export abstract class BaseCharacter extends GameObject {
                         if (!wasGrounded && this.isOnGround) {
                             this.lastCollisionTime = now;
                             this.stabilizeOnGround();
-                            console.log(`Character landed on object: ${hitObjectName}`);
                         }
                     }
                 }
@@ -363,7 +362,6 @@ export abstract class BaseCharacter extends GameObject {
                     this.lastCollisionTime = performance.now();
                     this.stabilizeOnGround();
                     this.isOnGround = true;
-                    console.log("Character landed (detected via velocity change)");
                 }
                 
                 // Store for next frame
@@ -420,7 +418,6 @@ export abstract class BaseCharacter extends GameObject {
                 this.isOnGround = true;
                 this.lastCollisionTime = performance.now();
                 this.stabilizeOnGround();
-                console.log("Character landed (detected via contact test)");
             }
             
             // Clean up
