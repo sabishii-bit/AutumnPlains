@@ -2,6 +2,7 @@ import { NetClient } from '../../services/netcode/NetClient';
 import BaseKeyboardCommand from '../../controls/keyboard_actions/BaseKeyboardCommand';
 import { DeviceDetectionService } from '../../services/device/DeviceDetectionService';
 import { NetworkManager } from '../../services/netcode/NetworkManager';
+import { ConsoleCommandManager } from './console/ConsoleCommandManager';
 
 export class UIChatComponent {
     private static readonly CHAT_WIDTH = 300;
@@ -28,6 +29,7 @@ export class UIChatComponent {
     private netClient: NetClient;
     private deviceDetectionService: DeviceDetectionService;
     private isMobileDevice: boolean = false;
+    private consoleCommandManager: ConsoleCommandManager;
 
     /**
      * Get the singleton instance of UIChatComponent
@@ -46,6 +48,10 @@ export class UIChatComponent {
         this.netClient = NetClient.getInstance();
         this.deviceDetectionService = DeviceDetectionService.getInstance();
         this.isMobileDevice = this.deviceDetectionService.isMobile();
+        this.consoleCommandManager = ConsoleCommandManager.getInstance();
+        
+        // Initialize console commands
+        this.consoleCommandManager.initialize();
         
         // Create the chat container element
         this.chatContainer = document.createElement('div');
@@ -389,9 +395,30 @@ export class UIChatComponent {
         }
     }
 
-    private sendMessage() {
+    private async sendMessage() {
         const message = this.inputBox.value.trim();
         if (message) {
+            // Check if this is a console command
+            if (message.startsWith('$')) {
+                const { wasCommand, result } = await this.consoleCommandManager.handlePotentialCommand(message);
+                
+                if (wasCommand) {
+                    // Clear the input box
+                    this.inputBox.value = '';
+                    
+                    // Display the command result if there is one
+                    if (result) {
+                        this.addMessage('System', result);
+                    }
+                    
+                    // Make chat lose focus and fade out
+                    this.toggleChat(false);
+                    
+                    return;
+                }
+                // If not a recognized command, continue as normal message
+            }
+            
             // Use NetworkManager to send the message to the server
             const networkManager = NetworkManager.getInstance();
             const sent = networkManager.sendChatMessage(message);
@@ -399,6 +426,9 @@ export class UIChatComponent {
             if (sent) {
                 // Clear the input box only if message was sent
                 this.inputBox.value = '';
+                
+                // Make chat lose focus and fade out
+                this.toggleChat(false);
             } else {
                 // If message couldn't be sent, show an error
                 this.addMessage('System', 'Failed to send message: not connected to server', Date.now());
@@ -556,5 +586,18 @@ export class UIChatComponent {
      */
     public isOnMobileDevice(): boolean {
         return this.isMobileDevice;
+    }
+
+    /**
+     * Clear all messages from the chat
+     */
+    public clearMessages(): void {
+        // Clear the messages array
+        this.messages = [];
+        
+        // Update the display if not on mobile
+        if (!this.isMobileDevice) {
+            this.updateMessageDisplay();
+        }
     }
 } 
