@@ -168,7 +168,7 @@ export class UIChatComponent {
         document.body.appendChild(this.chatContainer);
 
         // Add some welcome messages
-        this.addMessage('System', 'Welcome :^)');
+        this.addMessage('System', 'Welcome to the server :^)');
         this.addMessage('System', 'Press Enter to toggle chat.');
     }
 
