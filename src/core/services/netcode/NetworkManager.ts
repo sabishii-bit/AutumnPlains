@@ -1,4 +1,7 @@
 import { NetClient } from './NetClient';
+import { PlayerSynchronizer } from './PlayerSynchronizer';
+import { NetworkObjectManager } from './NetworkObjectManager';
+import { PlayerCharacter } from '../../entities/objects/characters/PlayerCharacter';
 
 /**
  * Environment configuration for server connection
@@ -14,6 +17,8 @@ export enum ServerEnvironment {
 export class NetworkManager {
     private static instance: NetworkManager;
     private netClient: NetClient;
+    private playerSynchronizer: PlayerSynchronizer;
+    private networkObjectManager: NetworkObjectManager;
     
     // Server connection configuration
     private serverConfig = {
@@ -26,6 +31,8 @@ export class NetworkManager {
      */
     private constructor() {
         this.netClient = NetClient.getInstance();
+        this.playerSynchronizer = PlayerSynchronizer.getInstance();
+        this.networkObjectManager = NetworkObjectManager.getInstance();
     }
     
     /**
@@ -71,6 +78,9 @@ export class NetworkManager {
         
         console.log(`Connecting to ${environment} server at: ${serverUrl}`);
         
+        // Initialize network object manager
+        this.networkObjectManager.initialize();
+        
         // Connect to server
         return this.netClient.connect(serverUrl)
             .then(() => {
@@ -83,9 +93,27 @@ export class NetworkManager {
     }
     
     /**
+     * Initialize the player for network synchronization
+     * @param player The local player character instance
+     */
+    public initializePlayerSync(player: PlayerCharacter): void {
+        if (!player) {
+            console.error('Cannot initialize player sync: player is null');
+            return;
+        }
+        
+        console.log('Initializing player network synchronization');
+        this.playerSynchronizer.initialize(player);
+    }
+    
+    /**
      * Disconnect from the server
      */
     public disconnectFromServer(): void {
+        // Stop player synchronization
+        this.playerSynchronizer.stopSyncInterval();
+        
+        // Disconnect from server
         this.netClient.disconnect();
         console.log("Disconnected from server");
     }
@@ -186,5 +214,45 @@ export class NetworkManager {
         });
         
         return true;
+    }
+    
+    /**
+     * Set the player synchronization interval
+     * @param intervalMs The interval in milliseconds
+     */
+    public setPlayerSyncInterval(intervalMs: number): void {
+        this.playerSynchronizer.setSyncInterval(intervalMs);
+    }
+    
+    /**
+     * Set the position change threshold for player synchronization
+     * @param threshold The position threshold in units
+     */
+    public setPositionSyncThreshold(threshold: number): void {
+        this.playerSynchronizer.setPositionThreshold(threshold);
+    }
+    
+    /**
+     * Set the network player position interpolation factor
+     * @param factor The interpolation factor (0-1)
+     */
+    public setNetworkPlayerInterpolation(factor: number): void {
+        this.networkObjectManager.setInterpolationFactor(factor);
+    }
+    
+    /**
+     * Get player synchronizer instance
+     * @returns PlayerSynchronizer instance
+     */
+    public getPlayerSynchronizer(): PlayerSynchronizer {
+        return this.playerSynchronizer;
+    }
+    
+    /**
+     * Get all network players currently in the game
+     * @returns Map of network player instances by ID
+     */
+    public getNetworkPlayers() {
+        return this.networkObjectManager.getAllNetworkPlayers();
     }
 } 

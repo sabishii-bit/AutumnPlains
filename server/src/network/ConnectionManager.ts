@@ -101,6 +101,18 @@ export class ConnectionManager {
       // Remove client from the map
       this.clients.delete(clientId);
       
+      // Clean up player position data when client disconnects
+      if (this.messageManager) {
+        try {
+          const gameObjectSync = this.messageManager.getGameObjectSync();
+          if (gameObjectSync) {
+            gameObjectSync.removePlayer(clientId);
+          }
+        } catch (error) {
+          this.logger.error(`Error cleaning up player data for ${clientId}:`, error);
+        }
+      }
+      
       // Broadcast a disconnect notification
       if (this.chatBroadcast) {
         // Send the disconnection message to everyone except the disconnecting client
@@ -120,6 +132,18 @@ export class ConnectionManager {
       
       // Remove client from the map
       this.clients.delete(clientId);
+      
+      // Clean up player position data on error
+      if (this.messageManager) {
+        try {
+          const gameObjectSync = this.messageManager.getGameObjectSync();
+          if (gameObjectSync) {
+            gameObjectSync.removePlayer(clientId);
+          }
+        } catch (error) {
+          this.logger.error(`Error cleaning up player data for ${clientId}:`, error);
+        }
+      }
     });
   }
 

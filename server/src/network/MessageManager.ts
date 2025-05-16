@@ -3,16 +3,19 @@ import { ConnectionManager } from './ConnectionManager';
 import { NetworkUtils } from '../utils/NetworkUtils';
 import { Logger } from '../utils/Logger';
 import { ChatBroadcast } from '../system/ChatBroadcast';
+import { GameObjectSync, PlayerPositionData } from '../game/GameObjectSync';
 
 export class MessageManager {
   private connectionManager: ConnectionManager;
   private logger: Logger;
   private chatBroadcast: ChatBroadcast;
+  private gameObjectSync: GameObjectSync;
 
   constructor(connectionManager: ConnectionManager, chatBroadcast: ChatBroadcast) {
     this.connectionManager = connectionManager;
     this.logger = Logger.getInstance();
     this.chatBroadcast = chatBroadcast;
+    this.gameObjectSync = new GameObjectSync(connectionManager);
   }
 
   public setupMessageListeners(client: GameClient): void {
@@ -24,6 +27,9 @@ export class MessageManager {
         this.logger.error('Error parsing message:', error);
       }
     });
+    
+    // Send current player positions to the new client
+    this.gameObjectSync.sendAllPositionsToClient(client.id);
   }
 
   private processMessage(client: GameClient, message: GameMessage): void {
@@ -47,6 +53,9 @@ export class MessageManager {
         break;
       case 'chat_message':
         this.chatBroadcast.handleChatMessage(client, message);
+        break;
+      case 'player_position':
+        this.handlePlayerPosition(client, message);
         break;
       default:
         this.logger.warn(`Unhandled message event: ${message.event}`);
@@ -82,5 +91,50 @@ export class MessageManager {
         }
       }));
     }
+  }
+  
+  /**
+   * Handle player position updates from clients
+   * @param client The client sending the update
+   * @param message The position update message
+   */
+  private handlePlayerPosition(client: GameClient, message: GameMessage): void {
+    if (!message.data) {
+      this.logger.warn(`Received invalid player_position message from ${client.id}`);
+      return;
+    }
+    
+    try {
+      // Validate the message data contains required position information
+      const positionData = message.data as PlayerPositionData;
+      
+      // Ensure minimum required data is present
+      if (!positionData.position || 
+          typeof positionData.position.x !== 'number' ||
+          typeof positionData.position.y !== 'number' ||
+          typeof positionData.position.z !== 'number') {
+        this.logger.warn(`Invalid position data from client ${client.id}`);
+        return;
+      }
+      
+      // Add timestamp if missing
+      if (!positionData.timestamp) {
+        positionData.timestamp = Date.now();
+      }
+      
+      // Update and broadcast the player position
+      this.gameObjectSync.updatePlayerPosition(client.id, positionData);
+      
+    } catch (error) {
+      this.logger.error(`Error processing player position from ${client.id}:`, error);
+    }
+  }
+  
+  /**
+   * Get the GameObjectSync instance
+   * @returns The GameObjectSync instance
+   */
+  public getGameObjectSync(): GameObjectSync {
+    return this.gameObjectSync;
   }
 } 

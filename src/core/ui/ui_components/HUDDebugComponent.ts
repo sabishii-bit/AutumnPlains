@@ -9,7 +9,7 @@ interface DebugElement {
     label?: string;
 }
 
-export class UIDebugComponent {
+export class HUDDebugComponent {
     private player: PlayerCharacter;
     private camera: THREE.Camera;
     private debugContainer: HTMLElement;

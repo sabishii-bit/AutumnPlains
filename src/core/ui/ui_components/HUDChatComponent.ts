@@ -4,7 +4,7 @@ import { DeviceDetectionService } from '../../services/device/DeviceDetectionSer
 import { NetworkManager } from '../../services/netcode/NetworkManager';
 import { ConsoleCommandManager } from './console/ConsoleCommandManager';
 
-export class UIChatComponent {
+export class HUDChatComponent {
     private static readonly CHAT_WIDTH = 300;
     private static readonly CHAT_HEIGHT = 200;
     private static readonly INPUT_HEIGHT = 30;
@@ -17,7 +17,7 @@ export class UIChatComponent {
     private static readonly MAX_MESSAGES = 50;
 
     // Singleton instance
-    private static instance: UIChatComponent | null = null;
+    private static instance: HUDChatComponent | null = null;
 
     private chatContainer: HTMLElement;
     private messageDisplay: HTMLElement;
@@ -34,11 +34,11 @@ export class UIChatComponent {
     /**
      * Get the singleton instance of UIChatComponent
      */
-    public static getInstance(): UIChatComponent {
-        if (!UIChatComponent.instance) {
-            UIChatComponent.instance = new UIChatComponent();
+    public static getInstance(): HUDChatComponent {
+        if (!HUDChatComponent.instance) {
+            HUDChatComponent.instance = new HUDChatComponent();
         }
-        return UIChatComponent.instance;
+        return HUDChatComponent.instance;
     }
 
     /**
@@ -87,15 +87,15 @@ export class UIChatComponent {
             position: absolute;
             bottom: 20px;
             right: 20px;
-            width: ${UIChatComponent.CHAT_WIDTH}px;
-            height: ${UIChatComponent.CHAT_HEIGHT}px;
-            background-color: ${UIChatComponent.INACTIVE_BACKGROUND_COLOR};
-            border-radius: ${UIChatComponent.BORDER_RADIUS}px;
-            color: ${UIChatComponent.FONT_COLOR};
-            font-family: ${UIChatComponent.FONT_FAMILY};
+            width: ${HUDChatComponent.CHAT_WIDTH}px;
+            height: ${HUDChatComponent.CHAT_HEIGHT}px;
+            background-color: ${HUDChatComponent.INACTIVE_BACKGROUND_COLOR};
+            border-radius: ${HUDChatComponent.BORDER_RADIUS}px;
+            color: ${HUDChatComponent.FONT_COLOR};
+            font-family: ${HUDChatComponent.FONT_FAMILY};
             display: flex;
             flex-direction: column;
-            z-index: ${UIChatComponent.Z_INDEX};
+            z-index: ${HUDChatComponent.Z_INDEX};
             overflow: hidden;
             transition: background-color 0.3s ease;
             pointer-events: auto;
@@ -123,7 +123,7 @@ export class UIChatComponent {
         const inputContainer = document.createElement('div');
         inputContainer.style.cssText = `
             display: flex;
-            height: ${UIChatComponent.INPUT_HEIGHT}px;
+            height: ${HUDChatComponent.INPUT_HEIGHT}px;
             border-top: 1px solid rgba(255, 255, 255, 0.2);
         `;
 
@@ -133,8 +133,8 @@ export class UIChatComponent {
             background-color: rgba(0, 0, 0, 0.3);
             border: none;
             padding: 0 10px;
-            color: ${UIChatComponent.FONT_COLOR};
-            font-family: ${UIChatComponent.FONT_FAMILY};
+            color: ${HUDChatComponent.FONT_COLOR};
+            font-family: ${HUDChatComponent.FONT_FAMILY};
             font-size: 14px;
             pointer-events: auto;
             cursor: text;
@@ -146,10 +146,10 @@ export class UIChatComponent {
         this.sendButton.style.cssText = `
             width: 60px;
             background-color: rgba(0, 0, 0, 0.3);
-            color: ${UIChatComponent.FONT_COLOR};
+            color: ${HUDChatComponent.FONT_COLOR};
             border: none;
             border-left: 1px solid rgba(255, 255, 255, 0.2);
-            font-family: ${UIChatComponent.FONT_FAMILY};
+            font-family: ${HUDChatComponent.FONT_FAMILY};
             cursor: pointer;
             pointer-events: auto;
             transition: background-color 0.3s ease;
@@ -363,7 +363,7 @@ export class UIChatComponent {
         // Update visual state
         if (active) {
             // Active state - full opacity
-            this.chatContainer.style.backgroundColor = UIChatComponent.ACTIVE_BACKGROUND_COLOR;
+            this.chatContainer.style.backgroundColor = HUDChatComponent.ACTIVE_BACKGROUND_COLOR;
             this.messageDisplay.style.opacity = '1';
             this.inputBox.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
             this.inputBox.style.boxShadow = 'inset 0 0 3px rgba(255, 255, 255, 0.2)';
@@ -376,7 +376,7 @@ export class UIChatComponent {
             this.chatContainer.style.border = '1px solid rgba(255, 255, 255, 0.3)';
         } else {
             // Inactive state - transparent
-            this.chatContainer.style.backgroundColor = UIChatComponent.INACTIVE_BACKGROUND_COLOR;
+            this.chatContainer.style.backgroundColor = HUDChatComponent.INACTIVE_BACKGROUND_COLOR;
             this.messageDisplay.style.opacity = '0.7';
             this.inputBox.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
             this.inputBox.style.boxShadow = 'none';
@@ -451,7 +451,7 @@ export class UIChatComponent {
         });
         
         // Limit the number of messages
-        if (this.messages.length > UIChatComponent.MAX_MESSAGES) {
+        if (this.messages.length > HUDChatComponent.MAX_MESSAGES) {
             this.messages.pop();
         }
         

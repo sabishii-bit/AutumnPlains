@@ -1,4 +1,4 @@
-export class UICrosshairsComponent {
+export class HUDCrosshairsComponent {
     private static readonly CROSSHAIR_SIZE = 20;  // Size of the crosshair container
     private static readonly LINE_THICKNESS = 1;   // Thickness of the crosshair lines
     private static readonly CROSSHAIR_COLOR = 'gray';  // Color of the crosshair lines
@@ -19,11 +19,11 @@ export class UICrosshairsComponent {
             position: absolute;
             top: 50%;
             left: 50%;
-            width: ${UICrosshairsComponent.CROSSHAIR_SIZE}px;
-            height: ${UICrosshairsComponent.CROSSHAIR_SIZE}px;
+            width: ${HUDCrosshairsComponent.CROSSHAIR_SIZE}px;
+            height: ${HUDCrosshairsComponent.CROSSHAIR_SIZE}px;
             transform: translate(-50%, -50%);
             pointer-events: none;
-            z-index: ${UICrosshairsComponent.Z_INDEX};
+            z-index: ${HUDCrosshairsComponent.Z_INDEX};
         `;
 
         this.crosshairsElement.style.cssText = styleText;
@@ -35,11 +35,11 @@ export class UICrosshairsComponent {
         // Style for the lines
         const lineStyle = `
             position: absolute;
-            background-color: ${UICrosshairsComponent.CROSSHAIR_COLOR};
+            background-color: ${HUDCrosshairsComponent.CROSSHAIR_COLOR};
         `;
 
         verticalLine.style.cssText = `
-            width: ${UICrosshairsComponent.LINE_THICKNESS}px;
+            width: ${HUDCrosshairsComponent.LINE_THICKNESS}px;
             height: 100%;
             top: 0;
             left: 50%;
@@ -49,7 +49,7 @@ export class UICrosshairsComponent {
 
         horizontalLine.style.cssText = `
             width: 100%;
-            height: ${UICrosshairsComponent.LINE_THICKNESS}px;
+            height: ${HUDCrosshairsComponent.LINE_THICKNESS}px;
             left: 0;
             top: 50%;
             transform: translateY(-50%);

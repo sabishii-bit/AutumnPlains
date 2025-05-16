@@ -1,5 +1,5 @@
 import { ConsoleCommand } from '../ConsoleCommand';
-import { UIChatComponent } from '../../UIChatComponent';
+import { HUDChatComponent } from '../../HUDChatComponent';
 import { MobileChatComponent } from '../../../../controls/mobile_components/MobileChatComponent';
 import { DeviceDetectionService } from '../../../../services/device/DeviceDetectionService';
 
@@ -19,7 +19,7 @@ export class ClearCommand implements ConsoleCommand {
       mobileChatComponent.clearMessages();
     } else {
       // Clear desktop chat
-      const chatComponent = UIChatComponent.getInstance();
+      const chatComponent = HUDChatComponent.getInstance();
       chatComponent.clearMessages();
     }
     

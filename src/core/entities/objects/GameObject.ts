@@ -237,6 +237,9 @@ export default abstract class GameObject {
                 return;
             }
             
+            // Update the internal position value to match the physics body
+            this.position.copy(position);
+            
             // Normalize the quaternion to avoid rendering issues
             quaternion.normalize();
             
@@ -249,7 +252,7 @@ export default abstract class GameObject {
             // Clean up transform (memory management for Ammo.js)
             Ammo.destroy(transform);
         } catch (error) {
-            console.error(`Error in syncMeshWithBody for object ${this.objectId}:`, error);
+            console.error('Error syncing mesh with body:', error);
         }
     }
 

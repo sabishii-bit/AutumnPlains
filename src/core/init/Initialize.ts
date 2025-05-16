@@ -9,7 +9,7 @@ import { PlayerCharacter } from '../entities/objects/characters/PlayerCharacter'
 import { ControllerManager } from '../controls/ControllerManager';
 import { GameObjectManager } from '../entities/GameObjectManager';
 import { ParticleSystemManager } from '../effects/ParticleSystemManager';
-import { UIManager } from '../ui/UIManager';
+import { HUDManager } from '../ui/HUDManager';
 import StateManager from '../entities/objects/characters/character_state/StateManager';
 import { ProjectileManager } from '../entities/objects/projectiles/ProjectileManager';
 import { PhysicsSystem } from '../physics/PhysicsSystem';
@@ -27,14 +27,14 @@ export default class Initialize {
     private controls!: ControllerManager;
     private gameObjectManager!: GameObjectManager;
     private particleSystemManager!: ParticleSystemManager;
-    private uiManager!: UIManager;  // Declare UIManager
+    private uiManager!: HUDManager;  // Declare UIManager
     private projectileManager!: ProjectileManager; // Declare ProjectileManager
     private physicsSystem!: PhysicsSystem; // Physics system
     private physicsMaterialsManager!: PhysicsMaterialsManager; // Physics materials manager
-    private networkManager: NetworkManager;
+    private networkManager!: NetworkManager;
 
     constructor() {
-        this.networkManager = NetworkManager.getInstance();
+        // NOTE: Nothing may be called before the init() function has ran.
         this.init();
     }
 
@@ -69,7 +69,7 @@ export default class Initialize {
             this.projectileManager = ProjectileManager.getInstance();
             
             // Initialize UI components
-            this.uiManager = new UIManager();
+            this.uiManager = new HUDManager();
             
             // Finally, initialize player and map components
             this.player = PlayerCharacter.getInstance(new THREE.Vector3(0, 2, 18));
@@ -78,9 +78,15 @@ export default class Initialize {
             this.map = new TestMap(this.renderer);
             
             // Connect to the game server
-            this.networkManager.connectToServer().catch((err: Error) => {
-                console.error('Network connection error during initialization:', err);
-            });
+            this.networkManager = NetworkManager.getInstance();
+            this.networkManager.connectToServer()
+                .then(() => {
+                    // Initialize player synchronization after connected
+                    this.initializeNetworkSync();
+                })
+                .catch((err: Error) => {
+                    console.error('Network connection error during initialization:', err);
+                });
             
             this.animate();
             
@@ -89,6 +95,32 @@ export default class Initialize {
         }
     }
 
+    /**
+     * Initialize network synchronization after player is ready
+     */
+    private initializeNetworkSync(): void {
+        // Initialize player network synchronization
+        if (this.player) {
+            console.log('Setting up player network synchronization');
+            console.log('Initial player position:', this.player.getPosition());
+            
+            this.networkManager.initializePlayerSync(this.player);
+            
+            // Set player sync parameters - use higher rate for testing
+            this.networkManager.setPlayerSyncInterval(50); // 50ms = 20 updates per second for testing
+            this.networkManager.setPositionSyncThreshold(0.01); // Lower threshold to send more updates
+            this.networkManager.setNetworkPlayerInterpolation(0.5); // Faster interpolation for testing
+            
+            // Force an immediate position update (without waiting)
+            console.log('Forcing immediate position sync');
+            const playerSync = this.networkManager.getPlayerSynchronizer();
+            if (playerSync) {
+                playerSync.forceSendUpdate();
+            }
+        } else {
+            console.error('Cannot initialize network sync: player is not initialized');
+        }
+    }
 
     private animate = () => {
         requestAnimationFrame(this.animate);

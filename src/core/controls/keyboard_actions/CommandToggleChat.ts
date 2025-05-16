@@ -1,12 +1,12 @@
 import BaseKeyboardCommand from './BaseKeyboardCommand';
-import { UIChatComponent } from '../../ui/ui_components/UIChatComponent';
+import { HUDChatComponent } from '../../ui/ui_components/HUDChatComponent';
 
 export default class CommandToggleChat extends BaseKeyboardCommand {
-    private chatComponent: UIChatComponent;
+    private chatComponent: HUDChatComponent;
 
     constructor(keyStates: Map<string, boolean>) {
         super(['Enter'], keyStates);
-        this.chatComponent = UIChatComponent.getInstance();
+        this.chatComponent = HUDChatComponent.getInstance();
     }
 
     public execute() {

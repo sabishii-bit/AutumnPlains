@@ -465,6 +465,18 @@ export class NetClient {
      * @returns The current connection state
      */
     public getConnectionState(): ConnectionState {
+        const previousState = this.connectionState;
+        
+        // If state changes, dispatch an event
+        if (this.connectionState !== previousState) {
+            document.dispatchEvent(new CustomEvent('socket_connection_state_change', {
+                detail: {
+                    previousState: previousState,
+                    state: this.connectionState
+                }
+            }));
+        }
+        
         return this.connectionState;
     }
     
@@ -493,6 +505,11 @@ export class NetClient {
         if (!this.socket || !this.connected) {
             console.warn('Cannot send message: not connected to server');
             return;
+        }
+        
+        // Special logging for position messages to debug syncing
+        if (event === 'player_position') {
+            console.log(`Sending player_position message to server:`, data);
         }
         
         const message = JSON.stringify({
@@ -527,16 +544,25 @@ export class NetClient {
         this.maxReconnectAttempts = attempts;
     }
 
+    /**
+     * Set up visibility handling for connection management
+     */
     private setupVisibilityHandling(): void {
-        // Handle tab visibility changes
+        // Clean up any existing handler
+        if (this.visibilityChangeHandler) {
+            document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+            this.visibilityChangeHandler = null;
+        }
+        
         this.visibilityChangeHandler = () => {
-            if (document.visibilityState === 'visible') {
-                console.log('Tab became visible, checking connection...');
-                this.handleVisibilityChange();
-            }
+            this.handleVisibilityChange();
         };
+        
         document.addEventListener('visibilitychange', this.visibilityChangeHandler);
-
+        
+        // Note: We don't need an additional event listener as we've incorporated
+        // the connection state dispatch into handleVisibilityChange
+        
         // Request wake lock to prevent device sleep
         this.requestWakeLock();
     }
@@ -571,6 +597,9 @@ export class NetClient {
         }, 5000); // Check every 5 seconds
     }
 
+    /**
+     * Handle visibility change
+     */
     private handleVisibilityChange(): void {
         if (document.visibilityState === 'visible') {
             // For mobile devices, use the more specialized handler
@@ -585,6 +614,27 @@ export class NetClient {
                 } else if (this.connected) {
                     this.verifyConnection();
                 }
+            }
+            
+            // Dispatch connection state change
+            this.dispatchConnectionStateChange();
+            
+            // Update last activity timestamp
+            this.lastActivityTimestamp = Date.now();
+            
+            // Request wake lock to keep device awake
+            if ('wakeLock' in navigator) {
+                this.requestWakeLock();
+            }
+        } else {
+            console.log('Tab became hidden');
+            
+            // Release wake lock when tab is hidden
+            if (this.wakeLock) {
+                this.wakeLock.release().then(() => {
+                    this.wakeLock = null;
+                    console.log('Wake Lock released');
+                });
             }
         }
     }
@@ -674,6 +724,36 @@ export class NetClient {
                 });
                 document.dispatchEvent(chatEvent);
             }
+            
+            // Handle player position updates
+            if (message.event === 'player_position_update') {
+                // Dispatch a custom event for player position updates
+                const positionEvent = new CustomEvent('socket_player_position_update', {
+                    detail: message.data
+                });
+                document.dispatchEvent(positionEvent);
+            }
+            
+            // Handle initial player positions
+            if (message.event === 'initial_player_positions') {
+                // Dispatch a custom event for initial player positions
+                const initialPositionsEvent = new CustomEvent('socket_initial_player_positions', {
+                    detail: message.data
+                });
+                document.dispatchEvent(initialPositionsEvent);
+            }
+            
+            // Handle player disconnection
+            if (message.event === 'player_disconnected') {
+                // Dispatch a custom event for player disconnection
+                const disconnectEvent = new CustomEvent('socket_player_disconnected', {
+                    detail: message.data
+                });
+                document.dispatchEvent(disconnectEvent);
+            }
+            
+            // Reset last activity timestamp
+            this.lastActivityTimestamp = Date.now();
             
             console.log('Received message:', message);
         } catch (error) {
@@ -1094,5 +1174,16 @@ export class NetClient {
                 this.verifyConnection();
             }
         }, 1000);
+    }
+
+    /**
+     * Dispatch a connection state change event
+     */
+    private dispatchConnectionStateChange(): void {
+        document.dispatchEvent(new CustomEvent('socket_connection_state_change', {
+            detail: {
+                state: this.getConnectionState()
+            }
+        }));
     }
 }

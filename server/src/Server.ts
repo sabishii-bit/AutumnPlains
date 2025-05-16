@@ -4,6 +4,7 @@ import { ConnectionManager } from './network/ConnectionManager';
 import { MessageManager } from './network/MessageManager';
 import { Logger, LogLevel } from './utils/Logger';
 import { ChatBroadcast } from './system/ChatBroadcast';
+import { GameObjectSync, PlayerPositionData } from './game/GameObjectSync';
 
 /**
  * GameServer - Main server class using modular components
@@ -12,6 +13,7 @@ export class GameServer {
   private connectionManager: ConnectionManager;
   private messageManager: MessageManager;
   private chatBroadcast: ChatBroadcast;
+  private gameObjectSync: GameObjectSync;
   private logger: Logger;
 
   /**
@@ -42,6 +44,9 @@ export class GameServer {
     
     // Initialize message manager with connection manager and chat broadcast references
     this.messageManager = new MessageManager(this.connectionManager, this.chatBroadcast);
+    
+    // Get reference to gameObjectSync from messageManager
+    this.gameObjectSync = this.messageManager.getGameObjectSync();
     
     // Connect the components
     this.connectionManager.setMessageManager(this.messageManager);
@@ -75,6 +80,14 @@ export class GameServer {
    */
   public getClient(clientId: string): GameClient | undefined {
     return this.connectionManager.getClient(clientId);
+  }
+  
+  /**
+   * Get all player position data
+   * @returns Map of player positions by client ID
+   */
+  public getAllPlayerPositions(): Map<string, PlayerPositionData> {
+    return this.gameObjectSync.getAllPlayerPositions();
   }
   
   /**
