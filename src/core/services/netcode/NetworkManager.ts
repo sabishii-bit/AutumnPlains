@@ -255,4 +255,12 @@ export class NetworkManager {
     public getNetworkPlayers() {
         return this.networkObjectManager.getAllNetworkPlayers();
     }
+
+    /**
+     * Get the current ping to the server in milliseconds
+     * @returns The current ping or 0 if not connected
+     */
+    public getCurrentPing(): number {
+        return this.netClient.getCurrentPing();
+    }
 } 

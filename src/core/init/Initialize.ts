@@ -109,7 +109,6 @@ export default class Initialize {
             // Set player sync parameters - use higher rate for testing
             this.networkManager.setPlayerSyncInterval(50); // 50ms = 20 updates per second for testing
             this.networkManager.setPositionSyncThreshold(0.01); // Lower threshold to send more updates
-            this.networkManager.setNetworkPlayerInterpolation(0.5); // Faster interpolation for testing
             
             // Force an immediate position update (without waiting)
             console.log('Forcing immediate position sync');

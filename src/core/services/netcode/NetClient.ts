@@ -71,6 +71,11 @@ export class NetClient {
     private readonly mobilePersistentReconnectDelay = 10000; // 10 seconds
     private lastActiveTime: number = Date.now();
     private resumeHandler: (() => void) | null = null;
+    private pingInterval: number | null = null;
+    private lastPingTime: number = 0;
+    private currentPing: number = 0;
+    private readonly pingIntervalMs = 1000; // Send ping every second
+    private pingTimeouts: Map<number, number> = new Map(); // Map of ping sequence to timeout ID
     
     /**
      * Private constructor - use getInstance() instead
@@ -138,6 +143,10 @@ export class NetClient {
                     this.lastError = null; // Clear any previous errors
                     this.lastActivityTimestamp = Date.now(); // Reset activity timestamp
                     console.log('Connected to server successfully');
+                    
+                    // Start ping interval when connected
+                    this.startPingInterval();
+                    
                     resolve();
                 };
                 
@@ -431,6 +440,7 @@ export class NetClient {
      */
     public disconnect(): void {
         this.connectionState = ConnectionState.DISCONNECTED_BY_CLIENT;
+        this.stopPingInterval(); // Stop ping interval when disconnecting
         this.cleanupConnection();
         this.cleanupEventHandlers();
         this.connected = false;
@@ -688,6 +698,12 @@ export class NetClient {
     private handleSocketMessage(event: MessageEvent): void {
         try {
             const message = JSON.parse(event.data);
+            
+            // Handle pong messages
+            if (message.event === 'pong') {
+                this.handlePong(message.data);
+                return;
+            }
             
             // Handle connection confirmation
             if (message.event === 'connected') {
@@ -1185,5 +1201,80 @@ export class NetClient {
                 state: this.getConnectionState()
             }
         }));
+    }
+
+    /**
+     * Start the ping interval
+     */
+    private startPingInterval(): void {
+        if (this.pingInterval) {
+            window.clearInterval(this.pingInterval);
+        }
+        
+        this.pingInterval = window.setInterval(() => {
+            this.sendPing();
+        }, this.pingIntervalMs);
+    }
+
+    /**
+     * Stop the ping interval
+     */
+    private stopPingInterval(): void {
+        if (this.pingInterval) {
+            window.clearInterval(this.pingInterval);
+            this.pingInterval = null;
+        }
+        
+        // Clear any pending ping timeouts
+        this.pingTimeouts.forEach(timeoutId => {
+            window.clearTimeout(timeoutId);
+        });
+        this.pingTimeouts.clear();
+    }
+
+    /**
+     * Send a ping to the server
+     */
+    private sendPing(): void {
+        if (!this.socket || !this.connected) return;
+
+        const pingSequence = Date.now();
+        this.lastPingTime = pingSequence;
+
+        // Set a timeout to detect if we don't get a pong response
+        const timeoutId = window.setTimeout(() => {
+            console.warn('Ping timeout - no response from server');
+            this.pingTimeouts.delete(pingSequence);
+        }, 5000); // 5 second timeout
+
+        this.pingTimeouts.set(pingSequence, timeoutId);
+
+        this.send('ping', { 
+            sequence: pingSequence,
+            timestamp: pingSequence
+        });
+    }
+
+    /**
+     * Handle pong response from server
+     */
+    private handlePong(data: any): void {
+        const pingSequence = data.received.sequence;
+        const timeoutId = this.pingTimeouts.get(pingSequence);
+        
+        if (timeoutId) {
+            window.clearTimeout(timeoutId);
+            this.pingTimeouts.delete(pingSequence);
+            
+            // Calculate ping time
+            this.currentPing = Date.now() - pingSequence;
+        }
+    }
+
+    /**
+     * Get the current ping in milliseconds
+     */
+    public getCurrentPing(): number {
+        return this.currentPing;
     }
 }

@@ -2,6 +2,7 @@ import { PlayerCharacter } from "../../entities/objects/characters/PlayerCharact
 import * as THREE from 'three';
 import { PlayerCamera } from "../../camera/PlayerCamera";
 import { NetClient, ConnectionState } from "../../services/netcode/NetClient";
+import { NetworkManager } from "../../services/netcode/NetworkManager";
 
 interface DebugElement {
     element: HTMLElement;
@@ -17,13 +18,15 @@ export class HUDDebugComponent {
     private frameTimes: number[] = [];
     private readonly maxSamples = 60;  // Number of frames to average for FPS
     private netClient: NetClient;
-    private readonly lineHeight = 20; // Height in pixels for each debug line
+    private networkManager: NetworkManager;
+    private readonly lineHeight = 18; // Height in pixels for each debug line
     private readonly basePadding = 10; // Padding from the top of the screen
 
     constructor() {
         this.player = PlayerCharacter.getInstance();
         this.camera = PlayerCamera.getInstance().getCamera();
         this.netClient = NetClient.getInstance();
+        this.networkManager = NetworkManager.getInstance();
         
         // Create container for all debug elements
         this.debugContainer = document.createElement('div');
@@ -142,6 +145,16 @@ export class HUDDebugComponent {
             const statusElement = document.createElement('span');
             statusElement.innerHTML = `${connectionState} <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background-color:${statusColor};"></span>`;
             return statusElement;
+        });
+        
+        // Register ping element
+        this.registerDebugElement("Ping", () => {
+            const connectionState = this.netClient.getConnectionState();
+            if (connectionState === ConnectionState.CONNECTED) {
+                const ping = this.networkManager.getCurrentPing();
+                return ping > 0 ? `${ping}ms` : "---";
+            }
+            return ""; // Empty string will hide the element when not connected
         });
         
         // Register network details element conditionally
