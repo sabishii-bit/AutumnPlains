@@ -78,13 +78,27 @@ export class NetworkManager {
         
         console.log(`Connecting to ${environment} server at: ${serverUrl}`);
         
-        // Initialize network object manager
+        // Initialize network object manager if not already initialized
+        if (!this.networkObjectManager) {
+            this.networkObjectManager = NetworkObjectManager.getInstance();
+        }
         this.networkObjectManager.initialize();
+        
+        // If we're already connected, disconnect first
+        if (this.netClient.isConnected()) {
+            console.log('Already connected to server, disconnecting first...');
+            this.disconnectFromServer();
+        }
         
         // Connect to server
         return this.netClient.connect(serverUrl)
             .then(() => {
                 console.log(`Connected to ${environment} game server`);
+                
+                // If we have a player synchronizer, ensure it's running
+                if (this.playerSynchronizer) {
+                    this.playerSynchronizer.startSyncInterval();
+                }
             })
             .catch(error => {
                 console.error(`Failed to connect to ${environment} server:`, error);

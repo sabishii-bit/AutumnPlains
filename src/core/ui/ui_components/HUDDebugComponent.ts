@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { PlayerCamera } from "../../camera/PlayerCamera";
 import { NetClient, ConnectionState } from "../../services/netcode/NetClient";
 import { NetworkManager } from "../../services/netcode/NetworkManager";
+import { PlayerSynchronizer } from "../../services/netcode/PlayerSynchronizer";
 
 interface DebugElement {
     element: HTMLElement;
@@ -18,6 +19,7 @@ export class HUDDebugComponent {
     private frameTimes: number[] = [];
     private netClient: NetClient;
     private networkManager: NetworkManager;
+    private playerSynchronizer: PlayerSynchronizer;
 
     private readonly lineHeight = 18; // Height in pixels for each debug line
     private readonly basePadding = 10; // Padding from the top of the screen
@@ -29,6 +31,7 @@ export class HUDDebugComponent {
         this.camera = PlayerCamera.getInstance().getCamera();
         this.netClient = NetClient.getInstance();
         this.networkManager = NetworkManager.getInstance();
+        this.playerSynchronizer = PlayerSynchronizer.getInstance();
         
         // Create container for all debug elements
         this.debugContainer = document.createElement('div');
@@ -141,6 +144,7 @@ export class HUDDebugComponent {
                 case ConnectionState.DISCONNECTED:
                 case ConnectionState.DISCONNECTED_BY_CLIENT:
                 case ConnectionState.DISCONNECTED_BY_SERVER:
+                case ConnectionState.DISCONNECTED_BY_AFK:
                     statusColor = "#ff0000"; // Red
                     break;
             }

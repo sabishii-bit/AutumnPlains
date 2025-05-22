@@ -1,12 +1,14 @@
-import { NetClient } from './NetClient';
+import { NetClient, ConnectionState } from './NetClient';
 import { PlayerCharacter } from '../../entities/objects/characters/PlayerCharacter';
 import * as THREE from 'three';
+import { NetworkManager } from './NetworkManager';
 
 /**
  * PlayerSynchronizer - Handles sending the local player's data to the server
  */
 export class PlayerSynchronizer {
   private static instance: PlayerSynchronizer;
+
   private netClient: NetClient;
   private player: PlayerCharacter | null = null;
   private syncInterval: number = 100; // milliseconds between sync updates
@@ -16,12 +18,19 @@ export class PlayerSynchronizer {
   private positionThreshold: number = 0.05; // Movement threshold to send updates
   private rotationThreshold: number = 0.01; // Rotation threshold to send updates
   private lastUpdateTime: number = 0;
+  private lastActivityTime: number = 0;
+  private afkCheckInterval: number | null = null;
+  private isAfk: boolean = false;
+  private lastPlayerState: string = '';
+
+  private readonly afkTimeout: number = 60000; // 1 minute in milliseconds
   
   /**
    * Private constructor - use getInstance() instead
    */
   private constructor() {
     this.netClient = NetClient.getInstance();
+    this.setupActivityTracking();
   }
   
   /**
@@ -35,12 +44,102 @@ export class PlayerSynchronizer {
   }
   
   /**
+   * Set up activity tracking for AFK detection
+   */
+  private setupActivityTracking(): void {
+    // Track keyboard and mouse input
+    const activityEvents = [
+      'keydown',
+      'keyup',
+      'mousedown',
+      'mouseup',
+      'mousemove',
+      'click',
+      'touchstart',
+      'touchmove'
+    ];
+
+    activityEvents.forEach(event => {
+      document.addEventListener(event, () => {
+        this.updateLastActivityTime();
+      });
+    });
+
+    // Track chat messages from the chat component
+    document.addEventListener('chat_message_sent', () => {
+      this.updateLastActivityTime();
+    });
+
+    // Start AFK check interval
+    this.afkCheckInterval = window.setInterval(() => {
+      this.checkAfkStatus();
+    }, 1000); // Check every second
+  }
+  
+  /**
+   * Update the last activity timestamp
+   */
+  private updateLastActivityTime(): void {
+    this.lastActivityTime = Date.now();
+    
+    // Check if we were AFK and attempt to reconnect
+    if (this.isAfk) {
+      this.isAfk = false;
+      console.log('Player is no longer AFK, attempting to reconnect...');
+      
+      // Get the current connection state
+      const connectionState = this.netClient.getConnectionState();
+      
+      // If we're disconnected due to AFK, attempt to reconnect
+      if (connectionState === ConnectionState.DISCONNECTED_BY_AFK) {
+        // Get the NetworkManager instance
+        const networkManager = NetworkManager.getInstance();
+        
+        // Attempt to reconnect
+        networkManager.connectToServer()
+          .then(() => {
+            console.log('Successfully reconnected after AFK');
+          })
+          .catch(error => {
+            console.error('Failed to reconnect after AFK:', error);
+          });
+      }
+    }
+  }
+  
+  /**
+   * Check if the player is AFK and handle disconnection if needed
+   */
+  private checkAfkStatus(): void {
+    if (!this.netClient.isConnected()) return;
+
+    const now = Date.now();
+    const timeSinceLastActivity = now - this.lastActivityTime;
+
+    if (timeSinceLastActivity >= this.afkTimeout && !this.isAfk) {
+      this.isAfk = true;
+      console.log('Player is now AFK');
+      
+      // Set the connection state to AFK before disconnecting
+      this.netClient.setConnectionState(ConnectionState.DISCONNECTED_BY_AFK);
+      
+      // Small delay to ensure the state is set before disconnecting
+      setTimeout(() => {
+        // Disconnect from server
+        this.netClient.disconnect();
+      }, 100);
+    }
+  }
+  
+  /**
    * Initialize the player synchronizer with the local player
    * @param player The local player character instance
    */
   public initialize(player: PlayerCharacter): void {
     this.player = player;
     this.lastSentPosition.copy(player.getPosition());
+    this.lastActivityTime = Date.now(); // Initialize activity time
+    this.lastPlayerState = player.getCurrentState()?.getStateName() || '';
     
     // Start sync interval if not already running
     this.startSyncInterval();
@@ -49,7 +148,7 @@ export class PlayerSynchronizer {
   /**
    * Start the sync interval
    */
-  private startSyncInterval(): void {
+  public startSyncInterval(): void {
     if (this.intervalId !== null) {
       // Clear existing interval if it exists
       window.clearInterval(this.intervalId);
@@ -70,8 +169,14 @@ export class PlayerSynchronizer {
     if (this.intervalId !== null) {
       window.clearInterval(this.intervalId);
       this.intervalId = null;
-      console.log('PlayerSynchronizer stopped');
     }
+
+    if (this.afkCheckInterval !== null) {
+      window.clearInterval(this.afkCheckInterval);
+      this.afkCheckInterval = null;
+    }
+    
+    console.log('PlayerSynchronizer stopped');
   }
   
   /**
@@ -179,11 +284,19 @@ export class PlayerSynchronizer {
     const positionChanged = distanceMoved > this.positionThreshold;
     const rotationChanged = rotationDiff > this.rotationThreshold;
     
+    // Check if player state has changed
+    const currentState = this.player?.getCurrentState()?.getStateName() || '';
+    const stateChanged = currentState !== this.lastPlayerState;
+    if (stateChanged) {
+      this.lastPlayerState = currentState;
+      this.updateLastActivityTime();
+    }
+    
     // Always send at least one update every second regardless of movement
     const timeSinceLastUpdate = Date.now() - this.lastUpdateTime;
     const forceUpdate = timeSinceLastUpdate > 1000;
     
-    return positionChanged || rotationChanged || forceUpdate;
+    return positionChanged || rotationChanged || stateChanged || forceUpdate;
   }
   
   /**
@@ -207,5 +320,24 @@ export class PlayerSynchronizer {
    */
   public forceSendUpdate(): void {
     this.synchronizePlayer();
+  }
+
+  /**
+   * Get the current AFK status
+   * @returns Whether the player is currently AFK
+   */
+  public isPlayerAfk(): boolean {
+    return this.isAfk;
+  }
+
+  /**
+   * Get the time until AFK disconnection
+   * @returns Time in milliseconds until AFK disconnection, or -1 if not connected
+   */
+  public getTimeUntilAfkDisconnect(): number {
+    if (!this.netClient.isConnected()) return -1;
+    
+    const timeSinceLastActivity = Date.now() - this.lastActivityTime;
+    return Math.max(0, this.afkTimeout - timeSinceLastActivity);
   }
 } 

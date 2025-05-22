@@ -10,7 +10,8 @@ export enum ConnectionState {
     RECONNECTING = 'Reconnecting...',
     CONNECTION_ERROR = 'Connection Error',
     DISCONNECTED_BY_SERVER = 'Disconnected by Server',
-    DISCONNECTED_BY_CLIENT = 'Disconnected by Client'
+    DISCONNECTED_BY_CLIENT = 'Disconnected by Client',
+    DISCONNECTED_BY_AFK = 'Disconnected due to inactivity'
 }
 
 /**
@@ -439,7 +440,10 @@ export class NetClient {
      * Disconnect from the server
      */
     public disconnect(): void {
-        this.connectionState = ConnectionState.DISCONNECTED_BY_CLIENT;
+        // Only change state to DISCONNECTED_BY_CLIENT if we're not already in a specific disconnection state
+        if (this.connectionState !== ConnectionState.DISCONNECTED_BY_AFK) {
+            this.connectionState = ConnectionState.DISCONNECTED_BY_CLIENT;
+        }
         this.stopPingInterval(); // Stop ping interval when disconnecting
         this.cleanupConnection();
         this.cleanupEventHandlers();
@@ -475,7 +479,16 @@ export class NetClient {
      * @returns The current connection state
      */
     public getConnectionState(): ConnectionState {
+        return this.connectionState;
+    }
+    
+    /**
+     * Set the connection state
+     * @param state The new connection state
+     */
+    public setConnectionState(state: ConnectionState): void {
         const previousState = this.connectionState;
+        this.connectionState = state;
         
         // If state changes, dispatch an event
         if (this.connectionState !== previousState) {
@@ -486,8 +499,6 @@ export class NetClient {
                 }
             }));
         }
-        
-        return this.connectionState;
     }
     
     /**
