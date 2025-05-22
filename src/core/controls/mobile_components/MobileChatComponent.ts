@@ -15,6 +15,7 @@ export class MobileChatComponent {
     private static readonly FONT_FAMILY = 'Monospace';
     private static readonly Z_INDEX = 1000;
     private static readonly MAX_MESSAGES = 50;
+    private static readonly FONT_SIZE_rem = 0.75; 
     
     // Threshold settings for auto-sliding
     private static readonly OPEN_THRESHOLD_PERCENT = 15; // Only need to drag 15% to auto-open
@@ -140,7 +141,7 @@ export class MobileChatComponent {
             padding: 10px;
             display: flex;
             flex-direction: column-reverse;
-            font-size: 14px;
+            font-size: ${MobileChatComponent.FONT_SIZE_rem}rem;
             scrollbar-width: thin;
             scrollbar-color: rgba(100, 100, 100, 0.5) rgba(0, 0, 0, 0);
             opacity: 0.7;
@@ -166,7 +167,7 @@ export class MobileChatComponent {
             padding: 0 15px;
             color: ${MobileChatComponent.FONT_COLOR};
             font-family: ${MobileChatComponent.FONT_FAMILY};
-            font-size: 16px;
+            font-size: ${MobileChatComponent.FONT_SIZE_rem}rem;
             margin-right: 5px;
         `;
         this.inputBox.placeholder = 'Type a message...';
@@ -179,7 +180,7 @@ export class MobileChatComponent {
             border: none;
             border-radius: 20px;
             font-family: ${MobileChatComponent.FONT_FAMILY};
-            font-size: 14px;
+            font-size: ${MobileChatComponent.FONT_SIZE_rem * 0.875}rem;
             font-weight: bold;
             cursor: pointer;
         `;

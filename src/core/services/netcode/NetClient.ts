@@ -73,7 +73,7 @@ export class NetClient {
     private resumeHandler: (() => void) | null = null;
     private pingInterval: number | null = null;
     private lastPingTime: number = 0;
-    private currentPing: number = 0;
+    private currentPing: number = -1; // Initialize to -1 to indicate no ping yet
     private readonly pingIntervalMs = 1000; // Send ping every second
     private pingTimeouts: Map<number, number> = new Map(); // Map of ping sequence to timeout ID
     
@@ -1236,7 +1236,10 @@ export class NetClient {
      * Send a ping to the server
      */
     private sendPing(): void {
-        if (!this.socket || !this.connected) return;
+        if (!this.socket || !this.connected) {
+            this.currentPing = -1; // Reset ping when not connected
+            return;
+        }
 
         const pingSequence = Date.now();
         this.lastPingTime = pingSequence;
@@ -1245,6 +1248,7 @@ export class NetClient {
         const timeoutId = window.setTimeout(() => {
             console.warn('Ping timeout - no response from server');
             this.pingTimeouts.delete(pingSequence);
+            this.currentPing = -1; // Set to -1 to indicate ping failure
         }, 5000); // 5 second timeout
 
         this.pingTimeouts.set(pingSequence, timeoutId);
@@ -1267,12 +1271,21 @@ export class NetClient {
             this.pingTimeouts.delete(pingSequence);
             
             // Calculate ping time
-            this.currentPing = Date.now() - pingSequence;
+            const pingTime = Date.now() - pingSequence;
+            
+            // Only update if the ping time is reasonable (less than 1 second)
+            if (pingTime < 1000) {
+                this.currentPing = pingTime;
+            } else {
+                console.warn('Received unreasonable ping time:', pingTime);
+                this.currentPing = -1;
+            }
         }
     }
 
     /**
      * Get the current ping in milliseconds
+     * @returns The current ping in milliseconds, or -1 if no valid ping
      */
     public getCurrentPing(): number {
         return this.currentPing;

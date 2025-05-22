@@ -15,6 +15,7 @@ export class HUDChatComponent {
     private static readonly FONT_FAMILY = 'Monospace';
     private static readonly Z_INDEX = 1000;
     private static readonly MAX_MESSAGES = 50;
+    private static readonly FONT_SIZE_rem = 0.875;
 
     // Singleton instance
     private static instance: HUDChatComponent | null = null;
@@ -111,7 +112,7 @@ export class HUDChatComponent {
             padding: 10px;
             display: flex;
             flex-direction: column-reverse;
-            font-size: 14px;
+            font-size: ${HUDChatComponent.FONT_SIZE_rem}rem;
             opacity: 0.7;
             transition: opacity 0.3s ease;
             scrollbar-width: thin;
@@ -135,7 +136,7 @@ export class HUDChatComponent {
             padding: 0 10px;
             color: ${HUDChatComponent.FONT_COLOR};
             font-family: ${HUDChatComponent.FONT_FAMILY};
-            font-size: 14px;
+            font-size: ${HUDChatComponent.FONT_SIZE_rem}rem;
             pointer-events: auto;
             cursor: text;
             transition: background-color 0.3s ease, box-shadow 0.3s ease;
@@ -150,6 +151,7 @@ export class HUDChatComponent {
             border: none;
             border-left: 1px solid rgba(255, 255, 255, 0.2);
             font-family: ${HUDChatComponent.FONT_FAMILY};
+            font-size: ${HUDChatComponent.FONT_SIZE_rem}rem;
             cursor: pointer;
             pointer-events: auto;
             transition: background-color 0.3s ease;

@@ -16,11 +16,13 @@ export class HUDDebugComponent {
     private debugContainer: HTMLElement;
     private debugElements: DebugElement[] = [];
     private frameTimes: number[] = [];
-    private readonly maxSamples = 60;  // Number of frames to average for FPS
     private netClient: NetClient;
     private networkManager: NetworkManager;
+
     private readonly lineHeight = 18; // Height in pixels for each debug line
     private readonly basePadding = 10; // Padding from the top of the screen
+    private readonly maxSamples = 60;  // Number of frames to average for FPS
+    private readonly fontSize = 0.6875;
 
     constructor() {
         this.player = PlayerCharacter.getInstance();
@@ -44,6 +46,7 @@ export class HUDDebugComponent {
             padding: ${this.basePadding}px;
             color: white;
             font-family: Monospace;
+            font-size: ${this.fontSize}rem;
             text-shadow: 
                 -1px -1px 0 #000,
                 1px -1px 0 #000,
@@ -152,7 +155,10 @@ export class HUDDebugComponent {
             const connectionState = this.netClient.getConnectionState();
             if (connectionState === ConnectionState.CONNECTED) {
                 const ping = this.networkManager.getCurrentPing();
-                return ping > 0 ? `${ping}ms` : "---";
+                if (ping === -1) {
+                    return "---"; // Show --- when no valid ping
+                }
+                return `${ping}ms`;
             }
             return ""; // Empty string will hide the element when not connected
         });
