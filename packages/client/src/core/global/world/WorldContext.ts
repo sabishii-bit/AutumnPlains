@@ -28,8 +28,8 @@ export class WorldContext {
             WorldContext.collisionConfiguration
         );
         
-        // Set gravity - default value
-        WorldContext.setWorldGravity(0, -30.82, 0);
+        // Set gravity - default value (reduced for better feel)
+        WorldContext.setWorldGravity(0, -9.8, 0);
     }
 
     // Static method to get the singleton instance

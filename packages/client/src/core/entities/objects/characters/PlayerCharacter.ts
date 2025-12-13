@@ -2,17 +2,22 @@ import * as THREE from 'three';
 import GameObject from '../GameObject';
 import { BaseCharacter } from './BaseCharacter';
 import StateManager from './character_state/StateManager';
+import { CharacterMovementComponent } from '../../components/CharacterMovementComponent';
 
 export class PlayerCharacter extends BaseCharacter {
     public static instance: PlayerCharacter | null = null;
-    public jumpHeight: number = 4.0;
-    public moveSpeed: number = 6.5;
+    public jumpHeight: number = 6.5;
+    public moveSpeed: number = 5.0;
     public canJump: boolean = true;
     public direction: THREE.Vector3 = new THREE.Vector3();
 
     private constructor(initialPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
         super(initialPosition);
-        
+
+        // Update the movement component with player-specific values
+        this.setJumpHeight(this.jumpHeight);
+        this.setMoveSpeed(this.moveSpeed);
+
         console.log("PlayerCharacter initialized with moveSpeed:", this.moveSpeed, "jumpHeight:", this.jumpHeight);
     }
 
@@ -37,6 +42,11 @@ export class PlayerCharacter extends BaseCharacter {
      */
     public setMoveSpeed(speed: number): void {
         this.moveSpeed = speed;
+        // Update the movement component
+        const movement = this.getComponent<CharacterMovementComponent>('characterMovement');
+        if (movement) {
+            movement.setMoveSpeed(speed);
+        }
         console.log(`Player move speed set to: ${speed}`);
     }
     
