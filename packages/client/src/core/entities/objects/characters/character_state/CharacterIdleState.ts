@@ -25,9 +25,9 @@ export class CharacterIdleState extends CharacterState {
 
     public execute(character: BaseCharacter): void {
         const rateOfDecrease = 0.1;
-        const xVelocity = character.getCollisionBody().velocity.x;
-        const yVelocity = character.getCollisionBody().velocity.y;
-        const zVelocity = character.getCollisionBody().velocity.z;
+        const xVelocity = character.getCollisionBodyData().velocity.x;
+        const yVelocity = character.getCollisionBodyData().velocity.y;
+        const zVelocity = character.getCollisionBodyData().velocity.z;
         // if (xVelocity != 0 || zVelocity != 0)
         //     character.setVelocity({x: (0), z: (0)});
     }

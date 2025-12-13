@@ -2,17 +2,25 @@ import * as THREE from 'three';
 import GameObject, { GameObjectOptions } from '../../GameObject';
 import { MaterialType } from '../../../../physics/PhysicsMaterialsManager';
 import { WorldContext } from '../../../../global/world/WorldContext';
+import { PhysicsSyncComponent } from '../../../components/PhysicsSyncComponent';
+import { WireframeComponent } from '../../../components/WireframeComponent';
+import { PhysicsForceComponent } from '../../../components/PhysicsForceComponent';
 
 // Declare Ammo global
 declare const Ammo: any;
 
 export class CubeProp extends GameObject {
-    
+
     constructor(initialPosition: THREE.Vector3) {
-        super({ 
+        super({
             position: initialPosition,
             materialType: MaterialType.DYNAMIC
         });
+
+        // Add physics components for dynamic objects
+        this.addComponent('physicsSync', new PhysicsSyncComponent());
+        this.addComponent('wireframe', new WireframeComponent());
+        this.addComponent('physicsForce', new PhysicsForceComponent());
     }
 
     protected createVisualMesh() {

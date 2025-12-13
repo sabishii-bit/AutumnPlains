@@ -21,7 +21,7 @@ export class CharacterAirborneState extends CharacterState {
         // Only try to get velocity if we have a valid character with collision body
         if (character && character.getCollisionBody) {
             try {
-                const collisionBody = character.getCollisionBody();
+                const collisionBody = character.getCollisionBodyData();
                 if (collisionBody && collisionBody.velocity) {
                     this.initialVelocity = collisionBody.velocity.y;
                     this.wasJumping = this.initialVelocity > 0.5;
@@ -42,7 +42,7 @@ export class CharacterAirborneState extends CharacterState {
         
         try {
             // Check if we're moving vertically with significant velocity
-            const yVelocity = parseFloat(character.getCollisionBody().velocity.y.toFixed(2));
+            const yVelocity = parseFloat(character.getCollisionBodyData().velocity.y.toFixed(2));
             
             // If we're not grounded according to raycast, we should be airborne
             const notGrounded = !character.isGrounded();
@@ -69,7 +69,7 @@ export class CharacterAirborneState extends CharacterState {
         // Safely get the initial velocity
         try {
             // Capture initial velocity to determine if this is a jump or a fall
-            this.initialVelocity = character.getCollisionBody().velocity.y;
+            this.initialVelocity = character.getCollisionBodyData().velocity.y;
             this.wasJumping = this.initialVelocity > 0.5;
             
             if (this.wasJumping) {
@@ -104,7 +104,7 @@ export class CharacterAirborneState extends CharacterState {
             
             try {
                 // Get current velocity for checks
-                const velocity = character.getCollisionBody().velocity;
+                const velocity = character.getCollisionBodyData().velocity;
                 const yVelocity = parseFloat(velocity.y.toFixed(2));
                 
                 // Skip ground detection if we're still moving upward significantly
@@ -158,11 +158,11 @@ export class CharacterAirborneState extends CharacterState {
     
     // Check if the character was previously falling
     private previouslyFalling(character: BaseCharacter): boolean {
-        if (!character || !character.getCollisionBody()) return false;
+        if (!character || !character.getCollisionBodyData()) return false;
         
         try {
             // Get the character's previous y velocity from the character itself
-            return character.getCollisionBody().velocity.y < -0.5;
+            return character.getCollisionBodyData().velocity.y < -0.5;
         } catch (error) {
             // Handle any errors gracefully
             console.log("Error in previouslyFalling:", error);

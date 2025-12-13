@@ -71,7 +71,7 @@ export class HUDDebugComponent {
         // Register position element
         this.registerDebugElement("Position", () => {
             try {
-                const playerCollisionBody = this.player.getCollisionBody();
+                const playerCollisionBody = this.player.getCollisionBodyData();
                 if (playerCollisionBody) {
                     return `X=${playerCollisionBody.position.x.toFixed(2)}, Y=${playerCollisionBody.position.y.toFixed(2)}, Z=${playerCollisionBody.position.z.toFixed(2)}`;
                 } else {
@@ -82,11 +82,11 @@ export class HUDDebugComponent {
                 return "Error";
             }
         });
-        
+
         // Register velocity element
         this.registerDebugElement("Velocity", () => {
             try {
-                const playerCollisionBody = this.player.getCollisionBody();
+                const playerCollisionBody = this.player.getCollisionBodyData();
                 if (playerCollisionBody) {
                     return `X=${playerCollisionBody.velocity.x.toFixed(2)}, Y=${playerCollisionBody.velocity.y.toFixed(2)}, Z=${playerCollisionBody.velocity.z.toFixed(2)}`;
                 } else {

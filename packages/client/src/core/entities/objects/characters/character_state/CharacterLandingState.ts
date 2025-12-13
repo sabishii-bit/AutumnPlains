@@ -39,7 +39,7 @@ export class CharacterLandingState extends CharacterState {
         // Check if landing animation/state should be complete
         if (performance.now() - this.landingTimer > this.landingDuration) {
             // Transition to idle state when landing is complete
-            const nextStateClass = character.getCollisionBody().velocity.lengthSq() > 0.1 
+            const nextStateClass = character.getCollisionBodyData().velocity.lengthSq() > 0.1 
                 ? CharacterWalkingState 
                 : CharacterIdleState;
             
@@ -72,7 +72,7 @@ export class CharacterLandingState extends CharacterState {
         try {
             const scene = SceneContext.getInstance();
             const raycaster = new THREE.Raycaster();
-            const characterPos = character.getCollisionBody().position;
+            const characterPos = character.getCollisionBodyData().position;
             
             // Use the properly imported PlayerCamera
             raycaster.camera = PlayerCamera.getInstance().getCamera();

@@ -5,10 +5,13 @@ import { WorldContext } from '../../global/world/WorldContext';
 import { SceneContext } from '../../global/scene/SceneContext';
 import { generateUUID } from 'three/src/math/MathUtils';
 import { GameObjectManager } from '../GameObjectManager';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import { MaterialType, PhysicsMaterialsManager } from '../../physics/PhysicsMaterialsManager';
 import { PlayerCharacter } from './characters/PlayerCharacter';
 import { AmmoUtils } from '../../physics/AmmoUtils';
+import { ComponentManager } from '../components/Component';
+import { PhysicsSyncComponent } from '../components/PhysicsSyncComponent';
+import { WireframeComponent } from '../components/WireframeComponent';
+import { PhysicsForceComponent } from '../components/PhysicsForceComponent';
 
 /**
  * Options interface for GameObject initialization
@@ -57,32 +60,34 @@ export default abstract class GameObject {
     protected objectId: string = "";
     protected materialType: MaterialType = MaterialType.DEFAULT;
     protected physicsManager: PhysicsMaterialsManager = PhysicsMaterialsManager.getInstance();
-    private wireframeMesh: THREE.LineSegments | null = null;
-    private isWireframeVisible: boolean = false;
-    private hasCreatedWireframe: boolean = false;
     // Transformation for Ammo
     private motionState: any = null; // Ammo.btDefaultMotionState
+    // Component system
+    protected componentManager: ComponentManager;
 
     /**
      * Creates a new GameObject with the specified options
      * @param options Configuration options for the GameObject
      */
     constructor(options: GameObjectOptions = {}) {
+        // Initialize component manager
+        this.componentManager = new ComponentManager(this);
+
         // Initialize mesh with a simple placeholder if no visualMeshOptions provided
         this.visualMesh = options.visualMeshOptions || new THREE.Mesh(
             new THREE.BoxGeometry(0, 0, 0), // Placeholder geometry
             new THREE.MeshBasicMaterial() // Placeholder material
         );
-        
+
         // Set position
         this.setPosition(options.position || new THREE.Vector3(0, 0, 0));
-        
+
         // Apply translation to the object's visual mesh
         this.visualMesh.position.copy(this.position);
 
         // Set object ID
         this.objectId = options.objectId || generateUUID();
-        
+
         // Set material type
         if (options.materialType) {
             this.materialType = options.materialType;
@@ -95,7 +100,7 @@ export default abstract class GameObject {
             this.createVisualMesh();
             this.createCollisionMesh();
         }
-        
+
         // Auto-add to collection unless specified not to
         // Note: Some child classes (like BaseCharacter) may have special physics components
         // (such as constraints or additional bodies) that require direct world context access.
@@ -190,70 +195,11 @@ export default abstract class GameObject {
     }
     
     public update(deltaTime: number): void {
-        // Sync mesh with the physics body
-        if (this.collisionMesh) {
-            this.syncMeshWithBody();
-        }
+        // Update all components
+        this.componentManager.updateAll(deltaTime);
 
         // Call abstract animate method which can be overridden by subclasses
         this.animate(deltaTime);
-    }
-
-    protected syncMeshWithBody() {
-        if (!this.collisionMesh) return;
-        
-        try {
-            const Ammo = WorldContext.getAmmo();
-            // Create a transform to hold the rigid body's position and rotation
-            const transform = new Ammo.btTransform();
-            
-            // Get the transform from the motion state
-            if (this.motionState) {
-                this.motionState.getWorldTransform(transform);
-            } else {
-                // Alternatively get directly from the body
-                this.collisionMesh.getMotionState().getWorldTransform(transform);
-            }
-            
-            // Use AmmoUtils to read the transform into Three.js objects
-            const position = this.visualMesh.position;
-            const quaternion = this.visualMesh.quaternion;
-            
-            AmmoUtils.readTransform(transform, position, quaternion);
-    
-            // Check for invalid values (NaN, Infinity)
-            if (isNaN(position.x) || isNaN(position.y) || isNaN(position.z) ||
-                !isFinite(position.x) || !isFinite(position.y) || !isFinite(position.z)) {
-                console.error(`Invalid physics position detected for ${this.objectId}:`, position);
-                // Prevent applying invalid positions to the visual mesh
-                return;
-            }
-            
-            // Check for invalid quaternion values
-            if (isNaN(quaternion.x) || isNaN(quaternion.y) || isNaN(quaternion.z) || isNaN(quaternion.w) ||
-                !isFinite(quaternion.x) || !isFinite(quaternion.y) || !isFinite(quaternion.z) || !isFinite(quaternion.w)) {
-                console.error(`Invalid physics quaternion detected for ${this.objectId}:`, quaternion);
-                // Prevent applying invalid rotation to the visual mesh
-                return;
-            }
-            
-            // Update the internal position value to match the physics body
-            this.position.copy(position);
-            
-            // Normalize the quaternion to avoid rendering issues
-            quaternion.normalize();
-            
-            // Sync wireframe position and rotation with the main mesh if wireframe is enabled
-            if (this.wireframeMesh) {
-                this.wireframeMesh.position.copy(this.visualMesh.position);
-                this.wireframeMesh.quaternion.copy(this.visualMesh.quaternion);
-            }
-            
-            // Clean up transform (memory management for Ammo.js)
-            Ammo.destroy(transform);
-        } catch (error) {
-            console.error('Error syncing mesh with body:', error);
-        }
     }
 
     public getID(): string {
@@ -269,7 +215,11 @@ export default abstract class GameObject {
      * @param force Force vector to apply
      */
     public applyCentralForce(force: THREE.Vector3): void {
-        if (this.collisionMesh) {
+        const forceComponent = this.componentManager.getComponent<PhysicsForceComponent>('physicsForce');
+        if (forceComponent) {
+            forceComponent.applyCentralForce(force);
+        } else if (this.collisionMesh) {
+            // Fallback for objects without the component
             AmmoUtils.applyCentralForce(this.collisionMesh, force);
         }
     }
@@ -279,7 +229,11 @@ export default abstract class GameObject {
      * @param impulse Impulse vector to apply
      */
     public applyCentralImpulse(impulse: THREE.Vector3): void {
-        if (this.collisionMesh) {
+        const forceComponent = this.componentManager.getComponent<PhysicsForceComponent>('physicsForce');
+        if (forceComponent) {
+            forceComponent.applyCentralImpulse(impulse);
+        } else if (this.collisionMesh) {
+            // Fallback for objects without the component
             AmmoUtils.applyCentralImpulse(this.collisionMesh, impulse);
         }
     }
@@ -289,7 +243,11 @@ export default abstract class GameObject {
      * @returns THREE.Vector3 representing the velocity
      */
     public getLinearVelocity(): THREE.Vector3 {
-        if (this.collisionMesh) {
+        const forceComponent = this.componentManager.getComponent<PhysicsForceComponent>('physicsForce');
+        if (forceComponent) {
+            return forceComponent.getLinearVelocity();
+        } else if (this.collisionMesh) {
+            // Fallback for objects without the component
             return AmmoUtils.getLinearVelocity(this.collisionMesh);
         }
         return new THREE.Vector3();
@@ -300,7 +258,11 @@ export default abstract class GameObject {
      * @param velocity THREE.Vector3 representing the new velocity
      */
     public setLinearVelocity(velocity: THREE.Vector3): void {
-        if (this.collisionMesh) {
+        const forceComponent = this.componentManager.getComponent<PhysicsForceComponent>('physicsForce');
+        if (forceComponent) {
+            forceComponent.setLinearVelocity(velocity);
+        } else if (this.collisionMesh) {
+            // Fallback for objects without the component
             AmmoUtils.setLinearVelocity(this.collisionMesh, velocity);
         }
     }
@@ -310,103 +272,70 @@ export default abstract class GameObject {
      * @param forceActivation Whether to force activation
      */
     public activate(forceActivation: boolean = false): void {
-        if (this.collisionMesh) {
+        const forceComponent = this.componentManager.getComponent<PhysicsForceComponent>('physicsForce');
+        if (forceComponent) {
+            forceComponent.activate(forceActivation);
+        } else if (this.collisionMesh) {
+            // Fallback for objects without the component
             AmmoUtils.activateRigidBody(this.collisionMesh, forceActivation);
         }
     }
 
     // Create wireframe based on the existing collision mesh
     public createCollisionMeshWireframe(): void {
-        // Only create the wireframe if it doesn't exist yet
-        // AND if this object has a collision mesh
-        if (!this.wireframeMesh && !this.hasCreatedWireframe && this.collisionMesh) {
-            try {
-                // Handle visualMesh being a Group or a Mesh
-                let wireframeGeometry;
-                if (this.visualMesh instanceof THREE.Group) {
-                    // If visualMesh is a group, merge its geometries for the wireframe
-                    const geometries: THREE.BufferGeometry[] = [];
-                    this.visualMesh.traverse(child => {
-                        if (child instanceof THREE.Mesh) {
-                            geometries.push((child as THREE.Mesh).geometry);
-                        }
-                    });
-                    
-                    if (geometries.length > 0) {
-                        wireframeGeometry = mergeGeometries(geometries);
-                    } else {
-                        console.warn(`No valid geometries found in group for wireframe on ${this.objectId}`);
-                        return;
-                    }
-                } else if (this.visualMesh instanceof THREE.Mesh) {
-                    // Otherwise, use the geometry directly
-                    wireframeGeometry = new THREE.WireframeGeometry((this.visualMesh as THREE.Mesh).geometry);
-                } else {
-                    console.warn(`Cannot create wireframe for ${this.objectId} - unsupported mesh type`);
-                    return;
-                }
-                
-                const wireframeMaterial = new THREE.LineBasicMaterial({ 
-                    color: 0x00ff00,
-                    depthTest: false,
-                    opacity: 0.5,
-                    transparent: true
-                });
-                this.wireframeMesh = new THREE.LineSegments(wireframeGeometry, wireframeMaterial);
-                this.wireframeMesh.position.copy(this.visualMesh.position);
-                this.wireframeMesh.quaternion.copy(this.visualMesh.quaternion);
-                this.wireframeMesh.scale.copy(this.visualMesh.scale);
-                
-                // Set initial visibility to match current global state
-                this.wireframeMesh.visible = this.isWireframeVisible;
-                this.wireframeMesh.renderOrder = 999; // Ensure wireframe renders on top
-                
-                this.sceneContext.add(this.wireframeMesh);
-                this.hasCreatedWireframe = true;
-                
-                console.log(`Created wireframe for GameObject ${this.objectId}`);
-            } catch (error) {
-                console.error(`Failed to create wireframe for ${this.objectId}:`, error);
-            }
+        const wireframeComponent = this.componentManager.getComponent<WireframeComponent>('wireframe');
+        if (wireframeComponent) {
+            wireframeComponent.createWireframe();
         }
     }
 
     // Toggle the visibility of the wireframe
     public toggleWireframeVisibility(): void {
-        if (this.wireframeMesh) {
-            this.isWireframeVisible = !this.isWireframeVisible;
-            // Use type assertion to avoid type issues
-            (this.wireframeMesh as THREE.Object3D).visible = this.isWireframeVisible;
-        } else if (!this.hasCreatedWireframe) {
-            // Create wireframe if we haven't tried yet
-            this.createCollisionMeshWireframe();
-            if (this.wireframeMesh) {
-                this.isWireframeVisible = true;
-                // Use type assertion to avoid type issues
-                (this.wireframeMesh as THREE.Object3D).visible = this.isWireframeVisible;
-            }
+        const wireframeComponent = this.componentManager.getComponent<WireframeComponent>('wireframe');
+        if (wireframeComponent) {
+            wireframeComponent.toggleVisibility();
         }
     }
-    
+
     // Directly set wireframe visibility
     public setWireframeVisibility(isVisible: boolean): void {
-        if (this.wireframeMesh) {
-            this.isWireframeVisible = isVisible;
-            // Use type assertion to avoid type issues
-            (this.wireframeMesh as THREE.Object3D).visible = this.isWireframeVisible;
-        } else if (isVisible && !this.hasCreatedWireframe) {
-            // Create wireframe if needed and we're turning visibility on
-            this.createCollisionMeshWireframe();
-            if (this.wireframeMesh) {
-                this.isWireframeVisible = isVisible;
-                // Use type assertion to avoid type issues
-                (this.wireframeMesh as THREE.Object3D).visible = this.isWireframeVisible;
-            }
+        const wireframeComponent = this.componentManager.getComponent<WireframeComponent>('wireframe');
+        if (wireframeComponent) {
+            wireframeComponent.setVisibility(isVisible);
         }
     }
-    
+
     // Get current wireframe visibility
     public getWireframeVisibility(): boolean {
-        return this.isWireframeVisible;
+        const wireframeComponent = this.componentManager.getComponent<WireframeComponent>('wireframe');
+        if (wireframeComponent) {
+            return wireframeComponent.getVisibility();
+        }
+        return false;
+    }
+
+    /**
+     * Add a component to this GameObject
+     * @param name Component identifier
+     * @param component Component instance
+     */
+    public addComponent(name: string, component: any): void {
+        this.componentManager.addComponent(name, component);
+    }
+
+    /**
+     * Get a component from this GameObject
+     * @param name Component identifier
+     */
+    public getComponent<T>(name: string): T | undefined {
+        return this.componentManager.getComponent<T>(name);
+    }
+
+    /**
+     * Check if this GameObject has a component
+     * @param name Component identifier
+     */
+    public hasComponent(name: string): boolean {
+        return this.componentManager.hasComponent(name);
     }
 }

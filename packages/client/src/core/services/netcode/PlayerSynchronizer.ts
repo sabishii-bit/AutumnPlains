@@ -208,7 +208,7 @@ export class PlayerSynchronizer {
     
     if (shouldUpdate) {
       // Create position data to send
-      const characterBody = this.player.getCollisionBody();
+      const characterBody = this.player.getCollisionBodyData();
       const velocity = new THREE.Vector3();
       
       // If character body exists, get its velocity

@@ -39,7 +39,7 @@ export class PlayerCamera {
     public update(deltaTime: number) {
         // Synchronize the camera position with the player's body
         try {
-            const collisionBodyData = this.player.getCollisionBody();
+            const collisionBodyData = this.player.getCollisionBodyData();
             if (collisionBodyData) {
                 const position = collisionBodyData.position;
                 const scaleFactor = this.player.getScaleFactor(); // Assume you have a method to get the scale factor

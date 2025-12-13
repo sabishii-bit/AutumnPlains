@@ -14,7 +14,7 @@ export class CharacterJumpingState extends CharacterState {
 
     // Determines if the character should enter the Jumping state
     public shouldEnterState(character: BaseCharacter): boolean {
-        const yVelocity = parseFloat(character.getCollisionBody().velocity.y.toFixed(2));     
+        const yVelocity = parseFloat(character.getCollisionBodyData().velocity.y.toFixed(2));     
         // Return true if we have significant upward velocity
         return yVelocity > 0.5;
     }
@@ -26,7 +26,7 @@ export class CharacterJumpingState extends CharacterState {
 
     public execute(character: BaseCharacter): void {
         // Check if we should transition to airborne state
-        const yVelocity = parseFloat(character.getCollisionBody().velocity.y.toFixed(2));
+        const yVelocity = parseFloat(character.getCollisionBodyData().velocity.y.toFixed(2));
         const currentTime = performance.now();
         
         // Transition to airborne if:

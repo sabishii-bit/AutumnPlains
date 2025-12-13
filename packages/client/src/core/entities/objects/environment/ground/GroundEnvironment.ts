@@ -3,6 +3,7 @@ import GameObject, { GameObjectOptions, AmmoBodyOptions } from '../../GameObject
 import { MaterialType } from '../../../../physics/PhysicsMaterialsManager';
 import { WorldContext } from '../../../../global/world/WorldContext';
 import { AmmoUtils } from '../../../../physics/AmmoUtils';
+import { WireframeComponent } from '../../../components/WireframeComponent';
 
 export class GroundEnvironment extends GameObject {
     private isVisible: boolean = true;
@@ -13,11 +14,14 @@ export class GroundEnvironment extends GameObject {
      * @param visible Whether the ground should be visible (default: false)
      */
     constructor(initialPosition: THREE.Vector3, visible: boolean = false) {
-        super({ 
+        super({
             position: initialPosition,
             materialType: MaterialType.GROUND
         });
-        
+
+        // Add wireframe component (static objects don't need physics sync)
+        this.addComponent('wireframe', new WireframeComponent());
+
         // Set initial visibility
         if (!visible) {
             this.setVisibility(false);
