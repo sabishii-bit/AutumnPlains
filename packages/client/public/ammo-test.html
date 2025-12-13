@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ammo.js Test</title>
+</head>
+<body>
+    <h1>Ammo.js Test</h1>
+    <div id="status">Loading Ammo.js...</div>
+
+    <script>
+        // Function to check if Ammo loaded correctly
+        function checkAmmo() {
+            const statusEl = document.getElementById('status');
+            
+            if (window.Ammo) {
+                statusEl.textContent = 'Ammo.js loaded successfully! Window.Ammo exists.';
+                statusEl.style.color = 'green';
+                console.log('Ammo loaded:', window.Ammo);
+            } else {
+                statusEl.textContent = 'Error: Ammo.js failed to load properly. Window.Ammo is undefined.';
+                statusEl.style.color = 'red';
+                console.error('Ammo not found on window object');
+            }
+        }
+
+        // Load Ammo.js
+        const script = document.createElement('script');
+        script.src = 'assets/ammo.js';
+        script.async = true;
+        
+        script.onload = () => {
+            console.log('Script loaded, checking for Ammo...');
+            // Give a small delay to ensure Ammo initializes
+            setTimeout(checkAmmo, 100);
+        };
+        
+        script.onerror = (err) => {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = 'Error: Failed to load Ammo.js script. Check console for details.';
+            statusEl.style.color = 'red';
+            console.error('Script load error:', err);
+        };
+        
+        document.head.appendChild(script);
+    </script>
+</body>
+</html> 

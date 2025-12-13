@@ -1,0 +1,16 @@
+{
+  "name": "@autumnplains/shared",
+  "version": "1.0.0",
+  "description": "Shared types and utilities for AutumnPlains",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "5.8.3"
+  }
+}

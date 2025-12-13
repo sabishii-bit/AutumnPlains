@@ -1,28 +1,20 @@
 {
-  "name": "autumnplains",
+  "name": "autumnplains-monorepo",
   "version": "1.0.0",
-  "description": "Three.js first-person game",
-  "main": "index.js",
+  "description": "Three.js first-person game - Monorepo",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "vite",
-    "build": "vite build"
+    "dev:client": "pnpm --filter @autumnplains/client dev",
+    "dev:server": "pnpm --filter @autumnplains/server dev",
+    "dev": "pnpm --parallel --filter @autumnplains/client --filter @autumnplains/server dev",
+    "build:client": "pnpm --filter @autumnplains/client build",
+    "build:server": "pnpm --filter @autumnplains/server build",
+    "build": "pnpm --filter @autumnplains/client build && pnpm --filter @autumnplains/server build",
+    "start:server": "pnpm --filter @autumnplains/server start"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/three": "^0.176.0",
-    "@types/uuid": "^10.0.0",
-    "typescript": "5.8.3",
-    "vite": "6.3.4",
-    "vite-plugin-node-polyfills": "^0.23.0",
-    "vite-plugin-remove-console": "^2.2.0"
-  },
-  "dependencies": {
-    "ammojs3": "^0.0.11",
-    "cannon-es": "^0.20.0",
-    "nipplejs": "^0.10.2",
-    "three": "^0.176.0",
-    "uuid": "^11.1.0"
+    "typescript": "5.8.3"
   }
 }
