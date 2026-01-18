@@ -17,6 +17,7 @@ export class InputManager {
     private keysPressed: Map<string, boolean> = new Map();
     private keysReleased: Map<string, boolean> = new Map();
     private mouseDelta: { x: number; y: number } = { x: 0, y: 0 };
+    private mouseAccumulator: { x: number; y: number } = { x: 0, y: 0 }; // Accumulate mouse movement across frames
     private commands: InputCommand[] = [];
     private keyToCommandMap: Map<string, InputCommand> = new Map();
 
@@ -100,8 +101,10 @@ export class InputManager {
 
                 // Only track mouse delta when pointer is locked
                 if (document.pointerLockElement) {
-                    this.mouseDelta.x = event.movementX;
-                    this.mouseDelta.y = event.movementY;
+                    // Accumulate mouse movement - don't replace, add to it
+                    // This ensures we don't lose mouse events between frames
+                    this.mouseAccumulator.x += event.movementX;
+                    this.mouseAccumulator.y += event.movementY;
                 }
             }
         });
@@ -180,8 +183,11 @@ export class InputManager {
         // Clear single-frame states
         this.keysPressed.clear();
         this.keysReleased.clear();
-        this.mouseDelta.x = 0;
-        this.mouseDelta.y = 0;
+
+        // Reset mouse accumulator for next frame
+        // The camera reads from mouseDelta BEFORE this update is called
+        this.mouseAccumulator.x = 0;
+        this.mouseAccumulator.y = 0;
     }
 
     /**
@@ -207,9 +213,14 @@ export class InputManager {
 
     /**
      * Get mouse movement delta
+     * Returns accumulated mouse movement since last frame
      */
     public getMouseDelta(): { x: number; y: number } {
-        return { ...this.mouseDelta };
+        // Return the accumulated mouse movement
+        // Copy the accumulator to mouseDelta for this frame
+        this.mouseDelta.x = this.mouseAccumulator.x;
+        this.mouseDelta.y = this.mouseAccumulator.y;
+        return { x: this.mouseDelta.x, y: this.mouseDelta.y };
     }
 
     /**

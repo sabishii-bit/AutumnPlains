@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import path from 'path';
 
 export default defineConfig({
   server: {
@@ -12,5 +13,7 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ['@babylonjs/havok']
-  }
+  },
+  // Serve assets from the @autumnplains/assets package
+  publicDir: path.resolve(__dirname, '../assets/public')
 });

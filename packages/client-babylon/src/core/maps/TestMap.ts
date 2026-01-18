@@ -1,94 +1,75 @@
-import { Scene, MeshBuilder, StandardMaterial, Color3, Vector3, PhysicsAggregate, PhysicsShapeType } from '@babylonjs/core';
+import { Scene, Color3, Vector3 } from '@babylonjs/core';
 import { BaseMap } from './BaseMap';
+import { Ground } from '../entities/objects/Ground';
+import { OutskirtStand } from '../entities/objects/imported/OutskirtStand';
 import type { LightingManager } from '../lighting/LightingManager';
 
 /**
  * Test map with ground, walls, and basic environment
  */
 export class TestMap extends BaseMap {
+    private ground!: Ground;
+    private stand?: OutskirtStand;
+
     constructor(scene: Scene, lightingManager: LightingManager) {
         super(scene, lightingManager);
     }
 
-    public initialize(): void {
+    public async initialize(): Promise<void> {
         this.createGround();
-        this.createTestCubes();
+        await this.loadImportedModels();
         console.log('TestMap initialized');
     }
 
     /**
-     * Create ground plane
+     * Create ground using Ground entity
      */
     private createGround(): void {
-        const ground = MeshBuilder.CreateGround('ground', {
-            width: 100,
-            height: 100,
-            subdivisions: 4
-        }, this.scene);
-
-        // Enable picking for raycasting (ground detection)
-        ground.isPickable = true;
-
-        // Create ground material
-        const groundMaterial = new StandardMaterial('groundMaterial', this.scene);
-        groundMaterial.diffuseColor = new Color3(0.3, 0.5, 0.3); // Greenish
-        groundMaterial.specularColor = new Color3(0.1, 0.1, 0.1); // Low specular
-        ground.material = groundMaterial;
-
-        // Add physics to ground (static body)
-        const groundAggregate = new PhysicsAggregate(
-            ground,
-            PhysicsShapeType.BOX,
-            { mass: 0, restitution: 0.2, friction: 0.8 },
-            this.scene
+        // Create ground entity
+        this.ground = new Ground(
+            this.scene,
+            100, // width
+            100, // height
+            Vector3.Zero(), // position
+            new Color3(0.3, 0.5, 0.3) // green color
         );
-        console.log('Ground physics created:', groundAggregate.body ? 'SUCCESS' : 'FAILED');
-        console.log('Ground position:', ground.position);
-        console.log('Ground bounds:', ground.getBoundingInfo().boundingBox);
 
-        // Enable shadow receiving
-        this.lightingManager.enableShadowReceiver(ground);
+        // Make ground invisible but keep physics
+        const groundMesh = this.ground.getTransformNode().getChildMeshes()[0];
+        if (groundMesh) {
+            groundMesh.isVisible = false;
+            this.lightingManager.enableShadowReceiver(groundMesh);
+        }
     }
 
+
     /**
-     * Create some test cubes for visual reference
+     * Load imported 3D models asynchronously
      */
-    private createTestCubes(): void {
-        // Create a few cubes at different positions
-        const positions = [
-            new Vector3(5, 1, 5),
-            new Vector3(-5, 1, 5),
-            new Vector3(5, 1, -5),
-            new Vector3(-5, 1, -5)
-        ];
-
-        const colors = [
-            new Color3(1, 0, 0),    // Red
-            new Color3(0, 1, 0),    // Green
-            new Color3(0, 0, 1),    // Blue
-            new Color3(1, 1, 0)     // Yellow
-        ];
-
-        positions.forEach((pos, index) => {
-            const cube = MeshBuilder.CreateBox(`cube${index}`, { size: 2 }, this.scene);
-            cube.position = pos;
-            cube.isPickable = true; // Enable picking for raycasting
-
-            const material = new StandardMaterial(`cubeMaterial${index}`, this.scene);
-            material.diffuseColor = colors[index];
-            cube.material = material;
-
-            // Add physics to cubes (static for now)
-            new PhysicsAggregate(
-                cube,
-                PhysicsShapeType.BOX,
-                { mass: 0, restitution: 0.3, friction: 0.5 },
-                this.scene
+    private async loadImportedModels(): Promise<void> {
+        try {
+            // Load Outskirt Stand at origin with smaller scale and no physics
+            this.stand = new OutskirtStand(
+                this.scene,
+                new Vector3(0, 0, 5),
+                {
+                    scale: new Vector3(0.25, 0.25, 0.25), // Much smaller scale
+                    enablePhysics: false // Disable collision
+                }
             );
+            await this.stand.loadAsync();
+            console.log('Outskirt Stand loaded at position:', this.stand.getPosition());
 
-            // Add to shadow casters
-            this.lightingManager.addShadowCaster(cube);
-        });
+            // Enable shadow casting
+            this.stand.getRootNodes().forEach(node => {
+                node.getChildMeshes().forEach(mesh => {
+                    this.lightingManager.addShadowCaster(mesh);
+                    console.log('Stand mesh:', mesh.name, 'visible:', mesh.isVisible, 'position:', mesh.absolutePosition);
+                });
+            });
+        } catch (error) {
+            console.error('Failed to load imported models:', error);
+        }
     }
 
     public update(deltaTime: number): void {
@@ -96,6 +77,9 @@ export class TestMap extends BaseMap {
     }
 
     public dispose(): void {
+        // Clean up imported models
+        this.stand?.dispose();
+
         // Clean up map-specific resources
         console.log('TestMap disposed');
     }

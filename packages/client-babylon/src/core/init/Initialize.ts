@@ -5,7 +5,7 @@ import { InputManager } from '../controls/InputManager';
 import { ControllerManager } from '../controls/ControllerManager';
 import { LightingManager } from '../lighting/LightingManager';
 import { PostProcessManager } from '../effects/PostProcessManager';
-import { PlayerCharacter } from '../entities/objects/PlayerCharacter';
+import { PlayerCharacter } from '../entities/characters/PlayerCharacter';
 import { TestMap } from '../maps/TestMap';
 import { Vector3 } from '@babylonjs/core';
 import type { MeshComponent } from '../entities/components/MeshComponent';
@@ -66,7 +66,7 @@ export class Initialize {
 
             // 5. Load map
             this.map = new TestMap(this.engine.getScene(), this.lightingManager);
-            this.map.initialize();
+            await this.map.initialize();
 
             // 6. Start update loop
             this.startUpdateLoop();

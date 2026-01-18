@@ -8,12 +8,14 @@ import type { IComponent } from './components/Component';
 export class Entity {
     private components: Map<string, IComponent> = new Map();
     private transformNode: TransformNode;
-    private scene: Scene;
+    protected scene: Scene;
     private active: boolean = true;
     public readonly id: string;
+    protected entityName: string;
 
     constructor(scene: Scene, name: string = 'Entity') {
         this.scene = scene;
+        this.entityName = name;
         this.id = crypto.randomUUID();
         this.transformNode = new TransformNode(name, scene);
         this.transformNode.id = this.id;

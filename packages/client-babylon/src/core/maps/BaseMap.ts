@@ -16,8 +16,9 @@ export abstract class BaseMap {
 
     /**
      * Initialize the map - create environment, props, etc.
+     * Can be async to support loading models and other assets
      */
-    public abstract initialize(): void;
+    public abstract initialize(): void | Promise<void>;
 
     /**
      * Update map logic each frame

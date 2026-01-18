@@ -4,7 +4,7 @@ import { MoveBackwardCommand } from './commands/MoveBackwardCommand';
 import { MoveLeftCommand } from './commands/MoveLeftCommand';
 import { MoveRightCommand } from './commands/MoveRightCommand';
 import { JumpCommand } from './commands/JumpCommand';
-import type { PlayerCharacter } from '../entities/objects/PlayerCharacter';
+import type { PlayerCharacter } from '../entities/characters/PlayerCharacter';
 import type { InputCommand } from './commands/InputCommand';
 
 /**

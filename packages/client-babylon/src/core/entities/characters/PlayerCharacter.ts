@@ -79,8 +79,9 @@ export class PlayerCharacter extends Entity {
 
         // Also update physics body if it exists
         const body = this.physicsComponent.getBody();
-        if (body) {
-            body.setTargetTransform(position, mesh?.rotationQuaternion || undefined);
+        if (body && mesh) {
+            const rotation = mesh.rotationQuaternion || Quaternion.Identity();
+            body.setTargetTransform(position, rotation);
         }
     }
 

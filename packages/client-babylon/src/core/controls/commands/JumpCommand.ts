@@ -1,5 +1,5 @@
 import { InputCommand } from './InputCommand';
-import type { PlayerCharacter } from '../../entities/objects/PlayerCharacter';
+import type { PlayerCharacter } from '../../entities/characters/PlayerCharacter';
 
 /**
  * Command for jumping

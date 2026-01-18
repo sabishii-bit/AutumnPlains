@@ -17,6 +17,7 @@
     "vite": "6.3.4"
   },
   "dependencies": {
+    "@autumnplains/assets": "workspace:*",
     "@babylonjs/core": "^7.38.0",
     "@babylonjs/loaders": "^7.38.0",
     "@babylonjs/materials": "^7.38.0",

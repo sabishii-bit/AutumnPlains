@@ -109,8 +109,10 @@ export class CharacterMovementComponent extends Component {
     private updateGroundedState(): void {
         if (!this.entity || !this.scene) return;
 
-        // Get position from the actual player (mesh position, not transform node)
-        const position = this.entity.getPosition();
+        // Get position - check if entity has getPosition method (PlayerCharacter), otherwise use transform
+        const position = 'getPosition' in this.entity && typeof (this.entity as any).getPosition === 'function'
+            ? (this.entity as any).getPosition()
+            : this.entity.getTransformNode().getAbsolutePosition();
 
         // Check center and 4 points around the character (following best practices)
         const checkPositions = [
@@ -145,7 +147,10 @@ export class CharacterMovementComponent extends Component {
     private checkGroundAtPosition(x: number, z: number): boolean {
         if (!this.scene || !this.entity) return false;
 
-        const position = this.entity.getPosition();
+        // Get position - check if entity has getPosition method (PlayerCharacter), otherwise use transform
+        const position = 'getPosition' in this.entity && typeof (this.entity as any).getPosition === 'function'
+            ? (this.entity as any).getPosition()
+            : this.entity.getTransformNode().getAbsolutePosition();
 
         // Start raycast from slightly above the character (Y + 0.5)
         const rayStart = new Vector3(x, position.y + 0.5, z);

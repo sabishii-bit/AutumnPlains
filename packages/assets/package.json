@@ -1,0 +1,19 @@
+{
+  "name": "@autumnplains/assets",
+  "version": "1.0.0",
+  "description": "Shared game assets (models, textures, sounds) for AutumnPlains",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'No build needed - assets are static files'"
+  },
+  "keywords": ["assets", "game", "resources"],
+  "author": "",
+  "license": "ISC",
+  "types": "index.d.ts",
+  "files": [
+    "public/**/*",
+    "index.js",
+    "index.d.ts"
+  ]
+}
