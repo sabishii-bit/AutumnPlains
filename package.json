@@ -5,11 +5,15 @@
   "private": true,
   "scripts": {
     "dev:client": "pnpm --filter @autumnplains/client dev",
+    "dev:client-babylon": "pnpm --filter @autumnplains/client-babylon dev",
     "dev:server": "pnpm --filter @autumnplains/server dev",
     "dev": "pnpm --parallel --filter @autumnplains/client --filter @autumnplains/server dev",
+    "dev:babylon": "pnpm --parallel --filter @autumnplains/client-babylon --filter @autumnplains/server dev",
     "build:client": "pnpm --filter @autumnplains/client build",
+    "build:client-babylon": "pnpm --filter @autumnplains/client-babylon build",
     "build:server": "pnpm --filter @autumnplains/server build",
     "build": "pnpm --filter @autumnplains/client build && pnpm --filter @autumnplains/server build",
+    "build:babylon": "pnpm --filter @autumnplains/client-babylon build && pnpm --filter @autumnplains/server build",
     "start:server": "pnpm --filter @autumnplains/server start"
   },
   "author": "",
