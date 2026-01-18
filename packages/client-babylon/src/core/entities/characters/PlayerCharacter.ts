@@ -25,6 +25,8 @@ export class PlayerCharacter extends Entity {
         const mesh = this.meshComponent.getMesh();
         if (mesh) {
             mesh.position = position.clone();
+            // Make the player mesh invisible (player shouldn't see their own capsule)
+            mesh.isVisible = false;
             console.log('PlayerCharacter: mesh position set to', mesh.position);
         }
 

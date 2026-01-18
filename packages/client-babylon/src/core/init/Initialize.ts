@@ -68,10 +68,13 @@ export class Initialize {
             this.map = new TestMap(this.engine.getScene(), this.lightingManager);
             await this.map.initialize();
 
-            // 6. Start update loop
+            // 6. Set up UI callbacks
+            this.setupUICallbacks();
+
+            // 7. Start update loop
             this.startUpdateLoop();
 
-            // 7. Enable pointer lock now that everything is loaded
+            // 8. Enable pointer lock now that everything is loaded
             this.cameraController.setReady(true);
 
             console.log('Game initialization complete!');
@@ -80,6 +83,32 @@ export class Initialize {
             console.error('Error during initialization:', error);
             throw error;
         }
+    }
+
+    /**
+     * Setup UI callbacks to display player/camera data
+     */
+    private setupUICallbacks(): void {
+        const debugInfo = this.engine.getUIManager().getDebugInfo();
+
+        // Set player position callback
+        debugInfo.setPlayerPositionCallback(() => {
+            return this.player.getPosition();
+        });
+
+        // Set player velocity callback
+        debugInfo.setPlayerVelocityCallback(() => {
+            const movementComponent = this.player.getMovementComponent();
+            if (movementComponent) {
+                return movementComponent.getVelocity();
+            }
+            return new Vector3(0, 0, 0);
+        });
+
+        // Set camera rotation callback
+        debugInfo.setCameraRotationCallback(() => {
+            return this.cameraController.getRotation();
+        });
     }
 
     /**

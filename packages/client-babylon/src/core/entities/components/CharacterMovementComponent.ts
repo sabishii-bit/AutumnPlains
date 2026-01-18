@@ -233,4 +233,15 @@ export class CharacterMovementComponent extends Component {
     public getJumpHeight(): number {
         return this.jumpHeight;
     }
+
+    /**
+     * Get current velocity
+     */
+    public getVelocity(): Vector3 {
+        const physicsComponent = this.entity?.getComponent<PhysicsComponent>('physics');
+        if (!physicsComponent || !physicsComponent.getBody()) {
+            return Vector3.Zero();
+        }
+        return physicsComponent.getBody()!.getLinearVelocity();
+    }
 }

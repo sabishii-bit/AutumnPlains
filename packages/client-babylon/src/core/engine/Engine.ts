@@ -10,6 +10,7 @@ import { CameraController } from '../camera/CameraController';
 import { InputManager } from '../controls/InputManager';
 import { LightingManager } from '../lighting/LightingManager';
 import { PostProcessManager } from '../effects/PostProcessManager';
+import { UIManager } from '../ui/UIManager';
 
 /**
  * Main engine class - handles core rendering, physics, and systems
@@ -24,6 +25,7 @@ export class Engine {
     private inputManager!: InputManager;
     private lightingManager!: LightingManager;
     private postProcessManager!: PostProcessManager;
+    private uiManager!: UIManager;
     private havokPlugin!: HavokPlugin;
     private lastFrameTime: number = 0;
     private updateCallbacks: Array<(deltaTime: number) => void> = [];
@@ -68,6 +70,9 @@ export class Engine {
             this.scene,
             this.cameraController.getCamera()
         );
+
+        // Set up UI
+        this.uiManager = new UIManager();
 
         console.log('Engine core systems initialized');
 
@@ -133,6 +138,9 @@ export class Engine {
         // Update camera position
         this.cameraController.update(deltaTime);
 
+        // Update UI
+        this.uiManager.update(deltaTime);
+
         // Update input LAST (clears single-frame input states after everyone has read them)
         this.inputManager.update(deltaTime);
     }
@@ -184,6 +192,13 @@ export class Engine {
      */
     public getLightingManager(): LightingManager {
         return this.lightingManager;
+    }
+
+    /**
+     * Get the UI manager
+     */
+    public getUIManager(): UIManager {
+        return this.uiManager;
     }
 
     /**
