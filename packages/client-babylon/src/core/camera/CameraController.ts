@@ -8,17 +8,21 @@ export class CameraController {
     private camera: FreeCamera;
     private scene: Scene;
     private canvas: HTMLCanvasElement;
-    private mouseSensitivityX: number = 0.01; // Horizontal mouse look sensitivity
-    private mouseSensitivityY: number = 0.01; // Vertical mouse look sensitivity
+    private mouseSensitivityX: number = 0.002; // Horizontal mouse look sensitivity
+    private mouseSensitivityY: number = 0.002; // Vertical mouse look sensitivity
     private playerEntity: any = null; // Will hold reference to player entity
     private eyeHeight: number = 1.7; // Camera height offset from player position
     private isReady: boolean = false; // Prevent pointer lock during initialization
 
-    constructor(scene: Scene, canvas: HTMLCanvasElement, mouseSensitivity: number = 0.01) {
+    constructor(scene: Scene, canvas: HTMLCanvasElement, mouseSensitivity?: number) {
         this.scene = scene;
         this.canvas = canvas;
-        this.mouseSensitivityX = mouseSensitivity;
-        this.mouseSensitivityY = mouseSensitivity;
+
+        // Only override if explicitly provided, otherwise use defaults (0.01)
+        if (mouseSensitivity !== undefined) {
+            this.mouseSensitivityX = mouseSensitivity;
+            this.mouseSensitivityY = mouseSensitivity;
+        }
 
         // Create FPS camera
         this.camera = new FreeCamera(
