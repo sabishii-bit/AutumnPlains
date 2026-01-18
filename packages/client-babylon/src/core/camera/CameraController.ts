@@ -77,6 +77,7 @@ export class CameraController {
         this.isReady = ready;
         if (ready) {
             console.log('Camera ready for pointer lock');
+            console.log('Click on the canvas to start playing!');
         }
     }
 

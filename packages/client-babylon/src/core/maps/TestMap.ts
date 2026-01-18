@@ -34,10 +34,11 @@ export class TestMap extends BaseMap {
             new Color3(0.3, 0.5, 0.3) // green color
         );
 
-        // Make ground invisible but keep physics
+        // Make ground invisible but keep physics and pickable for raycasting
         const groundMesh = this.ground.getTransformNode().getChildMeshes()[0];
         if (groundMesh) {
             groundMesh.isVisible = false;
+            groundMesh.isPickable = true; // Ensure it's pickable for ground detection raycasts
             this.lightingManager.enableShadowReceiver(groundMesh);
         }
     }

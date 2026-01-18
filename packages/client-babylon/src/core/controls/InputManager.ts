@@ -122,6 +122,8 @@ export class InputManager {
             83: 'KeyS',
             68: 'KeyD',
             32: 'Space',
+            13: 'Enter',
+            27: 'Escape',
             38: 'ArrowUp',
             37: 'ArrowLeft',
             40: 'ArrowDown',

@@ -3,7 +3,7 @@ import { DebugInfo } from './components/DebugInfo';
 
 /**
  * UI Manager
- * Manages all UI components (crosshair, debug info, chat, etc.)
+ * Manages all UI components (crosshair, debug info, etc.)
  */
 export class UIManager {
     private crosshair: Crosshair;

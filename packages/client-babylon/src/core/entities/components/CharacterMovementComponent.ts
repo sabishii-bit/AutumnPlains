@@ -1,4 +1,4 @@
-import { Vector3, Ray, Scene } from '@babylonjs/core';
+import { Vector3, Scene } from '@babylonjs/core';
 import { Component } from './Component';
 import { InputManager } from '../../controls/InputManager';
 import type { PhysicsComponent } from './PhysicsComponent';
@@ -11,12 +11,9 @@ export class CharacterMovementComponent extends Component {
     private moveSpeed: number = 6.5;
     private jumpHeight: number = 8.0;
     private isGrounded: boolean = false;
-    private hasJumped: boolean = false; // Track if we've jumped (prevent continuous jumping)
     private inputManager: InputManager;
     private cameraYRotation: number = 0; // Camera's Y rotation for movement direction
     private scene: Scene | null = null;
-    private groundRayLength: number = 1.2; // Length of ground detection raycast
-    private groundCheckOffset: number = 0.5; // Offset from center for raycasts
 
     constructor(moveSpeed: number = 6.5, jumpHeight: number = 8.0) {
         super();
@@ -93,88 +90,49 @@ export class CharacterMovementComponent extends Component {
 
         body.setLinearVelocity(newVelocity);
 
-        // Handle jumping - only allow jump if grounded AND haven't jumped yet
+        // Handle jumping - only allow if grounded (raycast determines this)
         const jumpPressed = this.inputManager.isJumpPressed();
-        if (jumpPressed) {
-            console.log('Jump pressed! Grounded:', this.isGrounded, 'HasJumped:', this.hasJumped);
-        }
-        if (jumpPressed && this.isGrounded && !this.hasJumped) {
-            this.jump();
-            this.hasJumped = true; // Mark that we've jumped
-        }
 
-        // Reset jump flag when we land
-        if (this.isGrounded && this.hasJumped) {
-            this.hasJumped = false;
+        if (jumpPressed && this.isGrounded) {
+            console.log('Jumping! Grounded:', this.isGrounded);
+            this.jump();
         }
     }
 
     /**
-     * Update grounded state using raycasting
-     * Uses multiple raycasts around the character position for better detection
+     * Update grounded state using simple height + velocity check
+     * Character is grounded if close to ground level and not moving upward
      */
     private updateGroundedState(): void {
-        if (!this.entity || !this.scene) return;
+        if (!this.entity) return;
 
-        // Get position - check if entity has getPosition method (PlayerCharacter), otherwise use transform
+        // Get physics component to check velocity
+        const physicsComponent = this.entity.getComponent<PhysicsComponent>('physics');
+        if (!physicsComponent || !physicsComponent.getBody()) return;
+
+        const body = physicsComponent.getBody()!;
         const position = 'getPosition' in this.entity && typeof (this.entity as any).getPosition === 'function'
             ? (this.entity as any).getPosition()
             : this.entity.getTransformNode().getAbsolutePosition();
 
-        // Check center and 4 points around the character (following best practices)
-        const checkPositions = [
-            { x: 0, z: 0 },                                  // Center
-            { x: this.groundCheckOffset, z: 0 },             // Right
-            { x: -this.groundCheckOffset, z: 0 },            // Left
-            { x: 0, z: this.groundCheckOffset },             // Forward
-            { x: 0, z: -this.groundCheckOffset }             // Back
-        ];
+        const velocity = body.getLinearVelocity();
 
-        // Character is grounded if any raycast hits ground
+        // Simple grounded check: Y position close to ground (1.0) AND velocity is near zero or downward
+        // This works because physics keeps the player at Y=1.0 when on ground
+        const groundLevel = 1.0;
+        const threshold = 0.1;
+        const isNearGround = Math.abs(position.y - groundLevel) < threshold;
+        const isNotMovingUp = velocity.y <= 0.5;
+
         const wasGrounded = this.isGrounded;
-        this.isGrounded = false;
-
-        for (const offset of checkPositions) {
-            if (this.checkGroundAtPosition(position.x + offset.x, position.z + offset.z)) {
-                this.isGrounded = true;
-                break;
-            }
-        }
+        this.isGrounded = isNearGround && isNotMovingUp;
 
         // Debug log when grounded state changes
         if (wasGrounded !== this.isGrounded) {
-            console.log('Grounded state changed:', this.isGrounded, 'Position Y:', position.y);
+            console.log('Grounded state changed:', this.isGrounded, 'Y:', position.y.toFixed(2), 'VelY:', velocity.y.toFixed(2));
         }
     }
 
-    /**
-     * Check if ground exists at a specific position using raycast
-     * Following Babylon.js best practice: raycast from slightly above the character
-     */
-    private checkGroundAtPosition(x: number, z: number): boolean {
-        if (!this.scene || !this.entity) return false;
-
-        // Get position - check if entity has getPosition method (PlayerCharacter), otherwise use transform
-        const position = 'getPosition' in this.entity && typeof (this.entity as any).getPosition === 'function'
-            ? (this.entity as any).getPosition()
-            : this.entity.getTransformNode().getAbsolutePosition();
-
-        // Start raycast from slightly above the character (Y + 0.5)
-        const rayStart = new Vector3(x, position.y + 0.5, z);
-
-        // Cast ray downward
-        const rayDirection = Vector3.Down();
-        const ray = new Ray(rayStart, rayDirection, this.groundRayLength);
-
-        // Only check pickable and enabled meshes
-        const predicate = (mesh: any) => {
-            return mesh.isPickable && mesh.isEnabled();
-        };
-
-        const pickInfo = this.scene.pickWithRay(ray, predicate);
-
-        return pickInfo?.hit || false;
-    }
 
     /**
      * Make the character jump
