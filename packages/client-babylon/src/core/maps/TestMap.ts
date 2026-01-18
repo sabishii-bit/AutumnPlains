@@ -53,7 +53,7 @@ export class TestMap extends BaseMap {
                 this.scene,
                 new Vector3(0, 0, 5),
                 {
-                    scale: new Vector3(0.25, 0.25, 0.25), // Much smaller scale
+                    scale: new Vector3(0.2, 0.2, 0.2), // Much smaller scale
                     enablePhysics: false // Disable collision
                 }
             );

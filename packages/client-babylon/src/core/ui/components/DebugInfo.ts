@@ -1,4 +1,6 @@
 import type { Vector3 } from '@babylonjs/core';
+import { NetworkManager } from '../../networking/NetworkManager';
+import { ConnectionState } from '../../networking/ConnectionState';
 
 interface DebugElement {
     element: HTMLElement;
@@ -24,9 +26,11 @@ export class DebugInfo {
     private getPlayerPosition?: () => Vector3;
     private getPlayerVelocity?: () => Vector3;
     private getCameraRotation?: () => Vector3;
+    private networkManager: NetworkManager;
 
     constructor() {
         this.debugContainer = document.createElement('div');
+        this.networkManager = NetworkManager.getInstance();
         this.setupContainer();
         this.registerDebugElements();
     }
@@ -96,6 +100,44 @@ export class DebugInfo {
             const fps = 1 / averageDeltaTime;
             const displayFps = Math.floor(fps);
             return displayFps.toString();
+        });
+
+        // Register server status element
+        this.registerDebugElement("Server", () => {
+            const netClient = this.networkManager.getNetClient();
+            const connectionState = netClient.getConnectionState();
+            let statusColor = "#ff0000"; // Red for disconnected
+
+            switch (connectionState) {
+                case ConnectionState.CONNECTED:
+                    statusColor = "#00ff00"; // Green
+                    break;
+                case ConnectionState.CONNECTING:
+                case ConnectionState.RECONNECTING:
+                    statusColor = "#ffaa00"; // Orange
+                    break;
+                default:
+                    statusColor = "#ff0000"; // Red
+                    break;
+            }
+
+            const statusElement = document.createElement('span');
+            statusElement.innerHTML = `${connectionState} <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background-color:${statusColor};"></span>`;
+            return statusElement;
+        });
+
+        // Register ping element
+        this.registerDebugElement("Ping", () => {
+            const netClient = this.networkManager.getNetClient();
+            const connectionState = netClient.getConnectionState();
+            if (connectionState === ConnectionState.CONNECTED) {
+                const ping = this.networkManager.getCurrentPing();
+                if (ping === -1) {
+                    return "---";
+                }
+                return `${ping}ms`;
+            }
+            return ""; // Hide when not connected
         });
     }
 

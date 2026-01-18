@@ -11,6 +11,7 @@ export class CharacterMovementComponent extends Component {
     private moveSpeed: number = 6.5;
     private jumpHeight: number = 8.0;
     private isGrounded: boolean = false;
+    private hasJumped: boolean = false; // Track if we've jumped (prevent continuous jumping)
     private inputManager: InputManager;
     private cameraYRotation: number = 0; // Camera's Y rotation for movement direction
     private scene: Scene | null = null;
@@ -92,13 +93,19 @@ export class CharacterMovementComponent extends Component {
 
         body.setLinearVelocity(newVelocity);
 
-        // Handle jumping
+        // Handle jumping - only allow jump if grounded AND haven't jumped yet
         const jumpPressed = this.inputManager.isJumpPressed();
         if (jumpPressed) {
-            console.log('Jump pressed! Grounded:', this.isGrounded);
+            console.log('Jump pressed! Grounded:', this.isGrounded, 'HasJumped:', this.hasJumped);
         }
-        if (jumpPressed && this.isGrounded) {
+        if (jumpPressed && this.isGrounded && !this.hasJumped) {
             this.jump();
+            this.hasJumped = true; // Mark that we've jumped
+        }
+
+        // Reset jump flag when we land
+        if (this.isGrounded && this.hasJumped) {
+            this.hasJumped = false;
         }
     }
 

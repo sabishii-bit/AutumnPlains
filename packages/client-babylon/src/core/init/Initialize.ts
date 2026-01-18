@@ -7,6 +7,7 @@ import { LightingManager } from '../lighting/LightingManager';
 import { PostProcessManager } from '../effects/PostProcessManager';
 import { PlayerCharacter } from '../entities/characters/PlayerCharacter';
 import { TestMap } from '../maps/TestMap';
+import { NetworkManager } from '../networking/NetworkManager';
 import { Vector3 } from '@babylonjs/core';
 import type { MeshComponent } from '../entities/components/MeshComponent';
 
@@ -22,6 +23,7 @@ export class Initialize {
     private controllerManager!: ControllerManager;
     private lightingManager!: LightingManager;
     private postProcessManager!: PostProcessManager;
+    private networkManager!: NetworkManager;
     private player!: PlayerCharacter;
     private map!: TestMap;
 
@@ -68,13 +70,18 @@ export class Initialize {
             this.map = new TestMap(this.engine.getScene(), this.lightingManager);
             await this.map.initialize();
 
-            // 6. Set up UI callbacks
+            // 6. Set up networking
+            this.networkManager = NetworkManager.getInstance();
+            this.networkManager.initializePlayerSync(this.player);
+            await this.connectToServer();
+
+            // 7. Set up UI callbacks
             this.setupUICallbacks();
 
-            // 7. Start update loop
+            // 8. Start update loop
             this.startUpdateLoop();
 
-            // 8. Enable pointer lock now that everything is loaded
+            // 9. Enable pointer lock now that everything is loaded
             this.cameraController.setReady(true);
 
             console.log('Game initialization complete!');
@@ -82,6 +89,20 @@ export class Initialize {
         } catch (error) {
             console.error('Error during initialization:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Connect to game server
+     */
+    private async connectToServer(): Promise<void> {
+        try {
+            console.log('Connecting to game server...');
+            await this.networkManager.connectToServer();
+            console.log('Connected to game server');
+        } catch (error) {
+            console.warn('Failed to connect to server:', error);
+            // Don't throw - allow game to continue in offline mode
         }
     }
 
