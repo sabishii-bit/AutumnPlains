@@ -141,14 +141,14 @@ export class NetClient {
     /**
      * Send message to server
      */
-    public send(type: string, data: any): void {
+    public send(event: string, data: any): void {
         if (!this.connected || !this.socket) {
             console.warn('[NetClient] Cannot send - not connected');
             return;
         }
 
         try {
-            const message = JSON.stringify({ type, data });
+            const message = JSON.stringify({ event, data });
             this.socket.send(message);
         } catch (error) {
             console.error('[NetClient] Failed to send message:', error);
@@ -163,12 +163,55 @@ export class NetClient {
             const message = JSON.parse(data);
 
             // Handle pong response
-            if (message.type === 'pong') {
-                this.handlePong(message.data.sequence);
+            if (message.event === 'pong') {
+                this.handlePong(message.data.received.sequence);
                 return;
             }
 
-            // Emit message event for other handlers
+            // Handle chat messages
+            if (message.event === 'chat_message') {
+                console.log('[NetClient] Received chat message:', message.data);
+                document.dispatchEvent(new CustomEvent('socket_chat_message', {
+                    detail: {
+                        sender: message.data.sender,
+                        message: message.data.message,
+                        timestamp: message.data.timestamp
+                    }
+                }));
+                return;
+            }
+
+            // Handle player position updates
+            if (message.event === 'player_position_update') {
+                document.dispatchEvent(new CustomEvent('socket_player_position_update', {
+                    detail: message.data
+                }));
+                return;
+            }
+
+            // Handle initial player positions
+            if (message.event === 'initial_player_positions') {
+                document.dispatchEvent(new CustomEvent('socket_initial_player_positions', {
+                    detail: message.data
+                }));
+                return;
+            }
+
+            // Handle player disconnection
+            if (message.event === 'player_disconnected') {
+                document.dispatchEvent(new CustomEvent('socket_player_disconnected', {
+                    detail: message.data
+                }));
+                return;
+            }
+
+            // Handle connection confirmation
+            if (message.event === 'connected') {
+                console.log('[NetClient] Connection confirmed by server:', message.data);
+                return;
+            }
+
+            // Emit generic message event for other handlers
             document.dispatchEvent(new CustomEvent('network_message', { detail: message }));
         } catch (error) {
             console.error('[NetClient] Failed to parse message:', error);

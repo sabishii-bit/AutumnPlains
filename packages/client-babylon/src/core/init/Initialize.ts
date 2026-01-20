@@ -10,6 +10,7 @@ import { TestMap } from '../maps/TestMap';
 import { NetworkManager } from '../networking/NetworkManager';
 import { Vector3 } from '@babylonjs/core';
 import type { MeshComponent } from '../entities/components/MeshComponent';
+import { ToggleChatCommand } from '../controls/commands/chat/ToggleChatCommand';
 
 /**
  * Initialize class - handles all game initialization in proper order
@@ -65,6 +66,10 @@ export class Initialize {
 
             // 4. Set up input controls
             this.controllerManager = new ControllerManager(this.player);
+
+            // Register chat toggle command (doesn't need player reference)
+            const toggleChatCommand = new ToggleChatCommand(this.inputManager.getKeyStates());
+            this.inputManager.registerCommand(toggleChatCommand);
 
             // 5. Load map
             this.map = new TestMap(this.engine.getScene(), this.lightingManager);

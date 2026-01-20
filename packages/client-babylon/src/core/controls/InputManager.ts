@@ -174,6 +174,31 @@ export class InputManager {
     }
 
     /**
+     * Release all currently held keys
+     * Calls release() on commands for pressed keys and sets all key states to false
+     * Used when pausing/unpausing to prevent stuck keys
+     */
+    public releaseAllHeldKeys(): void {
+        // For each key that's currently pressed
+        this.keys.forEach((isPressed, key) => {
+            if (isPressed) {
+                // Find the command associated with this key
+                const command = this.keyToCommandMap.get(key);
+                if (command) {
+                    // Call the release method on the command
+                    command.release();
+                }
+                // Set the key state to false
+                this.keys.set(key, false);
+            }
+        });
+
+        // Clear the pressed/released tracking maps as well
+        this.keysPressed.clear();
+        this.keysReleased.clear();
+    }
+
+    /**
      * Update input state and execute commands (call once per frame)
      */
     public update(deltaTime: number = 0): void {

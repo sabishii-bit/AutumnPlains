@@ -5,6 +5,7 @@
 export abstract class InputCommand {
     protected keys: string[];
     protected keyStates: Map<string, boolean>;
+    public static pauseState: boolean = false;
 
     constructor(keys: string[], keyStates: Map<string, boolean>) {
         this.keys = keys;
@@ -41,7 +42,7 @@ export abstract class InputCommand {
      * Update method called every frame
      */
     public update(deltaTime: number): void {
-        if (this.isActive()) {
+        if (!InputCommand.pauseState && this.isActive()) {
             this.execute();
         }
     }

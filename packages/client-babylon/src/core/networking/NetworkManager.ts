@@ -130,4 +130,26 @@ export class NetworkManager {
     public getCurrentPing(): number {
         return this.netClient.getCurrentPing();
     }
+
+    /**
+     * Send a chat message to the server
+     * @param message The message to send
+     * @returns true if message was sent successfully
+     */
+    public sendChatMessage(message: string): boolean {
+        if (!this.netClient.isConnected()) {
+            console.warn('[NetworkManager] Cannot send chat message: not connected to server');
+            return false;
+        }
+
+        try {
+            // Send chat message in the format the server expects
+            this.netClient.send('chat_message', { message });
+            console.log('[NetworkManager] Chat message sent:', message);
+            return true;
+        } catch (error) {
+            console.error('[NetworkManager] Failed to send chat message:', error);
+            return false;
+        }
+    }
 }
