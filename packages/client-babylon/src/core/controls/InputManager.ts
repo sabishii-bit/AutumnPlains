@@ -1,6 +1,7 @@
 import { DeviceSourceManager, DeviceType, PointerEventTypes } from '@babylonjs/core';
 import type { Engine, Scene } from '@babylonjs/core';
 import type { InputCommand } from './commands/InputCommand';
+import { MobileInputManager } from './mobile/MobileInputManager';
 
 /**
  * Input manager using Babylon.js DeviceSourceManager
@@ -20,12 +21,17 @@ export class InputManager {
     private mouseAccumulator: { x: number; y: number } = { x: 0, y: 0 }; // Accumulate mouse movement across frames
     private commands: InputCommand[] = [];
     private keyToCommandMap: Map<string, InputCommand> = new Map();
+    private mobileInputManager: MobileInputManager;
 
     private constructor(engine: Engine, scene: Scene) {
         this.engine = engine;
         this.scene = scene;
+        this.mobileInputManager = MobileInputManager.getInstance();
         this.setupDeviceSourceManager();
         this.setupMouseInput();
+
+        // Initialize mobile controls if on mobile device
+        this.mobileInputManager.initialize();
     }
 
     public static initialize(engine: Engine, scene: Scene): InputManager {
@@ -266,8 +272,15 @@ export class InputManager {
 
     /**
      * Get movement input as normalized vector
+     * Combines keyboard/gamepad input with mobile joystick input
      */
     public getMovementInput(): { x: number; z: number } {
+        // Check if mobile input is available
+        if (this.mobileInputManager.isMobile()) {
+            return this.mobileInputManager.getMovementInput();
+        }
+
+        // Desktop keyboard input
         let x = 0;
         let z = 0;
 
@@ -288,13 +301,27 @@ export class InputManager {
 
     /**
      * Check if jump input is active
+     * On mobile, there is no jump button (jumping disabled on mobile)
      */
     public isJumpPressed(): boolean {
+        // Mobile devices don't have jump input
+        if (this.mobileInputManager.isMobile()) {
+            return false;
+        }
+
+        // Desktop keyboard input
         const pressed = this.isKeyPressed('Space');
         if (pressed) {
             console.log('InputManager: Space key pressed detected!');
         }
         return pressed;
+    }
+
+    /**
+     * Get mobile input manager instance
+     */
+    public getMobileInputManager(): MobileInputManager {
+        return this.mobileInputManager;
     }
 
     /**

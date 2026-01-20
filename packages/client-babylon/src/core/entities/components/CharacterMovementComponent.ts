@@ -49,6 +49,12 @@ export class CharacterMovementComponent extends Component {
             return;
         }
 
+        // Update mobile input manager with current camera rotation
+        const mobileInputManager = this.inputManager.getMobileInputManager();
+        if (mobileInputManager.isMobile()) {
+            mobileInputManager.updateCameraYRotation(this.cameraYRotation);
+        }
+
         // Update grounded state using raycasting
         this.updateGroundedState();
 

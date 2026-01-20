@@ -1,4 +1,5 @@
 import { FreeCamera, Vector3, Scene } from '@babylonjs/core';
+import { InputManager } from '../controls/InputManager';
 
 /**
  * FPS camera controller with mouse look and player following
@@ -13,10 +14,12 @@ export class CameraController {
     private playerEntity: any = null; // Will hold reference to player entity
     private eyeHeight: number = 1.7; // Camera height offset from player position
     private isReady: boolean = false; // Prevent pointer lock during initialization
+    private inputManager: InputManager;
 
     constructor(scene: Scene, canvas: HTMLCanvasElement, mouseSensitivity?: number) {
         this.scene = scene;
         this.canvas = canvas;
+        this.inputManager = InputManager.getInstance();
 
         // Only override if explicitly provided, otherwise use defaults (0.01)
         if (mouseSensitivity !== undefined) {
@@ -104,6 +107,9 @@ export class CameraController {
                 console.log('Camera pos:', this.camera.position, 'Player pos:', playerPosition);
             }
         }
+
+        // Mobile look input is now handled directly by MobileInputManager
+        // using requestAnimationFrame loop (matches old client pattern)
     }
 
     /**

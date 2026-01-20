@@ -71,6 +71,10 @@ export class Initialize {
             const toggleChatCommand = new ToggleChatCommand(this.inputManager.getKeyStates());
             this.inputManager.registerCommand(toggleChatCommand);
 
+            // Set camera for mobile input manager (for direct rotation control)
+            const mobileInputManager = this.inputManager.getMobileInputManager();
+            mobileInputManager.setCamera(this.cameraController.getCamera());
+
             // 5. Load map
             this.map = new TestMap(this.engine.getScene(), this.lightingManager);
             await this.map.initialize();
