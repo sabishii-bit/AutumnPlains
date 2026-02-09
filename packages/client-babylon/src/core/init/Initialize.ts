@@ -8,6 +8,7 @@ import { PostProcessManager } from '../effects/PostProcessManager';
 import { PlayerCharacter } from '../entities/characters/PlayerCharacter';
 import { TestMap } from '../maps/TestMap';
 import { NetworkManager } from '../networking/NetworkManager';
+import { NetworkPlayerManager } from '../networking/NetworkPlayerManager';
 import { Vector3 } from '@babylonjs/core';
 import type { MeshComponent } from '../entities/components/MeshComponent';
 import { ToggleChatCommand } from '../controls/commands/chat/ToggleChatCommand';
@@ -25,6 +26,7 @@ export class Initialize {
     private lightingManager!: LightingManager;
     private postProcessManager!: PostProcessManager;
     private networkManager!: NetworkManager;
+    private networkPlayerManager!: NetworkPlayerManager;
     private player!: PlayerCharacter;
     private map!: TestMap;
 
@@ -81,7 +83,12 @@ export class Initialize {
 
             // 6. Set up networking
             this.networkManager = NetworkManager.getInstance();
-            this.networkManager.initializePlayerSync(this.player);
+            this.networkManager.initializePlayerSync(this.player, this.cameraController);
+
+            // Initialize network player manager
+            this.networkPlayerManager = NetworkPlayerManager.getInstance();
+            this.networkPlayerManager.initialize(this.engine.getScene());
+
             await this.connectToServer();
 
             // 7. Set up UI callbacks
@@ -160,6 +167,9 @@ export class Initialize {
 
             // Update map
             this.map.update(deltaTime);
+
+            // Update network players
+            this.networkPlayerManager.update(deltaTime);
         });
     }
 

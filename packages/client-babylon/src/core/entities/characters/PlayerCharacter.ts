@@ -14,12 +14,12 @@ export class PlayerCharacter extends Entity {
     private physicsComponent: PhysicsComponent;
     private movementComponent: CharacterMovementComponent;
 
-    constructor(scene: Scene, position: Vector3 = new Vector3(0, 2, 0)) {
+    constructor(scene: Scene, position: Vector3 = new Vector3(0, 5, 0)) {
         super(scene, 'PlayerCharacter');
 
-        // Add mesh component (capsule for character)
+        // Add mesh component (box for character)
         this.meshComponent = this.addComponent('mesh', new MeshComponent());
-        this.meshComponent.createCapsule(2, 0.5, new Color3(1, 0, 0)); // Red capsule
+        this.meshComponent.createBox(new Vector3(1, 2, 1), new Color3(1, 1, 1)); // White box (1x2x1 - width, height, depth)
 
         // Set mesh position BEFORE creating physics (physics uses mesh position at creation time)
         const mesh = this.meshComponent.getMesh();
@@ -30,12 +30,12 @@ export class PlayerCharacter extends Entity {
             console.log('PlayerCharacter: mesh position set to', mesh.position);
         }
 
-        // Add physics component with capsule shape
+        // Add physics component with box shape
         this.physicsComponent = this.addComponent('physics', new PhysicsComponent(70, 0.2, 0.8));
         console.log('PlayerCharacter: mesh exists?', !!mesh);
         console.log('PlayerCharacter: scene has physics?', scene.getPhysicsEngine() !== null);
         if (mesh) {
-            this.physicsComponent.setMesh(mesh as any, PhysicsShapeType.CAPSULE);
+            this.physicsComponent.setMesh(mesh as any, PhysicsShapeType.BOX);
 
             // Lock rotation on X and Z axes to prevent character from tipping over
             const body = this.physicsComponent.getBody();

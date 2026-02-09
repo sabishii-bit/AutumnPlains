@@ -1,6 +1,7 @@
 import { NetClient } from './NetClient';
 import { PlayerSynchronizer } from './PlayerSynchronizer';
 import type { PlayerCharacter } from '../entities/characters/PlayerCharacter';
+import type { CameraController } from '../camera/CameraController';
 
 /**
  * Server environment enum
@@ -87,14 +88,21 @@ export class NetworkManager {
     /**
      * Initialize player synchronization
      */
-    public initializePlayerSync(player: PlayerCharacter): void {
+    public initializePlayerSync(player: PlayerCharacter, cameraController?: CameraController): void {
         if (!player) {
             console.error('[NetworkManager] Cannot initialize player sync: player is null');
             return;
         }
 
         console.log('[NetworkManager] Initializing player synchronization');
-        this.playerSynchronizer.initialize(player);
+        this.playerSynchronizer.initialize(player, cameraController);
+    }
+
+    /**
+     * Set camera controller for rotation sync
+     */
+    public setCameraController(cameraController: CameraController): void {
+        this.playerSynchronizer.setCameraController(cameraController);
     }
 
     /**

@@ -1,6 +1,7 @@
 import { Vector3, Quaternion } from '@babylonjs/core';
 import { NetClient, ConnectionState } from './NetClient';
 import type { PlayerCharacter } from '../entities/characters/PlayerCharacter';
+import { CameraController } from '../camera/CameraController';
 
 /**
  * PlayerSynchronizer - Sends local player data to server
@@ -10,6 +11,7 @@ export class PlayerSynchronizer {
     private static instance: PlayerSynchronizer;
     private netClient: NetClient;
     private player: PlayerCharacter | null = null;
+    private cameraController: CameraController | null = null;
     private syncInterval: number = 100; // ms between updates
     private intervalId: ReturnType<typeof setInterval> | null = null;
     private lastSentPosition: Vector3 = Vector3.Zero();
@@ -29,11 +31,19 @@ export class PlayerSynchronizer {
     }
 
     /**
-     * Initialize with player reference
+     * Initialize with player and camera references
      */
-    public initialize(player: PlayerCharacter): void {
+    public initialize(player: PlayerCharacter, cameraController?: CameraController): void {
         this.player = player;
+        this.cameraController = cameraController || null;
         console.log('[PlayerSync] Initialized with player');
+    }
+
+    /**
+     * Set camera controller reference
+     */
+    public setCameraController(cameraController: CameraController): void {
+        this.cameraController = cameraController;
     }
 
     /**
@@ -82,29 +92,47 @@ export class PlayerSynchronizer {
             const position = this.player.getPosition();
 
             // Get current velocity (for movement state)
-            const movementComponent = this.player.getMovementComponent();
-            const velocity = movementComponent ? movementComponent.getVelocity() : Vector3.Zero();
+            const physicsComponent = this.player.getPhysicsComponent();
+            const body = physicsComponent?.getBody();
+            const velocity = body?.getLinearVelocity() || Vector3.Zero();
 
-            // Check if position has changed enough to send update
+            // Get rotation from camera (Y rotation only - yaw)
+            let rotation = Quaternion.Identity();
+            if (this.cameraController) {
+                const cameraRotation = this.cameraController.getRotation();
+                // Create quaternion from Y rotation (yaw) only
+                rotation = Quaternion.RotationYawPitchRoll(cameraRotation.y, 0, 0);
+            }
+
+            // Check if position or rotation has changed enough to send update
             const positionChanged = position.subtract(this.lastSentPosition).length() > this.positionThreshold;
+            const rotationChanged = !Quaternion.AreClose(rotation, this.lastSentRotation, this.rotationThreshold);
 
-            // Send update if position changed
-            if (positionChanged) {
-                this.netClient.send('player_update', {
+            // Send update if position or rotation changed
+            if (positionChanged || rotationChanged) {
+                this.netClient.send('player_position', {
                     position: {
                         x: Math.round(position.x * 100) / 100, // Round to 2 decimals
                         y: Math.round(position.y * 100) / 100,
                         z: Math.round(position.z * 100) / 100
                     },
+                    rotation: {
+                        x: Math.round(rotation.x * 100) / 100,
+                        y: Math.round(rotation.y * 100) / 100,
+                        z: Math.round(rotation.z * 100) / 100,
+                        w: Math.round(rotation.w * 100) / 100
+                    },
                     velocity: {
                         x: Math.round(velocity.x * 100) / 100,
                         y: Math.round(velocity.y * 100) / 100,
                         z: Math.round(velocity.z * 100) / 100
-                    }
+                    },
+                    timestamp: Date.now()
                 });
 
-                // Update last sent position
+                // Update last sent data
                 this.lastSentPosition.copyFrom(position);
+                this.lastSentRotation.copyFrom(rotation);
             }
         } catch (error) {
             console.error('[PlayerSync] Error syncing player data:', error);

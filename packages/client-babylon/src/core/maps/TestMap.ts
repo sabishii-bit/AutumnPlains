@@ -52,7 +52,7 @@ export class TestMap extends BaseMap {
             // Load Outskirt Stand at origin with smaller scale and no physics
             this.stand = new OutskirtStand(
                 this.scene,
-                new Vector3(0, 0, 5),
+                new Vector3(0, 1, 5), // Raised Y position to align floor with ground
                 {
                     scale: new Vector3(0.2, 0.2, 0.2), // Much smaller scale
                     enablePhysics: false // Disable collision

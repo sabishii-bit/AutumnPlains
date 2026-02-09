@@ -15,14 +15,24 @@ export class MeshComponent extends Component {
 
     /**
      * Create a box mesh
+     * @param size Either a number (uniform size) or Vector3 (width, height, depth)
      */
-    public createBox(size: number = 1, color?: Color3): void {
+    public createBox(size: number | { width: number; height: number; depth: number } | import('@babylonjs/core').Vector3 = 1, color?: Color3): void {
         if (!this.entity) return;
 
         const scene = this.entity.getScene();
         const transformNode = this.entity.getTransformNode();
 
-        this.mesh = MeshBuilder.CreateBox('box', { size }, scene);
+        if (typeof size === 'number') {
+            this.mesh = MeshBuilder.CreateBox('box', { size }, scene);
+        } else if ('x' in size) {
+            // Vector3 passed
+            this.mesh = MeshBuilder.CreateBox('box', { width: size.x, height: size.y, depth: size.z }, scene);
+        } else {
+            // Object with width/height/depth
+            this.mesh = MeshBuilder.CreateBox('box', size, scene);
+        }
+
         this.mesh.parent = transformNode;
 
         if (color) {
