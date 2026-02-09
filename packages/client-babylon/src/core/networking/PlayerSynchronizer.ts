@@ -2,6 +2,7 @@ import { Vector3, Quaternion } from '@babylonjs/core';
 import { NetClient, ConnectionState } from './NetClient';
 import type { PlayerCharacter } from '../entities/characters/PlayerCharacter';
 import { CameraController } from '../camera/CameraController';
+import { WebRTCManager } from './WebRTCManager';
 
 /**
  * PlayerSynchronizer - Sends local player data to server
@@ -10,9 +11,10 @@ import { CameraController } from '../camera/CameraController';
 export class PlayerSynchronizer {
     private static instance: PlayerSynchronizer;
     private netClient: NetClient;
+    private webrtcManager: WebRTCManager;
     private player: PlayerCharacter | null = null;
     private cameraController: CameraController | null = null;
-    private syncInterval: number = 100; // ms between updates
+    private syncInterval: number = 50; // ms between updates (faster for WebRTC)
     private intervalId: ReturnType<typeof setInterval> | null = null;
     private lastSentPosition: Vector3 = Vector3.Zero();
     private lastSentRotation: Quaternion = Quaternion.Identity();
@@ -21,6 +23,7 @@ export class PlayerSynchronizer {
 
     private constructor() {
         this.netClient = NetClient.getInstance();
+        this.webrtcManager = WebRTCManager.getInstance();
     }
 
     public static getInstance(): PlayerSynchronizer {
@@ -110,7 +113,7 @@ export class PlayerSynchronizer {
 
             // Send update if position or rotation changed
             if (positionChanged || rotationChanged) {
-                this.netClient.send('player_position', {
+                const positionData = {
                     position: {
                         x: Math.round(position.x * 100) / 100, // Round to 2 decimals
                         y: Math.round(position.y * 100) / 100,
@@ -128,7 +131,17 @@ export class PlayerSynchronizer {
                         z: Math.round(velocity.z * 100) / 100
                     },
                     timestamp: Date.now()
+                };
+
+                // Send via WebRTC to all connected peers (low latency, UDP-like)
+                this.webrtcManager.broadcast({
+                    type: 'player_position',
+                    data: positionData
                 });
+
+                // Also send via WebSocket as fallback/backup (reliable, TCP)
+                // This ensures position updates work even if WebRTC isn't connected yet
+                this.netClient.send('player_position', positionData);
 
                 // Update last sent data
                 this.lastSentPosition.copyFrom(position);

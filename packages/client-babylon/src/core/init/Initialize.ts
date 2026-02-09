@@ -9,6 +9,7 @@ import { PlayerCharacter } from '../entities/characters/PlayerCharacter';
 import { TestMap } from '../maps/TestMap';
 import { NetworkManager } from '../networking/NetworkManager';
 import { NetworkPlayerManager } from '../networking/NetworkPlayerManager';
+import { WebRTCManager } from '../networking/WebRTCManager';
 import { Vector3 } from '@babylonjs/core';
 import type { MeshComponent } from '../entities/components/MeshComponent';
 import { ToggleChatCommand } from '../controls/commands/chat/ToggleChatCommand';
@@ -84,6 +85,10 @@ export class Initialize {
             // 6. Set up networking
             this.networkManager = NetworkManager.getInstance();
             this.networkManager.initializePlayerSync(this.player, this.cameraController);
+
+            // Initialize WebRTC manager for peer-to-peer connections
+            const webrtcManager = WebRTCManager.getInstance();
+            webrtcManager.initialize();
 
             // Initialize network player manager
             this.networkPlayerManager = NetworkPlayerManager.getInstance();

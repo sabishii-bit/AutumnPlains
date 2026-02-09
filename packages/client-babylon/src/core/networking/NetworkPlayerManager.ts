@@ -1,5 +1,6 @@
 import { Vector3, Scene } from '@babylonjs/core';
 import { NetClient } from './NetClient';
+import { WebRTCManager } from './WebRTCManager';
 import { RemotePlayer } from '../entities/characters/RemotePlayer';
 
 /**
@@ -34,12 +35,14 @@ export class NetworkPlayerManager {
     private static instance: NetworkPlayerManager;
 
     private netClient: NetClient;
+    private webrtcManager: WebRTCManager;
     private scene: Scene | null = null;
     private remotePlayers: Map<string, RemotePlayer> = new Map();
     private isInitialized: boolean = false;
 
     private constructor() {
         this.netClient = NetClient.getInstance();
+        this.webrtcManager = WebRTCManager.getInstance();
     }
 
     public static getInstance(): NetworkPlayerManager {
@@ -61,6 +64,7 @@ export class NetworkPlayerManager {
 
         this.scene = scene;
         this.setupEventListeners();
+        this.setupWebRTCListener();
         this.isInitialized = true;
 
         console.log('[NetworkPlayerManager] Initialized');
@@ -94,7 +98,21 @@ export class NetworkPlayerManager {
     }
 
     /**
-     * Handle player position update from the server
+     * Set up WebRTC data listener for direct peer-to-peer position updates
+     */
+    private setupWebRTCListener(): void {
+        this.webrtcManager.onPlayerData((playerId, message) => {
+            // Handle WebRTC messages (player_position updates)
+            if (message.type === 'player_position' && message.data) {
+                // Add the player ID to the data
+                const data = { ...message.data, id: playerId };
+                this.handlePlayerPositionUpdate(data);
+            }
+        });
+    }
+
+    /**
+     * Handle player position update from the server OR WebRTC
      */
     private handlePlayerPositionUpdate(data: NetworkPlayerPosition): void {
         if (!data || !data.id || !data.position) {

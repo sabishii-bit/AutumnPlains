@@ -27,9 +27,15 @@ export class MessageManager {
         this.logger.error('Error parsing message:', error);
       }
     });
-    
+
     // Send current player positions to the new client
     this.gameObjectSync.sendAllPositionsToClient(client.id);
+
+    // Send list of other player IDs for WebRTC connections
+    this.sendPlayerList(client);
+
+    // Notify other clients about the new player
+    this.broadcastPlayerJoined(client.id);
   }
 
   private processMessage(client: GameClient, message: GameMessage): void {
@@ -56,6 +62,9 @@ export class MessageManager {
         break;
       case 'player_position':
         this.handlePlayerPosition(client, message);
+        break;
+      case 'webrtc_signal':
+        this.handleWebRTCSignal(client, message);
         break;
       default:
         this.logger.warn(`Unhandled message event: ${message.event}`);
@@ -130,6 +139,92 @@ export class MessageManager {
     }
   }
   
+  /**
+   * Send list of other player IDs to a client for WebRTC connection setup
+   * @param client The client to send the list to
+   */
+  private sendPlayerList(client: GameClient): void {
+    const playerIds: string[] = [];
+    const clients = this.connectionManager.getAllClients();
+
+    clients.forEach((_, id) => {
+      if (id !== client.id) {
+        playerIds.push(id);
+      }
+    });
+
+    if (playerIds.length > 0) {
+      try {
+        client.send(JSON.stringify({
+          event: 'player_list',
+          data: {
+            playerIds
+          }
+        }));
+        this.logger.info(`Sent player list to ${client.id}: ${playerIds.length} players`);
+      } catch (error) {
+        this.logger.error(`Error sending player list to ${client.id}:`, error);
+      }
+    }
+  }
+
+  /**
+   * Broadcast to all clients that a new player has joined
+   * @param newPlayerId The ID of the new player
+   */
+  private broadcastPlayerJoined(newPlayerId: string): void {
+    const clients = this.connectionManager.getAllClients();
+
+    clients.forEach((client, id) => {
+      if (id !== newPlayerId) {
+        try {
+          client.send(JSON.stringify({
+            event: 'player_joined',
+            data: {
+              playerId: newPlayerId
+            }
+          }));
+        } catch (error) {
+          this.logger.error(`Error notifying client ${id} about new player:`, error);
+        }
+      }
+    });
+
+    this.logger.info(`Broadcasted player_joined for ${newPlayerId}`);
+  }
+
+  /**
+   * Handle WebRTC signaling messages (relay between clients)
+   * @param client The client sending the signal
+   * @param message The WebRTC signal message
+   */
+  private handleWebRTCSignal(client: GameClient, message: GameMessage): void {
+    if (!message.data || !message.data.targetId) {
+      this.logger.warn(`Invalid WebRTC signal from ${client.id}`);
+      return;
+    }
+
+    const targetClient = this.connectionManager.getClient(message.data.targetId);
+    if (!targetClient) {
+      this.logger.warn(`WebRTC signal target not found: ${message.data.targetId}`);
+      return;
+    }
+
+    // Forward the signal to the target client
+    try {
+      targetClient.send(JSON.stringify({
+        event: 'webrtc_signal',
+        data: {
+          fromId: client.id,
+          signal: message.data.signal
+        }
+      }));
+      this.logger.debug(`WebRTC signal relayed from ${client.id} to ${message.data.targetId}`);
+    } catch (error) {
+      this.logger.error(`Error relaying WebRTC signal:`, error);
+    }
+  }
+
   /**
    * Get the GameObjectSync instance
    * @returns The GameObjectSync instance

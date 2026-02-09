@@ -18,6 +18,11 @@ export class RemotePlayer extends Entity {
     // Visual configuration
     private readonly REMOTE_PLAYER_COLOR = new Color3(1, 1, 1); // White color
 
+    // Interpolation for smooth movement
+    private targetPosition: Vector3 | null = null;
+    private targetRotation: Quaternion | null = null;
+    private interpolationSpeed: number = 15; // Higher = faster interpolation (good for 50ms updates)
+
     constructor(scene: Scene, playerId: string, position: Vector3 = new Vector3(0, 2, 0)) {
         super(scene, `RemotePlayer_${RemotePlayer.instanceCount++}`);
 
@@ -29,9 +34,13 @@ export class RemotePlayer extends Entity {
         this.meshComponent.createBox(new Vector3(1, 2, 1), this.REMOTE_PLAYER_COLOR);
 
         // Set initial position
+        // Network sends physics body position (y=1), but visual mesh needs to be at y=2
+        // Local player has this same 1-unit offset between physics and visual
         const mesh = this.meshComponent.getMesh();
         if (mesh) {
-            mesh.position = position.clone();
+            const visualPos = position.clone();
+            visualPos.y += 1; // Match local player's visual offset
+            mesh.position = visualPos;
         }
 
         // Create name tag
@@ -120,23 +129,60 @@ export class RemotePlayer extends Entity {
      * Set target position for interpolation
      */
     public setTargetPosition(position: Vector3): void {
-        // For now, directly set position (can add interpolation later)
-        this.setPosition(position);
+        // Network sends physics body position (y=1), but visual mesh needs to be at y=2
+        // Apply the same +1 Y offset as in constructor
+        const visualPos = position.clone();
+        visualPos.y += 1;
+        this.targetPosition = visualPos;
     }
 
     /**
      * Set target rotation for interpolation
      */
     public setTargetRotation(x: number, y: number, z: number, w: number): void {
-        // For now, directly set rotation (can add interpolation later)
-        this.setRotation(x, y, z, w);
+        this.targetRotation = new Quaternion(x, y, z, w);
     }
 
     /**
-     * Update method (can be used for interpolation in the future)
+     * Update method - interpolates position and rotation for smooth movement
      */
     public onUpdate(deltaTime: number): void {
-        // Future: Add smooth interpolation here
+        const mesh = this.meshComponent.getMesh();
+        if (!mesh) return;
+
+        // Interpolate position
+        if (this.targetPosition) {
+            const currentPos = mesh.position;
+            const distance = Vector3.Distance(currentPos, this.targetPosition);
+
+            // If very close, snap to target to avoid jitter
+            if (distance < 0.01) {
+                mesh.position.copyFrom(this.targetPosition);
+                this.targetPosition = null;
+            } else {
+                // Smooth interpolation using lerp
+                const t = Math.min(1.0, this.interpolationSpeed * deltaTime);
+                Vector3.LerpToRef(currentPos, this.targetPosition, t, mesh.position);
+            }
+        }
+
+        // Interpolate rotation
+        if (this.targetRotation) {
+            if (!mesh.rotationQuaternion) {
+                mesh.rotationQuaternion = this.targetRotation.clone();
+                this.targetRotation = null;
+            } else {
+                // Smooth rotation interpolation using slerp
+                const t = Math.min(1.0, this.interpolationSpeed * deltaTime);
+                Quaternion.SlerpToRef(mesh.rotationQuaternion, this.targetRotation, t, mesh.rotationQuaternion);
+
+                // If very close, snap to target
+                if (Quaternion.AreClose(mesh.rotationQuaternion, this.targetRotation, 0.001)) {
+                    mesh.rotationQuaternion.copyFrom(this.targetRotation);
+                    this.targetRotation = null;
+                }
+            }
+        }
     }
 
     /**

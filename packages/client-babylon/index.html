@@ -21,6 +21,14 @@
 </head>
 <body>
   <canvas id="renderCanvas"></canvas>
+  <script>
+    // Polyfills for simple-peer (requires global and process objects)
+    window.global = window;
+    window.process = {
+      env: { NODE_ENV: 'production' },
+      nextTick: function(fn) { setTimeout(fn, 0); }
+    };
+  </script>
   <script type="module" src="/src/index.ts"></script>
 </body>
 </html>

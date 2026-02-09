@@ -205,6 +205,30 @@ export class NetClient {
                 return;
             }
 
+            // Handle player list (for WebRTC connections)
+            if (message.event === 'player_list') {
+                document.dispatchEvent(new CustomEvent('socket_player_list', {
+                    detail: message.data
+                }));
+                return;
+            }
+
+            // Handle player joined (for WebRTC connections)
+            if (message.event === 'player_joined') {
+                document.dispatchEvent(new CustomEvent('socket_player_joined', {
+                    detail: message.data
+                }));
+                return;
+            }
+
+            // Handle WebRTC signaling
+            if (message.event === 'webrtc_signal') {
+                document.dispatchEvent(new CustomEvent('socket_webrtc_signal', {
+                    detail: message.data
+                }));
+                return;
+            }
+
             // Handle connection confirmation
             if (message.event === 'connected') {
                 console.log('[NetClient] Connection confirmed by server:', message.data);
