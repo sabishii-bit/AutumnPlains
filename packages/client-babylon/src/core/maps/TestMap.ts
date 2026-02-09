@@ -62,12 +62,14 @@ export class TestMap extends BaseMap {
             console.log('Outskirt Stand loaded at position:', this.stand.getPosition());
 
             // Enable shadow casting
+            let meshCount = 0;
             this.stand.getRootNodes().forEach(node => {
                 node.getChildMeshes().forEach(mesh => {
                     this.lightingManager.addShadowCaster(mesh);
-                    console.log('Stand mesh:', mesh.name, 'visible:', mesh.isVisible, 'position:', mesh.absolutePosition);
+                    meshCount++;
                 });
             });
+            console.log(`Outskirt Stand: ${meshCount} meshes loaded and configured for shadows`);
         } catch (error) {
             console.error('Failed to load imported models:', error);
         }

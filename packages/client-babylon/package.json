@@ -14,7 +14,8 @@
   "devDependencies": {
     "@babylonjs/havok": "^1.3.11",
     "typescript": "5.8.3",
-    "vite": "6.3.4"
+    "vite": "6.3.4",
+    "vite-plugin-node-polyfills": "^0.24.0"
   },
   "dependencies": {
     "@autumnplains/assets": "workspace:*",
@@ -22,7 +23,12 @@
     "@babylonjs/gui": "^7.38.0",
     "@babylonjs/loaders": "^7.38.0",
     "@babylonjs/materials": "^7.38.0",
+    "buffer": "^6.0.3",
+    "events": "^3.3.0",
     "nipplejs": "^0.10.2",
-    "simple-peer": "^9.11.1"
+    "readable-stream": "^4.7.0",
+    "simple-peer": "^9.11.1",
+    "stream-browserify": "^3.0.0",
+    "util": "^0.12.5"
   }
 }
