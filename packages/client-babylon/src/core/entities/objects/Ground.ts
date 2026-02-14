@@ -39,8 +39,8 @@ export class Ground extends Entity {
         // Set position
         this.getTransformNode().position = position;
 
-        // Add physics component (static body - mass: 0)
-        this.physicsComponent = this.addComponent('physics', new PhysicsComponent(0, 0.2, 0.8));
+        // Add physics component (static body - mass: 0, restitution: 0 to prevent bounce)
+        this.physicsComponent = this.addComponent('physics', new PhysicsComponent(0, 0, 0.8));
         this.physicsComponent.setMesh(ground as any, PhysicsShapeType.BOX);
 
         console.log('Ground created at position:', position, 'size:', width, 'x', height);

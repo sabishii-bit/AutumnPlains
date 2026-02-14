@@ -30,12 +30,13 @@ export class PlayerCharacter extends Entity {
             console.log('PlayerCharacter: mesh position set to', mesh.position);
         }
 
-        // Add physics component with box shape
-        this.physicsComponent = this.addComponent('physics', new PhysicsComponent(70, 0.2, 0.8));
+        // Add physics component with capsule shape (mass: 70, restitution: 0 for no bounce, friction: 0.8)
+        this.physicsComponent = this.addComponent('physics', new PhysicsComponent(70, 0, 0.8));
         console.log('PlayerCharacter: mesh exists?', !!mesh);
         console.log('PlayerCharacter: scene has physics?', scene.getPhysicsEngine() !== null);
         if (mesh) {
-            this.physicsComponent.setMesh(mesh as any, PhysicsShapeType.BOX);
+            // Use CAPSULE shape to prevent bouncing on landing
+            this.physicsComponent.setMesh(mesh as any, PhysicsShapeType.CAPSULE);
 
             // Lock rotation on X and Z axes to prevent character from tipping over
             const body = this.physicsComponent.getBody();

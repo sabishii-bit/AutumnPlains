@@ -86,4 +86,11 @@ export class TestMap extends BaseMap {
         // Clean up map-specific resources
         console.log('TestMap disposed');
     }
+
+    /**
+     * Get player spawn point
+     */
+    public getSpawnPoint(): Vector3 {
+        return new Vector3(0, 2, 0);
+    }
 }

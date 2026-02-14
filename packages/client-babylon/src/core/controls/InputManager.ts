@@ -100,7 +100,7 @@ export class InputManager {
      * Set up mouse input using scene's pointer observable (Babylon.js best practice)
      */
     private setupMouseInput(): void {
-        // Use scene.onPointerObservable for mouse movement (recommended by Babylon.js)
+        // Use scene.onPointerObservable for mouse movement and buttons (recommended by Babylon.js)
         this.scene.onPointerObservable.add((pointerInfo) => {
             if (pointerInfo.type === PointerEventTypes.POINTERMOVE) {
                 const event = pointerInfo.event as PointerEvent;
@@ -112,8 +112,46 @@ export class InputManager {
                     this.mouseAccumulator.x += event.movementX;
                     this.mouseAccumulator.y += event.movementY;
                 }
+            } else if (pointerInfo.type === PointerEventTypes.POINTERDOWN) {
+                const event = pointerInfo.event as PointerEvent;
+                const mouseButton = this.getMouseButtonKey(event.button);
+
+                if (!this.keys.get(mouseButton)) {
+                    this.keysPressed.set(mouseButton, true);
+                }
+                this.keys.set(mouseButton, true);
+
+                console.log(`Mouse button ${event.button} (${mouseButton}) pressed`);
+            } else if (pointerInfo.type === PointerEventTypes.POINTERUP) {
+                const event = pointerInfo.event as PointerEvent;
+                const mouseButton = this.getMouseButtonKey(event.button);
+
+                if (this.keys.get(mouseButton)) {
+                    this.keysReleased.set(mouseButton, true);
+
+                    // Call release on associated command
+                    const command = this.keyToCommandMap.get(mouseButton);
+                    if (command) {
+                        command.release();
+                    }
+                }
+                this.keys.set(mouseButton, false);
+
+                console.log(`Mouse button ${event.button} (${mouseButton}) released`);
             }
         });
+    }
+
+    /**
+     * Map mouse button number to key string
+     */
+    private getMouseButtonKey(button: number): string {
+        const buttonMap: { [key: number]: string } = {
+            0: 'MouseLeft',
+            1: 'MouseMiddle',
+            2: 'MouseRight',
+        };
+        return buttonMap[button] || `Mouse${button}`;
     }
 
     /**

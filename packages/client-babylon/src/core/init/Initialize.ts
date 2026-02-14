@@ -10,9 +10,11 @@ import { TestMap } from '../maps/TestMap';
 import { NetworkManager } from '../networking/NetworkManager';
 import { NetworkPlayerManager } from '../networking/NetworkPlayerManager';
 import { WebRTCManager } from '../networking/WebRTCManager';
+import { ProjectileManager } from '../entities/projectiles/ProjectileManager';
 import { Vector3 } from '@babylonjs/core';
 import type { MeshComponent } from '../entities/components/MeshComponent';
 import { ToggleChatCommand } from '../controls/commands/chat/ToggleChatCommand';
+import { FireProjectileCommand } from '../controls/commands/FireProjectileCommand';
 
 /**
  * Initialize class - handles all game initialization in proper order
@@ -28,6 +30,7 @@ export class Initialize {
     private postProcessManager!: PostProcessManager;
     private networkManager!: NetworkManager;
     private networkPlayerManager!: NetworkPlayerManager;
+    private projectileManager!: ProjectileManager;
     private player!: PlayerCharacter;
     private map!: TestMap;
 
@@ -53,10 +56,14 @@ export class Initialize {
             this.lightingManager = this.engine.getLightingManager();
             this.postProcessManager = this.engine.getPostProcessManager();
 
-            // 3. Create player (spawn at Y=2, which is just above ground for a 2m tall capsule)
+            // 3. Load map first to get spawn point
+            this.map = new TestMap(this.engine.getScene(), this.lightingManager);
+            await this.map.initialize();
+
+            // 4. Create player at map's spawn point
             this.player = new PlayerCharacter(
                 this.engine.getScene(),
-                new Vector3(0, 2, 0)
+                this.map.getSpawnPoint()
             );
             this.cameraController.setPlayerEntity(this.player);
 
@@ -67,22 +74,30 @@ export class Initialize {
                 this.lightingManager.addShadowCaster(playerMesh);
             }
 
-            // 4. Set up input controls
+            // 5. Initialize projectile system
+            this.projectileManager = ProjectileManager.getInstance();
+            this.projectileManager.initialize(this.engine.getScene());
+
+            // 6. Set up input controls
             this.controllerManager = new ControllerManager(this.player);
 
             // Register chat toggle command (doesn't need player reference)
             const toggleChatCommand = new ToggleChatCommand(this.inputManager.getKeyStates());
             this.inputManager.registerCommand(toggleChatCommand);
 
+            // Register fire projectile command (Middle mouse button)
+            const fireProjectileCommand = new FireProjectileCommand(
+                ['MouseMiddle'],
+                this.inputManager.getKeyStates(),
+                this.cameraController
+            );
+            this.inputManager.registerCommand(fireProjectileCommand);
+
             // Set camera for mobile input manager (for direct rotation control)
             const mobileInputManager = this.inputManager.getMobileInputManager();
             mobileInputManager.setCamera(this.cameraController.getCamera());
 
-            // 5. Load map
-            this.map = new TestMap(this.engine.getScene(), this.lightingManager);
-            await this.map.initialize();
-
-            // 6. Set up networking
+            // 7. Set up networking
             this.networkManager = NetworkManager.getInstance();
             this.networkManager.initializePlayerSync(this.player, this.cameraController);
 
@@ -96,13 +111,13 @@ export class Initialize {
 
             await this.connectToServer();
 
-            // 7. Set up UI callbacks
+            // 8. Set up UI callbacks
             this.setupUICallbacks();
 
-            // 8. Start update loop
+            // 9. Start update loop
             this.startUpdateLoop();
 
-            // 9. Enable pointer lock now that everything is loaded
+            // 10. Enable pointer lock now that everything is loaded
             this.cameraController.setReady(true);
 
             console.log('Game initialization complete!');
@@ -172,6 +187,9 @@ export class Initialize {
 
             // Update map
             this.map.update(deltaTime);
+
+            // Update projectiles
+            this.projectileManager.update(deltaTime);
 
             // Update network players
             this.networkPlayerManager.update(deltaTime);

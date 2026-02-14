@@ -1,4 +1,4 @@
-import type { Scene } from '@babylonjs/core';
+import type { Scene, Vector3 } from '@babylonjs/core';
 import type { LightingManager } from '../lighting/LightingManager';
 
 /**
@@ -29,4 +29,9 @@ export abstract class BaseMap {
      * Clean up map resources
      */
     public abstract dispose(): void;
+
+    /**
+     * Get player spawn point for this map
+     */
+    public abstract getSpawnPoint(): Vector3;
 }

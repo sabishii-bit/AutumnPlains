@@ -87,10 +87,16 @@ export class CharacterMovementComponent extends Component {
         // Get current velocity and preserve Y component (gravity)
         const currentVelocity = body.getLinearVelocity() || Vector3.Zero();
 
+        // If grounded and falling, dampen downward velocity to prevent bounce
+        let yVelocity = currentVelocity.y;
+        if (this.isGrounded && currentVelocity.y < 0) {
+            yVelocity = Math.max(currentVelocity.y, -0.5); // Clamp downward velocity when grounded
+        }
+
         // Set new velocity with movement
         const newVelocity = new Vector3(
             moveDirection.x * this.moveSpeed,
-            currentVelocity.y, // Keep gravity/jump velocity
+            yVelocity, // Keep gravity/jump velocity, dampened if landing
             moveDirection.z * this.moveSpeed
         );
 
