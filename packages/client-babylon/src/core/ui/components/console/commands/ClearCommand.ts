@@ -1,5 +1,6 @@
 import { ConsoleCommand } from '../ConsoleCommand';
 import { HUDChatComponent } from '../../chat/HUDChatComponent';
+import { MobileChatComponent } from '../../chat/MobileChatComponent';
 import { DeviceDetectionService } from '../../../../services/DeviceDetectionService';
 
 /**
@@ -13,8 +14,9 @@ export class ClearCommand implements ConsoleCommand {
     const deviceService = DeviceDetectionService.getInstance();
 
     if (deviceService.isMobile()) {
-      // Mobile chat not yet implemented in client-babylon
-      return 'Mobile chat not available';
+      // Clear mobile chat
+      const mobileChatComponent = MobileChatComponent.getInstance();
+      mobileChatComponent.clearMessages();
     } else {
       // Clear desktop chat
       const chatComponent = HUDChatComponent.getInstance();

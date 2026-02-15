@@ -1,6 +1,9 @@
 import { Crosshair } from './components/Crosshair';
 import { DebugInfo } from './components/DebugInfo';
 import { HUDChatComponent } from './components/chat/HUDChatComponent';
+import { MobileChatComponent } from './components/chat/MobileChatComponent';
+import { DeviceDetectionService } from '../services/DeviceDetectionService';
+import { MobileInputManager } from '../controls/mobile/MobileInputManager';
 
 /**
  * UI Manager
@@ -10,12 +13,26 @@ export class UIManager {
     private crosshair: Crosshair;
     private debugInfo: DebugInfo;
     private chat: HUDChatComponent;
+    private mobileChat: MobileChatComponent | null = null;
+    private deviceDetectionService: DeviceDetectionService;
+    private isMobile: boolean;
 
     constructor() {
+        this.deviceDetectionService = DeviceDetectionService.getInstance();
+        this.isMobile = this.deviceDetectionService.isMobile();
+
         // Initialize UI components
         this.crosshair = new Crosshair();
         this.debugInfo = new DebugInfo();
         this.chat = HUDChatComponent.getInstance();
+
+        // Initialize mobile chat on mobile devices
+        if (this.isMobile) {
+            this.mobileChat = MobileChatComponent.getInstance();
+            const mobileInputManager = MobileInputManager.getInstance();
+            this.mobileChat.setMobileInputManager(mobileInputManager);
+            console.log('[UIManager] Mobile chat initialized');
+        }
     }
 
     /**
@@ -37,6 +54,13 @@ export class UIManager {
      */
     public getChat(): HUDChatComponent {
         return this.chat;
+    }
+
+    /**
+     * Get the mobile chat component (only available on mobile devices)
+     */
+    public getMobileChat(): MobileChatComponent | null {
+        return this.mobileChat;
     }
 
     /**
