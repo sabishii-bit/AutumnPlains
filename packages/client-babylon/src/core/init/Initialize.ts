@@ -11,6 +11,8 @@ import { NetworkManager } from '../networking/NetworkManager';
 import { NetworkPlayerManager } from '../networking/NetworkPlayerManager';
 import { WebRTCManager } from '../networking/WebRTCManager';
 import { ProjectileManager } from '../entities/projectiles/ProjectileManager';
+import { ParticleEffectManager } from '../effects/particles/ParticleEffectManager';
+import { WeatherManager } from '../effects/weather/WeatherManager';
 import { Vector3 } from '@babylonjs/core';
 import type { MeshComponent } from '../entities/components/MeshComponent';
 import { ToggleChatCommand } from '../controls/commands/chat/ToggleChatCommand';
@@ -31,6 +33,8 @@ export class Initialize {
     private networkManager!: NetworkManager;
     private networkPlayerManager!: NetworkPlayerManager;
     private projectileManager!: ProjectileManager;
+    private particleEffectManager!: ParticleEffectManager;
+    private weatherManager!: WeatherManager;
     private player!: PlayerCharacter;
     private map!: TestMap;
 
@@ -74,9 +78,15 @@ export class Initialize {
                 this.lightingManager.addShadowCaster(playerMesh);
             }
 
-            // 5. Initialize projectile system
+            // 5. Initialize projectile and particle systems
             this.projectileManager = ProjectileManager.getInstance();
             this.projectileManager.initialize(this.engine.getScene());
+
+            this.particleEffectManager = ParticleEffectManager.getInstance();
+            this.particleEffectManager.initialize(this.engine.getScene());
+
+            this.weatherManager = WeatherManager.getInstance();
+            this.weatherManager.initialize(this.engine.getScene());
 
             // 6. Set up input controls
             this.controllerManager = new ControllerManager(this.player);
@@ -190,6 +200,12 @@ export class Initialize {
 
             // Update projectiles
             this.projectileManager.update(deltaTime);
+
+            // Update particle effects
+            this.particleEffectManager.update(deltaTime);
+
+            // Update weather effects
+            this.weatherManager.update(deltaTime, this.player.getPosition());
 
             // Update network players
             this.networkPlayerManager.update(deltaTime);

@@ -2,6 +2,7 @@ import { Scene, Color3, Vector3 } from '@babylonjs/core';
 import { BaseMap } from './BaseMap';
 import { Ground } from '../entities/objects/Ground';
 import { OutskirtStand } from '../entities/objects/imported/OutskirtStand';
+import { WeatherManager } from '../effects/weather/WeatherManager';
 import type { LightingManager } from '../lighting/LightingManager';
 
 /**
@@ -17,8 +18,19 @@ export class TestMap extends BaseMap {
 
     public async initialize(): Promise<void> {
         this.createGround();
+        this.setupWeather();
         await this.loadImportedModels();
         console.log('TestMap initialized');
+    }
+
+    /**
+     * Setup weather effects (rain and fog)
+     */
+    private setupWeather(): void {
+        // Start rain with intense settings to match old client
+        // const weatherManager = WeatherManager.getInstance();
+        // weatherManager.createRain(Vector3.Zero(), 200, 80, 5000); // Much larger spread, higher emitter, intense particle count
+        // weatherManager.startRain();
     }
 
     /**

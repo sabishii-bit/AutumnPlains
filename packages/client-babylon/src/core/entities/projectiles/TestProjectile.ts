@@ -1,5 +1,8 @@
 import { Scene, Vector3, Color3, MeshBuilder, LinesMesh, Ray } from '@babylonjs/core';
 import { Entity } from '../Entity';
+import { ParticleEffectManager } from '../../effects/particles/ParticleEffectManager';
+import { HitSparkEffect } from '../../effects/particles/HitSparkEffect';
+import { DustEffect } from '../../effects/particles/DustEffect';
 
 /**
  * Test projectile - visual raycast for debugging
@@ -73,6 +76,9 @@ export class TestProjectile extends Entity {
                 console.log(`  Hit Face: ${face}`);
             }
             console.log('%c-----------------------------------', 'color: gray');
+
+            // Spawn hit particle effects
+            this.spawnHitEffect(actualEndPoint);
         } else {
             console.log('%c[TestProjectile] No hit detected (MISS)', 'color: #ff3333; font-weight: bold');
         }
@@ -160,6 +166,21 @@ export class TestProjectile extends Entity {
      */
     public setMaxDistance(distance: number): void {
         this.maxDistance = distance;
+    }
+
+    /**
+     * Spawn particle effect at hit location
+     */
+    private spawnHitEffect(position: Vector3): void {
+        const particleManager = ParticleEffectManager.getInstance();
+
+        // Spawn spark effect
+        const spark = particleManager.getEffect(HitSparkEffect);
+        spark.play(position);
+
+        // Spawn dust effect
+        const dust = particleManager.getEffect(DustEffect);
+        dust.play(position);
     }
 
     public dispose(): void {
