@@ -1,5 +1,8 @@
 import { CommandRegistry } from './CommandRegistry';
 import { ClearCommand } from './commands/ClearCommand';
+import { HelpCommand } from './commands/HelpCommand';
+import { NoClipCommand } from './commands/NoClipCommand';
+
 /**
  * Manages the initialization and registration of all console commands
  */
@@ -35,7 +38,9 @@ export class ConsoleCommandManager {
     }
 
     // Register core commands
+    this.commandRegistry.registerCommand(new HelpCommand());
     this.commandRegistry.registerCommand(new ClearCommand());
+    this.commandRegistry.registerCommand(new NoClipCommand());
 
     // Add more commands here as they are created
 

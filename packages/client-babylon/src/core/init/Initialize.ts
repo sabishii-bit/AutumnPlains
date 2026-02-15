@@ -190,6 +190,7 @@ export class Initialize {
             if (movementComponent) {
                 const cameraRotation = this.cameraController.getRotation();
                 movementComponent.setCameraRotation(cameraRotation.y);
+                movementComponent.setCameraPitch(cameraRotation.x); // For noclip flying
             }
 
             // Update player (physics, movement, etc.)

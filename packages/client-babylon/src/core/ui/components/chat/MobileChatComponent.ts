@@ -72,6 +72,7 @@ export class MobileChatComponent {
 
         // Add some welcome messages
         this.addMessage('System', 'Welcome to the server :^)');
+        this.addMessage('System', 'Type /help for available commands.');
     }
 
     /**
@@ -434,7 +435,7 @@ export class MobileChatComponent {
         const message = this.inputBox.value.trim();
         if (message) {
             // Check if this is a console command
-            if (message.startsWith('$')) {
+            if (message.startsWith('/')) {
                 const { wasCommand, result } = await this.consoleCommandManager.handlePotentialCommand(message);
 
                 if (wasCommand) {
@@ -537,11 +538,10 @@ export class MobileChatComponent {
                 senderColor = this.getClientColor(clientId);
             }
 
-            messageElement.innerHTML = `
-                <span style="color: #aaa;">[${timeStr}]</span>
-                <span style="color: ${senderColor}; font-weight: bold;">${msg.sender}:</span>
-                ${msg.text}
-            `;
+            // Replace newlines with <br> tags for proper rendering
+            const formattedText = msg.text.replace(/\n/g, '<br>');
+
+            messageElement.innerHTML = `<span style="color: #aaa;">[${timeStr}]</span> <span style="color: ${senderColor}; font-weight: bold;">${msg.sender}:</span> ${formattedText}`;
 
             this.messageDisplay.appendChild(messageElement);
         });

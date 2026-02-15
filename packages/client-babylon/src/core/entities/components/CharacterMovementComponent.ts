@@ -13,13 +13,22 @@ export class CharacterMovementComponent extends Component {
     private isGrounded: boolean = false;
     private inputManager: InputManager;
     private cameraYRotation: number = 0; // Camera's Y rotation for movement direction
+    private cameraPitch: number = 0; // Camera's X rotation (up/down) for noclip
     private scene: Scene | null = null;
+    private isNoClipEnabled: boolean = false;
+    private noclipSpeed: number = 15.0; // Faster movement in noclip mode
 
     constructor(moveSpeed: number = 6.5, jumpHeight: number = 8.0) {
         super();
         this.moveSpeed = moveSpeed;
         this.jumpHeight = jumpHeight;
         this.inputManager = InputManager.getInstance();
+
+        // Listen for noclip toggle events
+        document.addEventListener('noclip_toggle', ((event: CustomEvent) => {
+            this.isNoClipEnabled = event.detail.enabled;
+            console.log('[CharacterMovementComponent] Noclip', this.isNoClipEnabled ? 'enabled' : 'disabled');
+        }) as EventListener);
     }
 
     public onAttach(entity: any): void {
@@ -46,6 +55,12 @@ export class CharacterMovementComponent extends Component {
         const body = physicsComponent.getBody();
         if (!body) {
             console.warn('CharacterMovementComponent: physics BODY is NULL (aggregate may not be created yet)');
+            return;
+        }
+
+        // If noclip is enabled, use noclip movement instead
+        if (this.isNoClipEnabled) {
+            this.updateNoClipMovement(deltaTime);
             return;
         }
 
@@ -112,6 +127,106 @@ export class CharacterMovementComponent extends Component {
     }
 
     /**
+     * Update movement in noclip mode (fly in camera direction, no collision)
+     */
+    private updateNoClipMovement(deltaTime: number): void {
+        if (!this.entity) return;
+
+        // Debug: log deltaTime to see what we're getting
+        if (Math.random() < 0.1) {
+            console.log('[NoClip] deltaTime:', deltaTime, 'type:', typeof deltaTime);
+        }
+
+        // Safety check: deltaTime should be reasonable (less than 1 second per frame)
+        if (deltaTime > 1.0 || deltaTime <= 0 || !isFinite(deltaTime)) {
+            console.warn('[NoClip] Invalid deltaTime:', deltaTime);
+            return;
+        }
+
+        // Get movement input
+        const input = this.inputManager.getMovementInput();
+        const jumpPressed = this.inputManager.isJumpPressed();
+
+        // Debug: log movement input
+        if (input.x !== 0 || input.z !== 0 || jumpPressed) {
+            console.log('[NoClip] Movement input:', input, 'jump:', jumpPressed);
+        }
+
+        // Calculate camera-relative forward direction (includes pitch for up/down)
+        const forward = new Vector3(
+            Math.sin(this.cameraYRotation) * Math.cos(this.cameraPitch),
+            -Math.sin(this.cameraPitch),
+            Math.cos(this.cameraYRotation) * Math.cos(this.cameraPitch)
+        );
+
+        // Calculate right direction (always horizontal)
+        const right = new Vector3(
+            Math.cos(this.cameraYRotation),
+            0,
+            -Math.sin(this.cameraYRotation)
+        );
+
+        // Up direction (always vertical)
+        const up = new Vector3(0, 1, 0);
+
+        // Combine forward/backward and left/right movement
+        let moveDirection = forward.scale(input.z).add(right.scale(input.x));
+
+        // Add vertical movement (jump = up, crouch = down if implemented)
+        if (jumpPressed) {
+            moveDirection = moveDirection.add(up.scale(1.0));
+        }
+
+        // Normalize if there's movement
+        if (moveDirection.length() > 0) {
+            moveDirection.normalize();
+        }
+
+        // Get current position
+        const currentPosition = 'getPosition' in this.entity && typeof (this.entity as any).getPosition === 'function'
+            ? (this.entity as any).getPosition()
+            : this.entity.getTransformNode().getAbsolutePosition();
+
+        // Safety check: ensure position is valid
+        if (!isFinite(currentPosition.x) || !isFinite(currentPosition.y) || !isFinite(currentPosition.z)) {
+            console.error('[NoClip] Invalid current position detected, resetting to origin');
+            const resetPos = new Vector3(0, 2, 0);
+            if ('setPosition' in this.entity && typeof (this.entity as any).setPosition === 'function') {
+                (this.entity as any).setPosition(resetPos);
+            }
+            return;
+        }
+
+        // Calculate movement delta
+        const movementDelta = moveDirection.scale(this.noclipSpeed * deltaTime);
+
+        // Create new position (avoid mutation)
+        const newPosition = new Vector3(
+            currentPosition.x + movementDelta.x,
+            currentPosition.y + movementDelta.y,
+            currentPosition.z + movementDelta.z
+        );
+
+        // Safety check: ensure new position is valid
+        if (!isFinite(newPosition.x) || !isFinite(newPosition.y) || !isFinite(newPosition.z)) {
+            console.error('[NoClip] Invalid new position calculated:', newPosition);
+            return;
+        }
+
+        // In noclip mode, directly update mesh position without touching physics
+        // This avoids feedback loops with the physics system
+        const physicsComponent = this.entity.getComponent<PhysicsComponent>('physics');
+        if (physicsComponent && physicsComponent.getBody()) {
+            const body = physicsComponent.getBody()!;
+
+            // Directly set the physics body position and zero velocity
+            body.setTargetTransform(newPosition, body.transformNode.rotationQuaternion!);
+            body.setLinearVelocity(Vector3.Zero());
+            body.setAngularVelocity(Vector3.Zero());
+        }
+    }
+
+    /**
      * Update grounded state using simple height + velocity check
      * Character is grounded if close to ground level and not moving upward
      */
@@ -174,6 +289,13 @@ export class CharacterMovementComponent extends Component {
      */
     public setCameraRotation(yRotation: number): void {
         this.cameraYRotation = yRotation;
+    }
+
+    /**
+     * Set camera pitch (X rotation) for noclip flying
+     */
+    public setCameraPitch(pitch: number): void {
+        this.cameraPitch = pitch;
     }
 
     /**

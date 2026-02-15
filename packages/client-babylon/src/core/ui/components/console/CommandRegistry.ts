@@ -32,16 +32,16 @@ export class CommandRegistry {
       console.warn(`Command "${commandName}" is already registered. Overwriting...`);
     }
     this.commands.set(commandName, command);
-    console.log(`Registered command: $${commandName}`);
+    console.log(`Registered command: /${commandName}`);
   }
 
   /**
    * Executes a command by name
-   * @param commandStr The full command string (with $ prefix and args)
+   * @param commandStr The full command string (with / prefix and args)
    * @returns Result message or error message
    */
   public async executeCommand(commandStr: string): Promise<string> {
-    // Remove $ prefix and split into command and args
+    // Remove / prefix and split into command and args
     const input = commandStr.substring(1).trim();
     const parts = input.split(/\s+/);
     const commandName = parts[0].toLowerCase();
@@ -49,7 +49,7 @@ export class CommandRegistry {
 
     const command = this.commands.get(commandName);
     if (!command) {
-      return `Unknown command: $${commandName}. Type $help for available commands.`;
+      return `Unknown command: /${commandName}. Type /help for available commands.`;
     }
 
     try {
@@ -57,17 +57,17 @@ export class CommandRegistry {
       return result;
     } catch (error) {
       console.error(`Error executing command ${commandName}:`, error);
-      return `Error executing $${commandName}: ${error instanceof Error ? error.message : String(error)}`;
+      return `Error executing /${commandName}: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
 
   /**
-   * Checks if a string is a command (starts with $)
+   * Checks if a string is a command (starts with /)
    * @param text The text to check
    * @returns True if the text appears to be a command
    */
   public isCommand(text: string): boolean {
-    return text.startsWith('$');
+    return text.startsWith('/');
   }
 
   /**

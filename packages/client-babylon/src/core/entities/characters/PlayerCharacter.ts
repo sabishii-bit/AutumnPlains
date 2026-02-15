@@ -53,8 +53,60 @@ export class PlayerCharacter extends Entity {
         // Add movement component
         this.movementComponent = this.addComponent('movement', new CharacterMovementComponent(6.5, 8.0));
 
+        // Listen for noclip toggle events to disable/enable physics
+        document.addEventListener('noclip_toggle', ((event: CustomEvent) => {
+            const enabled = event.detail.enabled;
+            if (enabled) {
+                // Disable physics collisions
+                this.disablePhysicsCollision();
+            } else {
+                // Re-enable physics collisions
+                this.enablePhysicsCollision();
+            }
+        }) as EventListener);
+
         console.log('PlayerCharacter created at position:', position);
         console.log('PlayerCharacter actual mesh position:', mesh?.position);
+    }
+
+    /**
+     * Disable physics collision (for noclip mode)
+     */
+    private disablePhysicsCollision(): void {
+        const body = this.physicsComponent.getBody();
+        if (body) {
+            // Disable the physics shape entirely to allow clipping through objects
+            body.shape!.filterMembershipMask = 0;
+            body.shape!.filterCollideMask = 0;
+
+            // Set gravity to zero in noclip mode
+            body.setGravityFactor(0);
+
+            // Disable prestep to prevent physics from updating position
+            body.disablePreStep = true;
+
+            console.log('[PlayerCharacter] Physics collision disabled (noclip enabled)');
+        }
+    }
+
+    /**
+     * Re-enable physics collision (exit noclip mode)
+     */
+    private enablePhysicsCollision(): void {
+        const body = this.physicsComponent.getBody();
+        if (body) {
+            // Re-enable the physics shape for normal collision
+            body.shape!.filterMembershipMask = 1;
+            body.shape!.filterCollideMask = 1;
+
+            // Restore gravity
+            body.setGravityFactor(1);
+
+            // Re-enable prestep
+            body.disablePreStep = false;
+
+            console.log('[PlayerCharacter] Physics collision re-enabled (noclip disabled)');
+        }
     }
 
     /**

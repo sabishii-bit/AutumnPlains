@@ -1,6 +1,6 @@
 export interface ConsoleCommand {
   /**
-   * The command name without the $ prefix (case-insensitive)
+   * The command name without the / prefix (case-insensitive)
    */
   readonly name: string;
 
