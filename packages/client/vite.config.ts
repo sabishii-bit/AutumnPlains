@@ -1,60 +1,31 @@
 import { defineConfig } from 'vite';
-import { resolve } from 'path';
+import path from 'path';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig({
   plugins: [
     nodePolyfills({
-      include: ['buffer', 'process'],
+      // Enable polyfills for these Node.js built-ins
+      include: ['buffer', 'process', 'util', 'stream', 'events'],
       globals: {
         Buffer: true,
         global: true,
-        process: true,
+        process: true
       }
     })
   ],
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src'),
-      'ammojs3': resolve(__dirname, 'node_modules/ammojs3/dist/ammo.js')
-    },
+  server: {
+    port: 3000,
+    host: true
   },
-  assetsInclude: [
-    '**/*.gltf',
-    '**/*.bin',
-    '**/*.jpeg',
-    '**/*.jpg',
-    '**/*.png',
-    '**/*.obj',
-    '**/*.mtl',
-  ],
   build: {
-    outDir: 'dist',
+    target: 'esnext',
     minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-      },
-    },
-    rollupOptions: {
-      external: ['fs', 'path'],
-      output: {
-        manualChunks: {
-          ammo: ['ammojs3']
-        }
-      }
-    },
-    commonjsOptions: {
-      transformMixedEsModules: true,
-      include: [/ammojs3/, /node_modules/]
-    },
+    sourcemap: true
   },
-  publicDir: 'public',
   optimizeDeps: {
-    esbuildOptions: {
-      define: {
-        global: 'globalThis'
-      }
-    }
-  }
+    exclude: ['@babylonjs/havok']
+  },
+  // Serve assets from the @autumnplains/assets package
+  publicDir: path.resolve(__dirname, '../assets/public')
 });

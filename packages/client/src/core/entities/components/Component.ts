@@ -1,105 +1,50 @@
-import GameObject from '../objects/GameObject';
+import type { Entity } from '../Entity';
 
 /**
- * Base interface for all components
- * Components are composable pieces of functionality that can be attached to GameObjects
+ * Base component interface for ECS architecture
+ * Components contain data and behavior that can be attached to entities
  */
-export interface Component {
+export interface IComponent {
     /**
-     * Initialize the component with a reference to the owning GameObject
-     * @param owner The GameObject that owns this component
+     * Called when the component is added to an entity
      */
-    initialize(owner: GameObject): void;
+    onAttach(entity: Entity): void;
 
     /**
-     * Update the component each frame
-     * @param deltaTime Time elapsed since last frame in seconds
+     * Called every frame to update component logic
      */
-    update?(deltaTime: number): void;
+    onUpdate(deltaTime: number): void;
 
     /**
-     * Clean up resources when component is removed
+     * Called when the component is removed from an entity
      */
-    cleanup?(): void;
+    onDetach(): void;
+
+    /**
+     * Get the entity this component is attached to
+     */
+    getEntity(): Entity | null;
 }
 
 /**
- * Component manager for GameObject
- * Handles adding, removing, and updating components
+ * Abstract base class for components
  */
-export class ComponentManager {
-    private components: Map<string, Component> = new Map();
-    private owner: GameObject;
+export abstract class Component implements IComponent {
+    protected entity: Entity | null = null;
 
-    constructor(owner: GameObject) {
-        this.owner = owner;
+    public onAttach(entity: Entity): void {
+        this.entity = entity;
     }
 
-    /**
-     * Add a component to the GameObject
-     * @param name Unique identifier for the component
-     * @param component Component instance to add
-     */
-    public addComponent(name: string, component: Component): void {
-        if (this.components.has(name)) {
-            console.warn(`Component ${name} already exists on this GameObject`);
-            return;
-        }
-
-        component.initialize(this.owner);
-        this.components.set(name, component);
+    public onUpdate(deltaTime: number): void {
+        // Override in derived classes
     }
 
-    /**
-     * Get a component by name
-     * @param name Component identifier
-     * @returns Component instance or undefined
-     */
-    public getComponent<T extends Component>(name: string): T | undefined {
-        return this.components.get(name) as T | undefined;
+    public onDetach(): void {
+        this.entity = null;
     }
 
-    /**
-     * Check if a component exists
-     * @param name Component identifier
-     */
-    public hasComponent(name: string): boolean {
-        return this.components.has(name);
-    }
-
-    /**
-     * Remove a component
-     * @param name Component identifier
-     */
-    public removeComponent(name: string): void {
-        const component = this.components.get(name);
-        if (component && component.cleanup) {
-            component.cleanup();
-        }
-        this.components.delete(name);
-    }
-
-    /**
-     * Update all components
-     * @param deltaTime Time elapsed since last frame
-     */
-    public updateAll(deltaTime: number): void {
-        for (const component of this.components.values()) {
-            if (component.update) {
-                component.update(deltaTime);
-            }
-        }
-    }
-
-    /**
-     * Clean up all components
-     */
-    public cleanupAll(): void {
-        for (const component of this.components.values()) {
-            if (component.cleanup) {
-                component.cleanup();
-            }
-        }
-        this.components.clear();
+    public getEntity(): Entity | null {
+        return this.entity;
     }
 }

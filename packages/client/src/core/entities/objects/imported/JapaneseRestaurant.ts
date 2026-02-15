@@ -8,7 +8,7 @@ import { getModelPath } from '@autumnplains/assets';
  */
 export class JapaneseRestaurant extends ImportedModel {
     constructor(scene: Scene, position: Vector3, options: Partial<ImportedModelOptions> = {}) {
-        const modelPath = getModelPath('japanese_restaurant/scene.gltf');
+        const modelPath = getModelPath('environment/japanese_restaurant/scene.gltf');
 
         super(scene, modelPath, {
             position,

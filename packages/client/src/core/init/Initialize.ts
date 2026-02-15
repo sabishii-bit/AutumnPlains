@@ -1,140 +1,236 @@
-import * as THREE from 'three';
-import { EngineClock } from '../engine/clock/EngineClock';
-import { Renderer } from '../engine/render/Renderer';
-import { PlayerCamera } from '../camera/PlayerCamera';
-import { TestMap } from '../maps/TestMap';
-import { SceneContext } from '../global/scene/SceneContext';
-import { WorldContext } from '../global/world/WorldContext';
-import { PlayerCharacter } from '../entities/objects/characters/PlayerCharacter';
+import { Engine } from '../engine/Engine';
+import { EntityManager } from '../entities/EntityManager';
+import { CameraController } from '../camera/CameraController';
+import { InputManager } from '../controls/InputManager';
 import { ControllerManager } from '../controls/ControllerManager';
-import { GameObjectManager } from '../entities/GameObjectManager';
-import { ParticleSystemManager } from '../effects/ParticleSystemManager';
-import { HUDManager } from '../ui/HUDManager';
-import StateManager from '../entities/objects/characters/character_state/StateManager';
-import { ProjectileManager } from '../entities/objects/projectiles/ProjectileManager';
-import { PhysicsSystem } from '../physics/PhysicsSystem';
-import { PhysicsMaterialsManager } from '../physics/PhysicsMaterialsManager';
-import { NetworkManager } from '../services/netcode/NetworkManager';
+import { LightingManager } from '../lighting/LightingManager';
+import { PostProcessManager } from '../effects/PostProcessManager';
+import { PlayerCharacter } from '../entities/characters/PlayerCharacter';
+import { TestMap } from '../maps/TestMap';
+import { NetworkManager } from '../networking/NetworkManager';
+import { NetworkPlayerManager } from '../networking/NetworkPlayerManager';
+import { WebRTCManager } from '../networking/WebRTCManager';
+import { ProjectileManager } from '../entities/projectiles/ProjectileManager';
+import { ParticleEffectManager } from '../effects/particles/ParticleEffectManager';
+import { WeatherManager } from '../effects/weather/WeatherManager';
+import { Vector3 } from '@babylonjs/core';
+import type { MeshComponent } from '../entities/components/MeshComponent';
+import { ToggleChatCommand } from '../controls/commands/chat/ToggleChatCommand';
+import { FireProjectileCommand } from '../controls/commands/FireProjectileCommand';
 
-export default class Initialize {
-    private scene!: THREE.Scene;
-    private renderer!: Renderer;
-    private camera!: PlayerCamera;
-    private map!: TestMap;
-    private world!: any; // Ammo.btDiscreteDynamicsWorld
-    private engineClock!: EngineClock;
-    private player!: PlayerCharacter;
-    private controls!: ControllerManager;
-    private gameObjectManager!: GameObjectManager;
-    private particleSystemManager!: ParticleSystemManager;
-    private uiManager!: HUDManager;  // Declare UIManager
-    private projectileManager!: ProjectileManager; // Declare ProjectileManager
-    private physicsSystem!: PhysicsSystem; // Physics system
-    private physicsMaterialsManager!: PhysicsMaterialsManager; // Physics materials manager
+/**
+ * Initialize class - handles all game initialization in proper order
+ * Separates initialization logic from Engine class
+ */
+export class Initialize {
+    private engine!: Engine;
+    private entityManager!: EntityManager;
+    private cameraController!: CameraController;
+    private inputManager!: InputManager;
+    private controllerManager!: ControllerManager;
+    private lightingManager!: LightingManager;
+    private postProcessManager!: PostProcessManager;
     private networkManager!: NetworkManager;
+    private networkPlayerManager!: NetworkPlayerManager;
+    private projectileManager!: ProjectileManager;
+    private particleEffectManager!: ParticleEffectManager;
+    private weatherManager!: WeatherManager;
+    private player!: PlayerCharacter;
+    private map!: TestMap;
 
-    constructor() {
-        // NOTE: Nothing may be called before the init() function has ran.
-        this.init();
+    constructor(canvas: HTMLCanvasElement) {
+        this.init(canvas);
     }
 
-    private async init() {
+    /**
+     * Initialize all game systems in the correct order
+     */
+    private async init(canvas: HTMLCanvasElement): Promise<void> {
         try {
-            // Initialize Ammo.js first and wait for it to complete
-            await WorldContext.initAmmo();
-            
-            // Create and initialize scene and render components
-            this.scene = SceneContext.getInstance();
-            this.renderer = Renderer.getInstance();
-            
-            // Initialize physics world after Ammo is ready
-            this.world = WorldContext.getInstance();
-            
-            // Initialize physics materials (must be after Ammo is initialized)
-            this.physicsMaterialsManager = PhysicsMaterialsManager.getInstance();
-            
-            // Initialize physics system next
-            this.physicsSystem = PhysicsSystem.getInstance(false);
-            
-            // Then initialize the game clock
-            this.engineClock = EngineClock.getInstance();
-            this.engineClock.start(); // Start the clock
-            
-            // Initialize state system
-            StateManager.registerStates();
-            
-            // Now initialize all managers
-            this.gameObjectManager = GameObjectManager.getInstance();
-            this.particleSystemManager = new ParticleSystemManager();
+            console.log('Starting game initialization...');
+
+            // 1. Create and initialize the engine
+            this.engine = new Engine(canvas);
+            await this.engine.initialize();
+
+            // 2. Get initialized systems from engine
+            this.entityManager = this.engine.getEntityManager();
+            this.cameraController = this.engine.getCameraController();
+            this.inputManager = this.engine.getInputManager();
+            this.lightingManager = this.engine.getLightingManager();
+            this.postProcessManager = this.engine.getPostProcessManager();
+
+            // 3. Load map first to get spawn point
+            this.map = new TestMap(this.engine.getScene(), this.lightingManager);
+            await this.map.initialize();
+
+            // 4. Create player at map's spawn point
+            this.player = new PlayerCharacter(
+                this.engine.getScene(),
+                this.map.getSpawnPoint()
+            );
+            this.cameraController.setPlayerEntity(this.player);
+
+            // Add player shadows
+            const meshComponent = this.player.getComponent<MeshComponent>('mesh');
+            const playerMesh = meshComponent?.getMesh();
+            if (playerMesh) {
+                this.lightingManager.addShadowCaster(playerMesh);
+            }
+
+            // 5. Initialize projectile and particle systems
             this.projectileManager = ProjectileManager.getInstance();
-            
-            // Initialize UI components
-            this.uiManager = new HUDManager();
-            
-            // Finally, initialize player and map components
-            this.player = PlayerCharacter.getInstance(new THREE.Vector3(0, 2, 18));
-            this.camera = PlayerCamera.getInstance();
-            this.controls = ControllerManager.getInstance(document.body);
-            this.map = new TestMap(this.renderer);
-            
-            // Connect to the game server
+            this.projectileManager.initialize(this.engine.getScene());
+
+            this.particleEffectManager = ParticleEffectManager.getInstance();
+            this.particleEffectManager.initialize(this.engine.getScene());
+
+            this.weatherManager = WeatherManager.getInstance();
+            this.weatherManager.initialize(this.engine.getScene());
+
+            // 6. Set up input controls
+            this.controllerManager = new ControllerManager(this.player);
+
+            // Register chat toggle command (doesn't need player reference)
+            const toggleChatCommand = new ToggleChatCommand(this.inputManager.getKeyStates());
+            this.inputManager.registerCommand(toggleChatCommand);
+
+            // Register fire projectile command (Middle mouse button)
+            const fireProjectileCommand = new FireProjectileCommand(
+                ['MouseMiddle'],
+                this.inputManager.getKeyStates(),
+                this.cameraController
+            );
+            this.inputManager.registerCommand(fireProjectileCommand);
+
+            // Set camera for mobile input manager (for direct rotation control)
+            const mobileInputManager = this.inputManager.getMobileInputManager();
+            mobileInputManager.setCamera(this.cameraController.getCamera());
+
+            // 7. Set up networking
             this.networkManager = NetworkManager.getInstance();
-            this.networkManager.connectToServer()
-                .then(() => {
-                    // Initialize player synchronization after connected
-                    this.initializeNetworkSync();
-                })
-                .catch((err: Error) => {
-                    console.error('Network connection error during initialization:', err);
-                });
-            
-            this.animate();
-            
-        } catch (error: unknown) {
-            console.error("Error during initialization:", error);
+            this.networkManager.initializePlayerSync(this.player, this.cameraController);
+
+            // Initialize WebRTC manager for peer-to-peer connections
+            const webrtcManager = WebRTCManager.getInstance();
+            webrtcManager.initialize();
+
+            // Initialize network player manager
+            this.networkPlayerManager = NetworkPlayerManager.getInstance();
+            this.networkPlayerManager.initialize(this.engine.getScene());
+
+            await this.connectToServer();
+
+            // 8. Set up UI callbacks
+            this.setupUICallbacks();
+
+            // 9. Start update loop
+            this.startUpdateLoop();
+
+            // 10. Enable pointer lock now that everything is loaded
+            this.cameraController.setReady(true);
+
+            console.log('Game initialization complete!');
+
+        } catch (error) {
+            console.error('Error during initialization:', error);
+            throw error;
         }
     }
 
     /**
-     * Initialize network synchronization after player is ready
+     * Connect to game server
      */
-    private initializeNetworkSync(): void {
-        // Initialize player network synchronization
-        if (this.player) {
-            console.log('Setting up player network synchronization');
-            console.log('Initial player position:', this.player.getPosition());
-            
-            this.networkManager.initializePlayerSync(this.player);
-            
-            // Set player sync parameters - use higher rate for testing
-            this.networkManager.setPlayerSyncInterval(50); // 50ms = 20 updates per second for testing
-            this.networkManager.setPositionSyncThreshold(0.01); // Lower threshold to send more updates
-            
-            // Force an immediate position update (without waiting)
-            console.log('Forcing immediate position sync');
-            const playerSync = this.networkManager.getPlayerSynchronizer();
-            if (playerSync) {
-                playerSync.forceSendUpdate();
-            }
-        } else {
-            console.error('Cannot initialize network sync: player is not initialized');
+    private async connectToServer(): Promise<void> {
+        try {
+            console.log('Connecting to game server...');
+            await this.networkManager.connectToServer();
+            console.log('Connected to game server');
+        } catch (error) {
+            console.warn('Failed to connect to server:', error);
+            // Don't throw - allow game to continue in offline mode
         }
     }
 
-    private animate = () => {
-        requestAnimationFrame(this.animate);
-        const frameDeltaTime = this.engineClock.getFrameDeltaTime();
-        
-        // Update physics using the physics system
-        this.physicsSystem.update(this.engineClock.getFixedTimeStep());
-        
-        this.map.update(frameDeltaTime);
-        this.gameObjectManager.updateGameObjects(frameDeltaTime);
-        this.particleSystemManager.update(frameDeltaTime);
-        this.uiManager.updateUI(frameDeltaTime);  // Update UI components
-        this.projectileManager.update(frameDeltaTime); // Update ProjectileManager
-        this.camera.update(frameDeltaTime);
-        this.controls.update(frameDeltaTime);
-        this.renderer.getRenderer().render(this.scene, this.camera.getCamera());
+    /**
+     * Setup UI callbacks to display player/camera data
+     */
+    private setupUICallbacks(): void {
+        const debugInfo = this.engine.getUIManager().getDebugInfo();
+
+        // Set player position callback
+        debugInfo.setPlayerPositionCallback(() => {
+            return this.player.getPosition();
+        });
+
+        // Set player velocity callback
+        debugInfo.setPlayerVelocityCallback(() => {
+            const movementComponent = this.player.getMovementComponent();
+            if (movementComponent) {
+                return movementComponent.getVelocity();
+            }
+            return new Vector3(0, 0, 0);
+        });
+
+        // Set camera rotation callback
+        debugInfo.setCameraRotationCallback(() => {
+            return this.cameraController.getRotation();
+        });
+    }
+
+    /**
+     * Start the main update loop
+     */
+    private startUpdateLoop(): void {
+        // Engine handles its own render loop
+        // Add map update, player update, and camera rotation sync
+        this.engine.addUpdateCallback((deltaTime) => {
+            // Update player movement direction based on camera rotation
+            const movementComponent = this.player.getMovementComponent();
+            if (movementComponent) {
+                const cameraRotation = this.cameraController.getRotation();
+                movementComponent.setCameraRotation(cameraRotation.y);
+                movementComponent.setCameraPitch(cameraRotation.x); // For noclip flying
+            }
+
+            // Update player (physics, movement, etc.)
+            this.player.update(deltaTime);
+
+            // Update map
+            this.map.update(deltaTime);
+
+            // Update projectiles
+            this.projectileManager.update(deltaTime);
+
+            // Update particle effects
+            this.particleEffectManager.update(deltaTime);
+
+            // Update weather effects
+            this.weatherManager.update(deltaTime, this.player.getPosition());
+
+            // Update network players
+            this.networkPlayerManager.update(deltaTime);
+        });
+    }
+
+    /**
+     * Get the engine instance
+     */
+    public getEngine(): Engine {
+        return this.engine;
+    }
+
+    /**
+     * Get the player instance
+     */
+    public getPlayer(): PlayerCharacter {
+        return this.player;
+    }
+
+    /**
+     * Get the current map
+     */
+    public getMap(): TestMap {
+        return this.map;
     }
 }

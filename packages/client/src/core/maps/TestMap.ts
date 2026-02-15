@@ -1,49 +1,108 @@
-import { GroundEnvironment } from '../entities/objects/environment/ground/GroundEnvironment';
-import { LightingEffect } from '../effects/lighting/LightingEffect';
-import { SkyboxEnvironment } from '../entities/objects/environment/skybox/SkyboxEnvironment';
-import { Renderer } from '../engine/render/Renderer';
-import { JapaneseRestaurant } from '../entities/objects/imported/japanese_restaurant/JapaneseRestaurant';
-import * as THREE from 'three';
-import { GameObjectManager } from '../entities/GameObjectManager';
-import { BloomEffect } from '../effects/bloom/BloomEffect';
-import { RainWeatherEffect } from '../effects/weather/RainWeatherEffect';
-import { CloudWeatherEffect } from '../effects/weather/CloudWeatherEffect';
-import { FogWeatherEffect } from '../effects/weather/FogWeatherEffect';
-import { CubeProp } from '../entities/objects/props/cube/CubeProp';
-import { WallEnvironment } from '../entities/objects/environment/wall/WallEnvironment';
-import { OutskirtStand } from '../entities/objects/imported/outskirt_stand/outskirt_stand';
+import { Scene, Color3, Vector3 } from '@babylonjs/core';
+import { BaseMap } from './BaseMap';
+import { Ground } from '../entities/objects/Ground';
+import { OutskirtStand } from '../entities/objects/imported/OutskirtStand';
+import { WeatherManager } from '../effects/weather/WeatherManager';
+import type { LightingManager } from '../lighting/LightingManager';
 
-export class TestMap {
-    private lighting: LightingEffect;
-    private bloom: BloomEffect;
-    private gameObjectManager: GameObjectManager;
-    private rain: RainWeatherEffect;
-    private fog: FogWeatherEffect;
-    private clouds: CloudWeatherEffect;
+/**
+ * Test map with ground, walls, and basic environment
+ */
+export class TestMap extends BaseMap {
+    private ground!: Ground;
+    private stand?: OutskirtStand;
 
-    constructor(renderer: Renderer) {
-        this.gameObjectManager = GameObjectManager.getInstance();
-        this.lighting = new LightingEffect();
-        this.bloom = new BloomEffect();
-        this.clouds = new CloudWeatherEffect();
-        this.rain = new RainWeatherEffect();
-        this.fog = new FogWeatherEffect();
-        
-        // Create ground at Y=0 for proper physics collision
-        new GroundEnvironment(new THREE.Vector3(0, 0, 0), false); // Make ground visible for debugging
-        new SkyboxEnvironment(new THREE.Vector3(0, 0, 0));
-        new OutskirtStand(new THREE.Vector3(0, 0, 5));
-        // Add a test cube to verify physics
-        new CubeProp(new THREE.Vector3(5, 15, 12));
-
-        // Add objects and effects to the scene
-        this.lighting.addToScene();
-
-        console.log("Test map initialized with ground plane");
+    constructor(scene: Scene, lightingManager: LightingManager) {
+        super(scene, lightingManager);
     }
 
-    update(deltaTime: number) {
-        // Implement any dynamic properties or interactions that need to occur each frame
+    public async initialize(): Promise<void> {
+        this.createGround();
+        this.setupWeather();
+        await this.loadImportedModels();
+        console.log('TestMap initialized');
     }
 
+    /**
+     * Setup weather effects (rain and fog)
+     */
+    private setupWeather(): void {
+        // Start rain with intense settings to match old client
+        // const weatherManager = WeatherManager.getInstance();
+        // weatherManager.createRain(Vector3.Zero(), 200, 80, 5000); // Much larger spread, higher emitter, intense particle count
+        // weatherManager.startRain();
+    }
+
+    /**
+     * Create ground using Ground entity
+     */
+    private createGround(): void {
+        // Create ground entity
+        this.ground = new Ground(
+            this.scene,
+            100, // width
+            100, // height
+            Vector3.Zero(), // position
+            new Color3(0.3, 0.5, 0.3) // green color
+        );
+
+        // Make ground invisible but keep physics and pickable for raycasting
+        const groundMesh = this.ground.getTransformNode().getChildMeshes()[0];
+        if (groundMesh) {
+            groundMesh.isVisible = false;
+            groundMesh.isPickable = true; // Ensure it's pickable for ground detection raycasts
+            this.lightingManager.enableShadowReceiver(groundMesh);
+        }
+    }
+
+
+    /**
+     * Load imported 3D models asynchronously
+     */
+    private async loadImportedModels(): Promise<void> {
+        try {
+            // Load Outskirt Stand at origin with smaller scale and no physics
+            this.stand = new OutskirtStand(
+                this.scene,
+                new Vector3(0, 1, 5), // Raised Y position to align floor with ground
+                {
+                    scale: new Vector3(0.2, 0.2, 0.2), // Much smaller scale
+                    enablePhysics: false // Disable collision
+                }
+            );
+            await this.stand.loadAsync();
+            console.log('Outskirt Stand loaded at position:', this.stand.getPosition());
+
+            // Enable shadow casting
+            let meshCount = 0;
+            this.stand.getRootNodes().forEach(node => {
+                node.getChildMeshes().forEach(mesh => {
+                    this.lightingManager.addShadowCaster(mesh);
+                    meshCount++;
+                });
+            });
+            console.log(`Outskirt Stand: ${meshCount} meshes loaded and configured for shadows`);
+        } catch (error) {
+            console.error('Failed to load imported models:', error);
+        }
+    }
+
+    public update(deltaTime: number): void {
+        // Update any dynamic map elements here
+    }
+
+    public dispose(): void {
+        // Clean up imported models
+        this.stand?.dispose();
+
+        // Clean up map-specific resources
+        console.log('TestMap disposed');
+    }
+
+    /**
+     * Get player spawn point
+     */
+    public getSpawnPoint(): Vector3 {
+        return new Vector3(0, 2, 0);
+    }
 }

@@ -8,7 +8,7 @@ import { getModelPath } from '@autumnplains/assets';
  */
 export class OutskirtStand extends ImportedModel {
     constructor(scene: Scene, position: Vector3, options: Partial<ImportedModelOptions> = {}) {
-        const modelPath = getModelPath('outskirt_stand/Outskirt_Stand.gltf');
+        const modelPath = getModelPath('environment/outskirt_stand/Outskirt_Stand.gltf');
 
         super(scene, modelPath, {
             position,

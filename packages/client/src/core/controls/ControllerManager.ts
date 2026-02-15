@@ -1,36 +1,58 @@
-import { DeviceDetectionService } from '../services/device/DeviceDetectionService';
-import { KeyboardControls } from './KeyboardControls';
-import { MobileControls } from './MobileControls';
-import { PlayerControls } from './PlayerControls';
+import { InputManager } from './InputManager';
+import { MoveForwardCommand } from './commands/MoveForwardCommand';
+import { MoveBackwardCommand } from './commands/MoveBackwardCommand';
+import { MoveLeftCommand } from './commands/MoveLeftCommand';
+import { MoveRightCommand } from './commands/MoveRightCommand';
+import { JumpCommand } from './commands/JumpCommand';
+import type { PlayerCharacter } from '../entities/characters/PlayerCharacter';
+import type { InputCommand } from './commands/InputCommand';
 
+/**
+ * Controller manager that sets up and manages input commands
+ * Centralizes command registration and configuration
+ */
 export class ControllerManager {
-    private static instance: ControllerManager;
-    private controls: PlayerControls;
+    private inputManager: InputManager;
+    private commands: InputCommand[] = [];
 
-    private constructor(domElement: HTMLElement) {
-        const deviceService = new DeviceDetectionService();
+    constructor(player: PlayerCharacter) {
+        this.inputManager = InputManager.getInstance();
 
-        if (deviceService.isMobile()) {
-            this.controls = new MobileControls();
-        } else if (deviceService.isDesktop()) {
-            this.controls = new KeyboardControls(domElement);
-        } else {
-            throw new Error("Unsupported device type");
+        // Get shared key states map
+        const keyStates = this.inputManager.getKeyStates();
+
+        // Register movement commands
+        this.registerCommand(new MoveForwardCommand(player, keyStates));
+        this.registerCommand(new MoveBackwardCommand(player, keyStates));
+        this.registerCommand(new MoveLeftCommand(player, keyStates));
+        this.registerCommand(new MoveRightCommand(player, keyStates));
+        this.registerCommand(new JumpCommand(player, keyStates));
+
+        console.log(`Registered ${this.commands.length} input commands`);
+    }
+
+    /**
+     * Register a command with the input manager
+     */
+    private registerCommand(command: InputCommand): void {
+        this.commands.push(command);
+        this.inputManager.registerCommand(command);
+    }
+
+    /**
+     * Unregister all commands
+     */
+    public dispose(): void {
+        for (const command of this.commands) {
+            this.inputManager.unregisterCommand(command);
         }
+        this.commands = [];
     }
 
-    public static getInstance(domElement: HTMLElement): ControllerManager {
-        if (!ControllerManager.instance) {
-            ControllerManager.instance = new ControllerManager(domElement);
-        }
-        return ControllerManager.instance;
-    }
-
-    public getControls(): PlayerControls {
-        return this.controls;
-    }
-
-    public update(deltaTime: number) {
-        this.controls.update(deltaTime);
+    /**
+     * Get all registered commands (for debugging)
+     */
+    public getCommands(): InputCommand[] {
+        return this.commands;
     }
 }
